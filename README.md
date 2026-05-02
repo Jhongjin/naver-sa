@@ -22,6 +22,8 @@ Implemented:
 - Markdown setup report export
 - internal dry-run preview API at `/api/plans/preview`
 - Naver Search Ad read-only readiness API at `/api/naver/readiness`
+- protected planning persistence API at `/api/plans/store`
+- Supabase planning/audit schema migration
 
 Planned stack:
 
