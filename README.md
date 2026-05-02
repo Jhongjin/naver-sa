@@ -25,6 +25,7 @@ Implemented:
 - protected planning persistence API at `/api/plans/store`
 - Supabase planning/audit schema migration
 - dry-run optimization recommendation engine
+- approved Naver execution payload JSON preview
 
 Planned stack:
 

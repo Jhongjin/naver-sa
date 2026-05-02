@@ -118,7 +118,7 @@ Positioning difference:
 
 Current MVP implementation status:
 
-- Implemented: setup planner, keyword expansion/classification, ad group draft, bid/budget guardrails, approval queue, CSV/Markdown export, dry-run optimization recommendations, Naver API readiness layer, Supabase planning/audit schema.
+- Implemented: setup planner, keyword expansion/classification, ad group draft, bid/budget guardrails, approval queue, CSV/Markdown export, dry-run optimization recommendations, Naver execution payload preview, Naver API readiness layer, Supabase planning/audit schema.
 - Partial: real performance sync and live bidding automation.
 - Planned: Naver account sync, performance-based bidding recommendations, authenticated audit UI, PDF/share-link reports, test-account execution worker.
 

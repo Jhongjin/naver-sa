@@ -26,6 +26,7 @@ import {
   type PlannerInput,
   type PlannerMode
 } from "@/lib/planner";
+import { createNaverExecutionDraft } from "@/lib/execution-draft";
 import {
   createApprovalCsv,
   createPlannerReport,
@@ -88,6 +89,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
   const plan = useMemo(() => generatePlannerPlan(input), [input]);
   const optimizationRecommendations = useMemo(() => generateOptimizationRecommendations(plan), [plan]);
+  const executionDraft = useMemo(
+    () => createNaverExecutionDraft(plan, approvalDecisions),
+    [approvalDecisions, plan]
+  );
   const approvalSummary = useMemo(
     () => summarizeApprovals(plan.stagedChanges, approvalDecisions),
     [approvalDecisions, plan.stagedChanges]
@@ -141,6 +146,14 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       createPlannerReport(plan, approvalDecisions),
       `${slugFileName(plan.input.brandName)}-setup-report.md`,
       "text/markdown;charset=utf-8"
+    );
+  }
+
+  function downloadExecutionDraft() {
+    downloadTextFile(
+      JSON.stringify(executionDraft, null, 2),
+      `${slugFileName(plan.input.brandName)}-naver-execution-draft.json`,
+      "application/json;charset=utf-8"
     );
   }
 
@@ -210,7 +223,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <Download size={17} />
               CSV
             </button>
-            <button className="icon-button primary" type="button">
+            <button className="icon-button primary" type="button" onClick={downloadExecutionDraft}>
               <Rocket size={17} />
               실행 초안 준비
             </button>
@@ -551,6 +564,48 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 {approvalSummary.pending}건입니다. 승인된 항목도 현재는 외부 전송 없이 초안 상태로만 유지됩니다.
               </p>
             </div>
+          </div>
+        </section>
+
+        <section className="execution-panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Naver Payload</p>
+              <h2>전송 직전 payload 초안</h2>
+            </div>
+            <button className="icon-button subtle" type="button" onClick={downloadExecutionDraft}>
+              <Download size={17} />
+              JSON
+            </button>
+          </div>
+          <div className="execution-grid">
+            <div>
+              <span>승인된 변경</span>
+              <strong>{executionDraft.approvedChangeCount}건</strong>
+            </div>
+            <div>
+              <span>생성된 payload</span>
+              <strong>{executionDraft.payloads.length}개</strong>
+            </div>
+            <div>
+              <span>안전 상태</span>
+              <strong>Live off / Delete off</strong>
+            </div>
+          </div>
+          <div className="payload-list">
+            {executionDraft.payloads.length === 0 ? (
+              <p>승인된 항목이 없어서 아직 Naver 전송 payload는 생성되지 않았습니다.</p>
+            ) : (
+              executionDraft.payloads.map((payload) => (
+                <div className="payload-item" key={payload.id}>
+                  <strong>{payload.target}</strong>
+                  <span>
+                    {payload.method} {payload.uri}
+                  </span>
+                  <em>{payload.entityType}</em>
+                </div>
+              ))
+            )}
           </div>
         </section>
 

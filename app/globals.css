@@ -303,6 +303,7 @@ h3 {
 .policy-panel,
 .metric-card,
 .report-panel,
+.execution-panel,
 .benchmark-panel {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -315,6 +316,7 @@ h3 {
 .adgroup-panel,
 .policy-panel,
 .report-panel,
+.execution-panel,
 .benchmark-panel {
   padding: 18px;
 }
@@ -757,6 +759,67 @@ td span {
   margin-top: 16px;
 }
 
+.execution-panel {
+  margin-top: 16px;
+}
+
+.execution-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.execution-grid div,
+.payload-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  padding: 12px;
+}
+
+.execution-grid span,
+.execution-grid strong,
+.payload-item strong,
+.payload-item span,
+.payload-item em {
+  display: block;
+}
+
+.execution-grid span,
+.payload-item span,
+.payload-list p {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.execution-grid strong {
+  margin-top: 8px;
+}
+
+.payload-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.payload-list p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.payload-item span {
+  margin-top: 6px;
+}
+
+.payload-item em {
+  margin-top: 8px;
+  color: var(--violet);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
 .report-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -820,6 +883,8 @@ td span {
   .approval-grid,
   .forecast-band,
   .report-grid,
+  .execution-grid,
+  .payload-list,
   .benchmark-grid {
     grid-template-columns: 1fr;
   }
