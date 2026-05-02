@@ -563,6 +563,7 @@ td span {
 
 .adgroup-list,
 .change-list,
+.optimization-list,
 .rule-list {
   display: flex;
   flex-direction: column;
@@ -571,6 +572,7 @@ td span {
 
 .adgroup-item,
 .change-item,
+.optimization-item,
 .rule-item,
 .feature-card {
   border: 1px solid var(--line);
@@ -590,13 +592,18 @@ td span {
 .adgroup-item p,
 .rule-item strong,
 .rule-item span,
-.rule-item em {
+.rule-item em,
+.optimization-item strong,
+.optimization-item span,
+.optimization-item em {
   display: block;
 }
 
 .adgroup-item span,
 .adgroup-item p,
 .change-item p,
+.optimization-item p,
+.optimization-item span,
 .rule-item p,
 .rule-item span,
 .feature-card p,
@@ -701,6 +708,33 @@ td span {
 
 .rule-item p {
   margin: 6px 0;
+}
+
+.optimization-list {
+  margin-bottom: 12px;
+}
+
+.optimization-item > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.optimization-item p {
+  margin: 8px 0 6px;
+}
+
+.optimization-item span:not(.status-pill) {
+  color: var(--ink);
+}
+
+.optimization-item em {
+  margin-top: 8px;
+  color: var(--violet);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
 }
 
 .rule-item span {

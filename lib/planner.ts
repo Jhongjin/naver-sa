@@ -575,8 +575,8 @@ function buildBenchmarkFeatures(): BenchmarkFeature[] {
     },
     {
       name: "운영 자동화 추천",
-      status: "partial",
-      description: "성과 데이터 동기화 전까지는 규칙 기반 추천이며, 실제 bid 자동화는 다음 단계입니다."
+      status: "implemented",
+      description: "dry-run 최적화 엔진으로 bid 조정, pause 후보, 예산 가드레일 추천을 생성합니다."
     },
     {
       name: "리포트/공유",

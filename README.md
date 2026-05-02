@@ -24,6 +24,7 @@ Implemented:
 - Naver Search Ad read-only readiness API at `/api/naver/readiness`
 - protected planning persistence API at `/api/plans/store`
 - Supabase planning/audit schema migration
+- dry-run optimization recommendation engine
 
 Planned stack:
 

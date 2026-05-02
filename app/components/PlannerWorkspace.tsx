@@ -33,6 +33,7 @@ import {
   type ApprovalDecision,
   type ApprovalDecisionMap
 } from "@/lib/reporting";
+import { generateOptimizationRecommendations, type OptimizationSeverity } from "@/lib/optimization";
 
 type PlannerWorkspaceProps = {
   initialInput: PlannerInput;
@@ -86,6 +87,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   );
 
   const plan = useMemo(() => generatePlannerPlan(input), [input]);
+  const optimizationRecommendations = useMemo(() => generateOptimizationRecommendations(plan), [plan]);
   const approvalSummary = useMemo(
     () => summarizeApprovals(plan.stagedChanges, approvalDecisions),
     [approvalDecisions, plan.stagedChanges]
@@ -487,6 +489,21 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 <h2>운영 자동화 추천</h2>
               </div>
             </div>
+            <div className="optimization-list">
+              {optimizationRecommendations.map((item) => (
+                <div className="optimization-item" key={item.id}>
+                  <div>
+                    <span className={`status-pill ${severityClass(item.severity)}`}>{severityLabel(item.severity)}</span>
+                    <strong>{item.entity}</strong>
+                  </div>
+                  <p>{item.trigger}</p>
+                  <span>{item.recommendation}</span>
+                  <em>
+                    {item.scope} / {item.automationLevel} / {item.expectedImpact}
+                  </em>
+                </div>
+              ))}
+            </div>
             <div className="rule-list">
               {plan.operationRules.map((rule) => (
                 <div className="rule-item" key={rule.name}>
@@ -601,6 +618,14 @@ function statusClass(status: KeywordStatus): string {
 
 function riskClass(risk: ChangeRisk): string {
   return risk === "low" ? "green" : risk === "medium" ? "amber" : "rose";
+}
+
+function severityClass(severity: OptimizationSeverity): string {
+  return severity === "high" ? "exclude" : severity === "medium" ? "review" : "include";
+}
+
+function severityLabel(severity: OptimizationSeverity): string {
+  return severity === "high" ? "높음" : severity === "medium" ? "중간" : "낮음";
 }
 
 function decisionLabel(decision: ApprovalDecision): string {
