@@ -15,6 +15,10 @@ Core promise:
 
 > From setup to operation in one flow: keyword selection, campaign structure, ad copy, forecasting, deployment preparation, and optimization recommendations.
 
+## Brand
+
+- Product name: Naver SA Autopilot
+
 ## MVP Target
 
 The product targets both:
@@ -26,6 +30,8 @@ Implementation bias:
 
 - Build the data model and workspace for agency-style multi-account management.
 - Keep the user experience simple enough for advertiser self-service.
+- UI language: Korean.
+- Code and documentation language: English.
 
 ## First Ad Product Scope
 
@@ -34,6 +40,10 @@ MVP priority:
 1. Powerlink / Site Search Ads
 2. Shopping mall vertical first
 3. Other verticals later
+
+First sample site:
+
+- `https://mard.at/`
 
 Excluded from first build:
 
@@ -73,6 +83,7 @@ Status:
 
 - Vercel project is connected to GitHub.
 - Environment variables are registered.
+- Current deployment URL: `https://naver-sa-git-main-jeonhongjins-projects.vercel.app/`
 
 ## AI
 
@@ -119,4 +130,3 @@ Avoid:
 - vague AI assistant experience
 - black-box autonomous spending
 - complex screens that recreate the Naver Ads UI without simplifying the workflow
-
