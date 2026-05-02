@@ -1,12 +1,24 @@
 # Naver SA Autopilot
 
-Naver SA Autopilot is a setup-first automation platform for Naver Search Ads, starting with Powerlink/Site Search Ads.
+Naver SA Autopilot is a setup-to-operation automation platform for Naver Search Ads, starting with Powerlink/Site Search Ads.
 
 The MVP goal is to help agencies and advertisers generate, review, forecast, and deploy Naver SA campaign drafts with less manual work.
 
 ## Current Status
 
-This repository is currently being initialized.
+The first functional MVP workspace is implemented as a dry-run planner. It does not mutate Naver Ads, spend budget, or delete production data.
+
+Implemented:
+
+- interactive keyword planning workspace
+- seed keyword expansion and intent classification
+- campaign/ad group draft generation
+- bid and budget guardrails
+- forecast summary
+- negative keyword suggestions
+- approval queue for staged changes
+- keyword CSV export
+- internal dry-run preview API at `/api/plans/preview`
 
 Planned stack:
 
@@ -17,9 +29,16 @@ Planned stack:
 - Naver Search Ad API
 - AI-assisted keyword grouping, campaign drafting, and copy generation
 
+## Safety
+
+- Live execution is blocked in MVP.
+- All Naver API mutations must remain approval-first.
+- Delete actions are not generated; use pause/off recommendations instead.
+- Secrets must stay in Vercel/Supabase environment settings and must never be committed.
+
 ## Setup Documents
 
 - `docs/SETUP.md`
 - `docs/ENVIRONMENT.md`
+- `docs/OPERATING_POLICY.md`
 - `.env.example`
-

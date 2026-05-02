@@ -116,6 +116,12 @@ Positioning difference:
 - The product should focus more deeply on setup-to-operation workflow automation, not only bidding or reporting.
 - The product should serve operator productivity, not only beginner-friendly AI chat.
 
+Current MVP implementation status:
+
+- Implemented: setup planner, keyword expansion/classification, ad group draft, bid/budget guardrails, approval queue, CSV export.
+- Partial: operation automation recommendations, reporting.
+- Planned: Naver account sync, performance-based bidding recommendations, persisted audit log, PDF/share-link reports, test-account execution worker.
+
 ## UX Direction
 
 Target UX:
