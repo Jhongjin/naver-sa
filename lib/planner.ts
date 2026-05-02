@@ -580,8 +580,8 @@ function buildBenchmarkFeatures(): BenchmarkFeature[] {
     },
     {
       name: "리포트/공유",
-      status: "partial",
-      description: "키워드 CSV export는 지원하며 PDF/링크 공유 리포트는 다음 단계입니다."
+      status: "implemented",
+      description: "키워드 CSV와 승인 큐 CSV, 운영 리포트 Markdown export를 지원합니다."
     }
   ];
 }

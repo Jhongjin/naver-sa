@@ -18,6 +18,8 @@ Implemented:
 - negative keyword suggestions
 - approval queue for staged changes
 - keyword CSV export
+- approval queue CSV export
+- Markdown setup report export
 - internal dry-run preview API at `/api/plans/preview`
 
 Planned stack:

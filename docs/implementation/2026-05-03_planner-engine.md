@@ -18,12 +18,16 @@ The app now supports a dry-run workflow for:
 - staged approval queue
 - CSV export
 - benchmark feature coverage display
+- approval/hold decisions for staged changes
+- approval queue CSV export
+- advertiser/internal Markdown setup report export
 
 ## Safety
 
 - No live Naver Search Ad API mutation is executed.
 - No delete operation is generated.
 - All creation or update actions are represented as staged changes requiring approval.
+- Approval/hold decisions are local UI state only and do not trigger Naver API execution.
 - Bid suggestions are capped by the user-provided max bid.
 - Budget suggestions are capped by the user-provided monthly test budget.
 
@@ -45,11 +49,12 @@ Implemented in MVP:
 - budget and bid guardrails
 - approval queue before external execution
 - keyword CSV export
+- approval queue CSV export
+- Markdown setup report export
 
 Partial:
 
 - operation automation recommendations are rules-based until real performance data sync is connected
-- report export is CSV-only for now
 
 Planned:
 

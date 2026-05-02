@@ -26,6 +26,13 @@ import {
   type PlannerInput,
   type PlannerMode
 } from "@/lib/planner";
+import {
+  createApprovalCsv,
+  createPlannerReport,
+  summarizeApprovals,
+  type ApprovalDecision,
+  type ApprovalDecisionMap
+} from "@/lib/reporting";
 
 type PlannerWorkspaceProps = {
   initialInput: PlannerInput;
@@ -41,6 +48,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [monthlyBudget, setMonthlyBudget] = useState(initialInput.monthlyBudget);
   const [maxBid, setMaxBid] = useState(initialInput.maxBid);
   const [seedText, setSeedText] = useState(initialInput.seedKeywords.join("\n"));
+  const [approvalDecisions, setApprovalDecisions] = useState<ApprovalDecisionMap>({});
 
   const seedKeywords = useMemo(
     () =>
@@ -65,6 +73,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   );
 
   const plan = useMemo(() => generatePlannerPlan(input), [input]);
+  const approvalSummary = useMemo(
+    () => summarizeApprovals(plan.stagedChanges, approvalDecisions),
+    [approvalDecisions, plan.stagedChanges]
+  );
 
   const includedKeywords = plan.keywords.filter((keyword) => keyword.status === "include");
   const reviewKeywords = plan.keywords.filter((keyword) => keyword.status === "review");
@@ -78,6 +90,29 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     link.download = `${plan.input.brandName.toLowerCase().replace(/\s+/g, "-")}-keyword-plan.csv`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  function downloadApprovalCsv() {
+    downloadTextFile(
+      createApprovalCsv(plan, approvalDecisions),
+      `${slugFileName(plan.input.brandName)}-approval-queue.csv`,
+      "text/csv;charset=utf-8"
+    );
+  }
+
+  function downloadReport() {
+    downloadTextFile(
+      createPlannerReport(plan, approvalDecisions),
+      `${slugFileName(plan.input.brandName)}-setup-report.md`,
+      "text/markdown;charset=utf-8"
+    );
+  }
+
+  function setDecision(changeId: string, decision: ApprovalDecision) {
+    setApprovalDecisions((current) => ({
+      ...current,
+      [changeId]: decision
+    }));
   }
 
   return (
@@ -107,6 +142,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
           <a className="nav-link" href="#operation">
             <Settings2 size={18} />
             운영 추천
+          </a>
+          <a className="nav-link" href="#report">
+            <FileText size={18} />
+            리포트
           </a>
           <a className="nav-link" href="#benchmark">
             <BarChart3 size={18} />
@@ -255,7 +294,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 </li>
                 <li>
                   <CheckCircle2 size={18} />
-                  승인 대기 {plan.forecast.approvalItems}건
+                  승인 {approvalSummary.approved}건 / 보류 {approvalSummary.held}건
                 </li>
               </ul>
             </article>
@@ -359,7 +398,18 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 <p className="eyebrow">Approval Queue</p>
                 <h2>승인 대기 실행계획</h2>
               </div>
-              <span className="pill">Live off</span>
+              <div className="inline-actions">
+                <button className="icon-button subtle" type="button" onClick={downloadApprovalCsv}>
+                  <Download size={17} />
+                  승인 CSV
+                </button>
+                <span className="pill">Live off</span>
+              </div>
+            </div>
+            <div className="approval-summary" aria-label="승인 상태 요약">
+              <span>승인 {approvalSummary.approved}</span>
+              <span>보류 {approvalSummary.held}</span>
+              <span>대기 {approvalSummary.pending}</span>
             </div>
             <div className="change-list">
               {plan.stagedChanges.map((change) => (
@@ -371,7 +421,15 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                   </div>
                   <div className="change-meta">
                     <span>{change.type}</span>
-                    <b>{change.approval}</b>
+                    <b>{decisionLabel(approvalDecisions[change.id] ?? "pending")}</b>
+                    <div className="decision-actions">
+                      <button type="button" onClick={() => setDecision(change.id, "approved")}>
+                        승인
+                      </button>
+                      <button type="button" onClick={() => setDecision(change.id, "held")}>
+                        보류
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -396,6 +454,43 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               ))}
             </div>
           </article>
+        </section>
+
+        <section className="report-panel" id="report">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Report</p>
+              <h2>광고주/내부 공유용 리포트</h2>
+            </div>
+            <button className="icon-button subtle" type="button" onClick={downloadReport}>
+              <Download size={17} />
+              Markdown
+            </button>
+          </div>
+          <div className="report-grid">
+            <div>
+              <strong>{plan.input.brandName} 세팅 요약</strong>
+              <p>
+                {plan.input.vertical} 기준으로 {plan.forecast.adGroupCount}개 광고그룹과{" "}
+                {plan.forecast.includedKeywords}개 포함 키워드를 생성했습니다.
+              </p>
+            </div>
+            <div>
+              <strong>예상 운영 범위</strong>
+              <p>
+                월 {currencyFormatter.format(plan.forecast.monthlyBudget)}원 테스트 예산에서 예상 클릭{" "}
+                {currencyFormatter.format(plan.forecast.expectedClicks)}회, 평균 CPC{" "}
+                {currencyFormatter.format(plan.forecast.avgCpc)}원입니다.
+              </p>
+            </div>
+            <div>
+              <strong>다음 액션</strong>
+              <p>
+                승인 {approvalSummary.approved}건, 보류 {approvalSummary.held}건, 대기{" "}
+                {approvalSummary.pending}건입니다. 승인된 항목도 현재는 외부 전송 없이 초안 상태로만 유지됩니다.
+              </p>
+            </div>
+          </div>
         </section>
 
         <section className="benchmark-panel" id="benchmark">
@@ -462,4 +557,22 @@ function statusClass(status: KeywordStatus): string {
 
 function riskClass(risk: ChangeRisk): string {
   return risk === "low" ? "green" : risk === "medium" ? "amber" : "rose";
+}
+
+function decisionLabel(decision: ApprovalDecision): string {
+  return decision === "approved" ? "승인됨" : decision === "held" ? "보류됨" : "승인 대기";
+}
+
+function downloadTextFile(content: string, fileName: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function slugFileName(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, "-");
 }

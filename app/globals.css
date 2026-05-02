@@ -71,6 +71,7 @@ button {
 .brand-block,
 .nav-link,
 .topbar-actions,
+.inline-actions,
 .section-heading,
 .status-band,
 .status-band div,
@@ -228,6 +229,12 @@ h3 {
   color: var(--ink);
 }
 
+.inline-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .status-band {
   flex-wrap: wrap;
   gap: 10px;
@@ -295,6 +302,7 @@ h3 {
 .adgroup-panel,
 .policy-panel,
 .metric-card,
+.report-panel,
 .benchmark-panel {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -306,6 +314,7 @@ h3 {
 .table-panel,
 .adgroup-panel,
 .policy-panel,
+.report-panel,
 .benchmark-panel {
   padding: 18px;
 }
@@ -622,6 +631,23 @@ td span {
   gap: 16px;
 }
 
+.approval-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.approval-summary span {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 9px 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .change-item > div:first-child {
   display: grid;
   grid-template-columns: 11px minmax(0, 1fr);
@@ -650,6 +676,29 @@ td span {
   color: var(--ink);
 }
 
+.decision-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(48px, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+.decision-actions button {
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.decision-actions button:hover {
+  border-color: var(--violet);
+  color: var(--ink);
+}
+
 .rule-item p {
   margin: 6px 0;
 }
@@ -668,6 +717,35 @@ td span {
 
 .benchmark-panel {
   margin-top: 16px;
+}
+
+.report-panel {
+  margin-top: 16px;
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.report-grid div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  padding: 13px;
+}
+
+.report-grid strong,
+.report-grid p {
+  display: block;
+}
+
+.report-grid p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .benchmark-grid {
@@ -707,6 +785,7 @@ td span {
   .work-grid,
   .approval-grid,
   .forecast-band,
+  .report-grid,
   .benchmark-grid {
     grid-template-columns: 1fr;
   }
@@ -725,7 +804,8 @@ td span {
   .topbar-actions,
   .control-grid,
   .forecast-list,
-  .change-item {
+  .change-item,
+  .approval-summary {
     align-items: stretch;
     flex-direction: column;
     grid-template-columns: 1fr;
