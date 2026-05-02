@@ -21,6 +21,7 @@ Implemented:
 - approval queue CSV export
 - Markdown setup report export
 - internal dry-run preview API at `/api/plans/preview`
+- Naver Search Ad read-only readiness API at `/api/naver/readiness`
 
 Planned stack:
 

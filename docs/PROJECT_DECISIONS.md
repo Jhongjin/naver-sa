@@ -118,8 +118,8 @@ Positioning difference:
 
 Current MVP implementation status:
 
-- Implemented: setup planner, keyword expansion/classification, ad group draft, bid/budget guardrails, approval queue, CSV export.
-- Partial: operation automation recommendations, reporting.
+- Implemented: setup planner, keyword expansion/classification, ad group draft, bid/budget guardrails, approval queue, CSV/Markdown export, Naver API readiness layer.
+- Partial: operation automation recommendations.
 - Planned: Naver account sync, performance-based bidding recommendations, persisted audit log, PDF/share-link reports, test-account execution worker.
 
 ## UX Direction

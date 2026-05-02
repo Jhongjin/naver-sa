@@ -582,6 +582,11 @@ function buildBenchmarkFeatures(): BenchmarkFeature[] {
       name: "리포트/공유",
       status: "implemented",
       description: "키워드 CSV와 승인 큐 CSV, 운영 리포트 Markdown export를 지원합니다."
+    },
+    {
+      name: "Naver API 연결 준비",
+      status: "implemented",
+      description: "공식 서명 방식 기반의 read-only 준비 상태와 캠페인 조회 헬퍼를 제공합니다."
     }
   ];
 }

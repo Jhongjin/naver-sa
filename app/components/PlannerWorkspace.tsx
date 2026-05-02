@@ -16,7 +16,7 @@ import {
   Sparkles,
   WandSparkles
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   createPlannerCsv,
   generatePlannerPlan,
@@ -40,6 +40,18 @@ type PlannerWorkspaceProps = {
 
 const currencyFormatter = new Intl.NumberFormat("ko-KR");
 
+type NaverReadiness = {
+  ok: boolean;
+  state: {
+    ready: boolean;
+    missing: string[];
+    baseUrl: string;
+    customerIdPresent: boolean;
+  };
+  externalRequest: boolean;
+  writeExecution: string;
+};
+
 export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [mode, setMode] = useState<PlannerMode>(initialInput.mode);
   const [brandName, setBrandName] = useState(initialInput.brandName);
@@ -49,6 +61,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [maxBid, setMaxBid] = useState(initialInput.maxBid);
   const [seedText, setSeedText] = useState(initialInput.seedKeywords.join("\n"));
   const [approvalDecisions, setApprovalDecisions] = useState<ApprovalDecisionMap>({});
+  const [naverReadiness, setNaverReadiness] = useState<NaverReadiness | null>(null);
 
   const seedKeywords = useMemo(
     () =>
@@ -81,6 +94,27 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const includedKeywords = plan.keywords.filter((keyword) => keyword.status === "include");
   const reviewKeywords = plan.keywords.filter((keyword) => keyword.status === "review");
   const excludedKeywords = plan.keywords.filter((keyword) => keyword.status === "exclude");
+
+  useEffect(() => {
+    let active = true;
+
+    fetch("/api/naver/readiness")
+      .then((response) => response.json() as Promise<NaverReadiness>)
+      .then((data) => {
+        if (active) {
+          setNaverReadiness(data);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setNaverReadiness(null);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   function downloadCsv() {
     const blob = new Blob([createPlannerCsv(plan)], { type: "text/csv;charset=utf-8" });
@@ -194,6 +228,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             <span className="status-dot blue" />
             삭제 대신 pause/off 정책
           </div>
+          <div>
+            <span className={`status-dot ${naverReadiness?.ok ? "green" : "amber"}`} />
+            {naverReadiness?.ok ? "Naver API read-only 준비" : "Naver API env 확인 필요"}
+          </div>
         </section>
 
         <section className="planner-grid" id="planner">
@@ -295,6 +333,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 <li>
                   <CheckCircle2 size={18} />
                   승인 {approvalSummary.approved}건 / 보류 {approvalSummary.held}건
+                </li>
+                <li>
+                  <ShieldCheck size={18} />
+                  {naverReadiness?.ok
+                    ? "공식 Search AD 서명 방식 준비 완료"
+                    : `환경변수 ${naverReadiness?.state.missing.length ?? "-"}개 확인 필요`}
                 </li>
               </ul>
             </article>
