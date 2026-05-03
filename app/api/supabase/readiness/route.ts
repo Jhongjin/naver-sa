@@ -45,7 +45,8 @@ export async function GET() {
         name: table,
         present: !error,
         rowCount: error ? null : count,
-        error: error ? sanitizeSupabaseError(error.message) : null
+        error: error ? sanitizeSupabaseError(error.message) : null,
+        errorCode: error?.code ?? null
       };
     })
   );
