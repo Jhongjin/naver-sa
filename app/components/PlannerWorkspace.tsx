@@ -221,6 +221,54 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const includedKeywords = plan.keywords.filter((keyword) => keyword.status === "include");
   const reviewKeywords = plan.keywords.filter((keyword) => keyword.status === "review");
   const excludedKeywords = plan.keywords.filter((keyword) => keyword.status === "exclude");
+  const channelApplied = Boolean(pcChannelId && mobileChannelId);
+  const appliedChannel =
+    accountSnapshotState.status === "success"
+      ? accountSnapshotState.response.channels?.find((channel) => channel.id === pcChannelId)
+      : undefined;
+  const stageValidated = activeStageDraftState.status === "success";
+  const canRequestProtectedExecution =
+    stageValidated && activeStageDraftState.response.draft.validation.canExecuteTest && channelApplied;
+  const nextAction = getNextAction({
+    approvedCount: approvalSummary.approved,
+    channelApplied,
+    stageValidated,
+    canRequestProtectedExecution,
+    blockerCount: executionDraft.validation.blockerCount,
+    channelStatus: appliedChannel?.inspectStatus
+  });
+  const setupSteps = [
+    {
+      label: "입력",
+      state: "done",
+      detail: `${plan.input.brandName} / ${plan.input.vertical}`
+    },
+    {
+      label: "키워드",
+      state: includedKeywords.length > 0 ? "done" : "pending",
+      detail: `${includedKeywords.length}개 포함`
+    },
+    {
+      label: "승인",
+      state: approvalSummary.approved > 0 ? "done" : "attention",
+      detail: `${approvalSummary.approved}/${plan.stagedChanges.length}건`
+    },
+    {
+      label: "비즈채널",
+      state: channelApplied ? "done" : "attention",
+      detail: channelApplied ? "적용됨" : "필요"
+    },
+    {
+      label: "검증",
+      state: executionDraft.validation.blockerCount === 0 ? "done" : "attention",
+      detail: `${executionDraft.validation.blockerCount}건 차단`
+    },
+    {
+      label: "테스트 실행",
+      state: canRequestProtectedExecution ? "attention" : "pending",
+      detail: "별도 확인 필요"
+    }
+  ] as const;
 
   useEffect(() => {
     let active = true;
@@ -426,23 +474,102 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
           </div>
         </header>
 
-        <section className="status-band" aria-label="프로젝트 상태">
-          <div>
-            <span className="status-dot green" />
-            키워드 확장/그룹화 구현
-          </div>
-          <div>
-            <span className="status-dot amber" />
-            Naver 전송 전 승인 필수
-          </div>
-          <div>
-            <span className="status-dot blue" />
-            삭제 대신 pause/off 정책
-          </div>
-          <div>
-            <span className={`status-dot ${naverReadiness?.ok ? "green" : "amber"}`} />
-            {naverReadiness?.ok ? "Naver API read-only 준비" : "Naver API env 확인 필요"}
-          </div>
+        <section className="workflow-strip" aria-label="세팅 진행 단계">
+          {setupSteps.map((step, index) => (
+            <div className={`workflow-step ${step.state}`} key={step.label}>
+              <span>{index + 1}</span>
+              <strong>{step.label}</strong>
+              <em>{step.detail}</em>
+            </div>
+          ))}
+        </section>
+
+        <section className="command-grid" id="execution">
+          <article className={`next-action-panel ${nextAction.tone}`}>
+            <div>
+              <p className="eyebrow">Next Action</p>
+              <h2>{nextAction.title}</h2>
+              <span>{nextAction.description}</span>
+            </div>
+            <b>{nextAction.status}</b>
+          </article>
+
+          <section className="execution-panel priority">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Execution Readiness</p>
+                <h2>전송 직전 점검</h2>
+              </div>
+              <button className="icon-button subtle" type="button" onClick={downloadExecutionDraft}>
+                <Download size={17} />
+                JSON
+              </button>
+            </div>
+            <div className="execution-controls">
+              <label className="field">
+                <span>운영자 코드</span>
+                <input
+                  autoComplete="off"
+                  type="password"
+                  value={operatorCode}
+                  onChange={(event) => setOperatorCode(event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>PC 채널 ID</span>
+                <input value={pcChannelId} onChange={(event) => setPcChannelId(event.target.value)} />
+              </label>
+              <label className="field">
+                <span>모바일 채널 ID</span>
+                <input value={mobileChannelId} onChange={(event) => setMobileChannelId(event.target.value)} />
+              </label>
+              <button
+                className="icon-button subtle"
+                type="button"
+                disabled={accountSnapshotState.status === "loading"}
+                onClick={loadAccountSnapshot}
+              >
+                <Search size={17} />
+                {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
+              </button>
+            </div>
+            <AccountSnapshotNotice state={accountSnapshotState} onApplyChannel={applyBusinessChannel} />
+            <div className="execution-grid">
+              <div>
+                <span>승인</span>
+                <strong>{executionDraft.approvedChangeCount}건</strong>
+              </div>
+              <div>
+                <span>Payload</span>
+                <strong>{executionDraft.payloads.length}개</strong>
+              </div>
+              <div>
+                <span>가드레일</span>
+                <strong>Live off</strong>
+              </div>
+              <div>
+                <span>차단</span>
+                <strong>{executionDraft.validation.blockerCount}건</strong>
+              </div>
+            </div>
+            <StageDraftNotice state={activeStageDraftState} />
+            <div className="payload-list compact">
+              {executionDraft.payloads.length === 0 ? (
+                <p>승인된 항목이 없어서 아직 전송 초안이 없습니다.</p>
+              ) : (
+                executionDraft.payloads.slice(0, 6).map((payload) => (
+                  <div className="payload-item" key={payload.id}>
+                    <strong>{payload.target}</strong>
+                    <span>
+                      {payload.method} {payload.uri}
+                    </span>
+                    <em>{payload.entityType}</em>
+                  </div>
+                ))
+              )}
+              {executionDraft.payloads.length > 6 ? <p>외 {executionDraft.payloads.length - 6}개 payload</p> : null}
+            </div>
+          </section>
         </section>
 
         <section className="planner-grid" id="planner">
@@ -674,28 +801,51 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <span>보류 {approvalSummary.held}</span>
               <span>대기 {approvalSummary.pending}</span>
             </div>
-            <div className="change-list">
-              {plan.stagedChanges.map((change) => (
-                <div className="change-item" key={change.id}>
-                  <div>
-                    <span className={`risk-dot ${riskClass(change.risk)}`} />
-                    <strong>{change.target}</strong>
-                    <p>{change.details}</p>
-                  </div>
-                  <div className="change-meta">
-                    <span>{change.type}</span>
-                    <b>{decisionLabel(approvalDecisions[change.id] ?? "pending")}</b>
-                    <div className="decision-actions">
-                      <button type="button" onClick={() => setDecision(change.id, "approved")}>
-                        승인
-                      </button>
-                      <button type="button" onClick={() => setDecision(change.id, "held")}>
-                        보류
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="table-wrap approval-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>상태</th>
+                    <th>유형</th>
+                    <th>대상</th>
+                    <th>작업</th>
+                    <th>위험</th>
+                    <th>결정</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {plan.stagedChanges.map((change) => {
+                    const decision = approvalDecisions[change.id] ?? "pending";
+
+                    return (
+                      <tr key={change.id}>
+                        <td>
+                          <span className={`status-pill ${decisionClass(decision)}`}>{decisionLabel(decision)}</span>
+                        </td>
+                        <td>{change.type}</td>
+                        <td>
+                          <strong>{change.target}</strong>
+                          <span>{change.details}</span>
+                        </td>
+                        <td>{change.action}</td>
+                        <td>
+                          <span className={`status-pill ${riskClass(change.risk)}`}>{riskLabel(change.risk)}</span>
+                        </td>
+                        <td>
+                          <div className="decision-actions inline">
+                            <button type="button" onClick={() => setDecision(change.id, "approved")}>
+                              승인
+                            </button>
+                            <button type="button" onClick={() => setDecision(change.id, "held")}>
+                              보류
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </article>
 
@@ -768,82 +918,6 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 {approvalSummary.pending}건입니다. 승인된 항목도 현재는 외부 전송 없이 초안 상태로만 유지됩니다.
               </p>
             </div>
-          </div>
-        </section>
-
-        <section className="execution-panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Naver Payload</p>
-              <h2>전송 직전 payload 초안</h2>
-            </div>
-            <button className="icon-button subtle" type="button" onClick={downloadExecutionDraft}>
-              <Download size={17} />
-              JSON
-            </button>
-          </div>
-          <div className="execution-controls">
-            <label className="field">
-              <span>운영자 코드</span>
-              <input
-                autoComplete="off"
-                type="password"
-                value={operatorCode}
-                onChange={(event) => setOperatorCode(event.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span>PC 채널 ID</span>
-              <input value={pcChannelId} onChange={(event) => setPcChannelId(event.target.value)} />
-            </label>
-            <label className="field">
-              <span>모바일 채널 ID</span>
-              <input value={mobileChannelId} onChange={(event) => setMobileChannelId(event.target.value)} />
-            </label>
-            <button
-              className="icon-button subtle"
-              type="button"
-              disabled={accountSnapshotState.status === "loading"}
-              onClick={loadAccountSnapshot}
-            >
-              <Search size={17} />
-              {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
-            </button>
-          </div>
-          <AccountSnapshotNotice state={accountSnapshotState} onApplyChannel={applyBusinessChannel} />
-          <div className="execution-grid">
-            <div>
-              <span>승인된 변경</span>
-              <strong>{executionDraft.approvedChangeCount}건</strong>
-            </div>
-            <div>
-              <span>생성된 payload</span>
-              <strong>{executionDraft.payloads.length}개</strong>
-            </div>
-            <div>
-              <span>안전 상태</span>
-              <strong>Live off / Delete off</strong>
-            </div>
-            <div>
-              <span>검증 차단</span>
-              <strong>{executionDraft.validation.blockerCount}건</strong>
-            </div>
-          </div>
-          <StageDraftNotice state={activeStageDraftState} />
-          <div className="payload-list">
-            {executionDraft.payloads.length === 0 ? (
-              <p>승인된 항목이 없어서 아직 Naver 전송 payload는 생성되지 않았습니다.</p>
-            ) : (
-              executionDraft.payloads.map((payload) => (
-                <div className="payload-item" key={payload.id}>
-                  <strong>{payload.target}</strong>
-                  <span>
-                    {payload.method} {payload.uri}
-                  </span>
-                  <em>{payload.entityType}</em>
-                </div>
-              ))
-            )}
           </div>
         </section>
 
@@ -1032,6 +1106,10 @@ function riskClass(risk: ChangeRisk): string {
   return risk === "low" ? "green" : risk === "medium" ? "amber" : "rose";
 }
 
+function riskLabel(risk: ChangeRisk): string {
+  return risk === "low" ? "낮음" : risk === "medium" ? "검토" : "차단";
+}
+
 function severityClass(severity: OptimizationSeverity): string {
   return severity === "high" ? "exclude" : severity === "medium" ? "review" : "include";
 }
@@ -1042,6 +1120,73 @@ function severityLabel(severity: OptimizationSeverity): string {
 
 function decisionLabel(decision: ApprovalDecision): string {
   return decision === "approved" ? "승인됨" : decision === "held" ? "보류됨" : "승인 대기";
+}
+
+function decisionClass(decision: ApprovalDecision): string {
+  return decision === "approved" ? "include" : decision === "held" ? "review" : "neutral";
+}
+
+type NextActionInput = {
+  approvedCount: number;
+  channelApplied: boolean;
+  stageValidated: boolean;
+  canRequestProtectedExecution: boolean;
+  blockerCount: number;
+  channelStatus?: string | null;
+};
+
+function getNextAction(input: NextActionInput) {
+  if (input.approvedCount === 0) {
+    return {
+      title: "승인 큐에서 항목을 승인하세요",
+      description: "초안은 준비되어 있지만 승인된 변경이 없어 전송 payload가 생성되지 않습니다.",
+      status: "승인 필요",
+      tone: "warning"
+    };
+  }
+
+  if (!input.channelApplied) {
+    return {
+      title: "비즈채널을 스캔하고 적용하세요",
+      description: "Naver 계정에서 사이트 비즈채널을 가져와 PC/모바일 채널 ID를 채워야 합니다.",
+      status: "채널 필요",
+      tone: "warning"
+    };
+  }
+
+  if (input.blockerCount > 0) {
+    return {
+      title: "검증 차단 항목을 해결하세요",
+      description: `${input.blockerCount}개 차단이 남아 있습니다. 초안 검증 결과에서 원인을 확인하세요.`,
+      status: "차단",
+      tone: "danger"
+    };
+  }
+
+  if (!input.stageValidated) {
+    return {
+      title: "초안 검증을 실행하세요",
+      description: "승인과 채널 연결이 끝났습니다. 서버에서 전송 직전 payload를 다시 검증합니다.",
+      status: "검증 대기",
+      tone: "neutral"
+    };
+  }
+
+  if (input.channelStatus && input.channelStatus.includes("검토")) {
+    return {
+      title: "비즈채널 검토 완료를 기다리세요",
+      description: "payload는 준비됐지만 Naver 비즈채널이 검토 중이면 실제 테스트 생성은 보류하는 편이 안전합니다.",
+      status: "검토중",
+      tone: "warning"
+    };
+  }
+
+  return {
+    title: input.canRequestProtectedExecution ? "테스트 실행 요청 준비 완료" : "보호 실행 조건을 확인하세요",
+    description: "실제 Naver 생성 요청은 별도 확인 후 보호 라우트에서만 실행합니다.",
+    status: "준비",
+    tone: "success"
+  };
 }
 
 function downloadTextFile(content: string, fileName: string, type: string) {
