@@ -12,6 +12,7 @@ Implemented:
 - server-only Supabase admin client
 - planning run persistence helper
 - protected `POST /api/plans/store` route
+- production readiness check at `GET /api/supabase/readiness`
 
 ## Safety
 
@@ -21,6 +22,7 @@ Implemented:
 - The storage route requires `x-admin-secret` matching `CRON_SECRET`.
 - The storage route regenerates the plan server-side from submitted input instead of trusting client-provided generated rows.
 - The route is not called by the browser UI yet.
+- The readiness route returns table presence and counts only. It does not return table rows or secrets.
 
 ## Tables
 
@@ -35,3 +37,20 @@ Implemented:
 ## Next Step
 
 Define authentication and tenant policies before exposing persistence through the UI.
+
+After applying the migration, verify:
+
+```text
+GET /api/supabase/readiness
+```
+
+Expected result:
+
+```json
+{
+  "ok": true,
+  "tables": [
+    { "name": "workspaces", "present": true }
+  ]
+}
+```
