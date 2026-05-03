@@ -599,51 +599,35 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <span>보류 {approvalSummary.held}</span>
               <span>대기 {approvalSummary.pending}</span>
             </div>
-            <div className="table-wrap approval-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>상태</th>
-                    <th>유형</th>
-                    <th>대상</th>
-                    <th>작업</th>
-                    <th>위험</th>
-                    <th>결정</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {plan.stagedChanges.map((change) => {
-                    const decision = approvalDecisions[change.id] ?? "pending";
+            <div className="approval-worklist">
+              {plan.stagedChanges.map((change) => {
+                const decision = approvalDecisions[change.id] ?? "pending";
 
-                    return (
-                      <tr key={change.id}>
-                        <td>
-                          <span className={`status-pill ${decisionClass(decision)}`}>{decisionLabel(decision)}</span>
-                        </td>
-                        <td>{changeTypeLabel(change.type)}</td>
-                        <td>
-                          <strong>{change.target}</strong>
-                          <span>{change.details}</span>
-                        </td>
-                        <td>{change.action}</td>
-                        <td>
-                          <span className={`status-pill ${riskClass(change.risk)}`}>{riskLabel(change.risk)}</span>
-                        </td>
-                        <td>
-                          <div className="decision-actions inline">
-                            <button type="button" onClick={() => setDecision(change.id, "approved")}>
-                              승인
-                            </button>
-                            <button type="button" onClick={() => setDecision(change.id, "held")}>
-                              보류
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                return (
+                  <div className="approval-row" key={change.id}>
+                    <div className="approval-row-main">
+                      <span className={`status-pill ${decisionClass(decision)}`}>{decisionLabel(decision)}</span>
+                      <div>
+                        <strong>{change.target}</strong>
+                        <p>{change.details}</p>
+                      </div>
+                    </div>
+                    <div className="approval-row-meta">
+                      <span>{changeTypeLabel(change.type)}</span>
+                      <span>{change.action}</span>
+                      <span className={`status-pill ${riskClass(change.risk)}`}>{riskLabel(change.risk)}</span>
+                    </div>
+                    <div className="decision-actions inline">
+                      <button type="button" onClick={() => setDecision(change.id, "approved")}>
+                        승인
+                      </button>
+                      <button type="button" onClick={() => setDecision(change.id, "held")}>
+                        보류
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </article>
 
