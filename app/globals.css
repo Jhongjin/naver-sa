@@ -229,6 +229,11 @@ h3 {
   color: var(--ink);
 }
 
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
 .inline-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -765,12 +770,13 @@ td span {
 
 .execution-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
 .execution-grid div,
-.payload-item {
+.payload-item,
+.stage-notice {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-strong);
@@ -801,6 +807,57 @@ td span {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 10px;
+}
+
+.stage-notice {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.stage-notice strong,
+.stage-notice span {
+  display: block;
+}
+
+.stage-notice strong {
+  color: var(--ink);
+}
+
+.stage-notice span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.stage-notice.success {
+  border-color: rgba(21, 128, 61, 0.28);
+  background: rgba(21, 128, 61, 0.07);
+}
+
+.stage-notice.warning {
+  border-color: rgba(180, 83, 9, 0.3);
+  background: rgba(180, 83, 9, 0.08);
+}
+
+.stage-notice.danger {
+  border-color: rgba(190, 18, 60, 0.28);
+  background: rgba(190, 18, 60, 0.08);
+}
+
+.stage-notice.neutral {
+  border-color: rgba(79, 70, 229, 0.22);
+  background: rgba(79, 70, 229, 0.07);
+}
+
+.blocker-list {
+  display: grid;
+  gap: 6px;
+}
+
+.blocker-list span {
+  border-left: 3px solid var(--amber);
+  padding-left: 8px;
 }
 
 .payload-list p {

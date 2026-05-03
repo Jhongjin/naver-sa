@@ -54,6 +54,65 @@ type NaverReadiness = {
   writeExecution: string;
 };
 
+type StageDraftResponse = {
+  ok: boolean;
+  dryRun: boolean;
+  automationLevel: string;
+  naver: {
+    ready: boolean;
+    missing: string[];
+    baseUrl: string;
+    customerIdPresent: boolean;
+  };
+  draft: {
+    draftId: string;
+    approvedChangeCount: number;
+    payloads: Array<{
+      id: string;
+      method: string;
+      uri: string;
+      entityType: string;
+      target: string;
+    }>;
+    validation: {
+      canExecuteTest: boolean;
+      blockerCount: number;
+      warningCount: number;
+      blockers: Array<{
+        code: string;
+        payloadId?: string;
+        message: string;
+      }>;
+      warnings: Array<{
+        code: string;
+        payloadId?: string;
+        message: string;
+      }>;
+    };
+  };
+  nextAction: string;
+};
+
+type StageDraftState =
+  | {
+      status: "idle";
+    }
+  | {
+      status: "loading";
+      fingerprint: string;
+      message: string;
+    }
+  | {
+      status: "success";
+      fingerprint: string;
+      response: StageDraftResponse;
+    }
+  | {
+      status: "error";
+      fingerprint: string;
+      message: string;
+    };
+
 export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [mode, setMode] = useState<PlannerMode>(initialInput.mode);
   const [brandName, setBrandName] = useState(initialInput.brandName);
@@ -64,6 +123,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [seedText, setSeedText] = useState(initialInput.seedKeywords.join("\n"));
   const [approvalDecisions, setApprovalDecisions] = useState<ApprovalDecisionMap>({});
   const [naverReadiness, setNaverReadiness] = useState<NaverReadiness | null>(null);
+  const [stageDraftState, setStageDraftState] = useState<StageDraftState>({ status: "idle" });
 
   const seedKeywords = useMemo(
     () =>
@@ -97,6 +157,14 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     () => summarizeApprovals(plan.stagedChanges, approvalDecisions),
     [approvalDecisions, plan.stagedChanges]
   );
+  const draftFingerprint = useMemo(
+    () => JSON.stringify({ input, decisions: approvalDecisions }),
+    [approvalDecisions, input]
+  );
+  const activeStageDraftState =
+    stageDraftState.status !== "idle" && stageDraftState.fingerprint !== draftFingerprint
+      ? ({ status: "idle" } as const)
+      : stageDraftState;
 
   const includedKeywords = plan.keywords.filter((keyword) => keyword.status === "include");
   const reviewKeywords = plan.keywords.filter((keyword) => keyword.status === "review");
@@ -164,6 +232,46 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     }));
   }
 
+  function approveAllChanges() {
+    setApprovalDecisions(
+      Object.fromEntries(plan.stagedChanges.map((change) => [change.id, "approved" satisfies ApprovalDecision]))
+    );
+  }
+
+  function resetDecisions() {
+    setApprovalDecisions({});
+  }
+
+  async function stageExecutionDraft() {
+    setStageDraftState({ status: "loading", fingerprint: draftFingerprint, message: "초안 검증 중" });
+
+    try {
+      const response = await fetch("/api/naver/stage-draft", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          input,
+          decisions: approvalDecisions
+        })
+      });
+      const data = (await response.json()) as StageDraftResponse | { ok?: boolean; error?: string };
+
+      if (!response.ok || !data.ok) {
+        throw new Error("error" in data && data.error ? data.error : "초안 검증에 실패했습니다.");
+      }
+
+      setStageDraftState({ status: "success", fingerprint: draftFingerprint, response: data as StageDraftResponse });
+    } catch (error) {
+      setStageDraftState({
+        status: "error",
+        fingerprint: draftFingerprint,
+        message: error instanceof Error ? error.message : "초안 검증에 실패했습니다."
+      });
+    }
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar" aria-label="주요 메뉴">
@@ -223,9 +331,14 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <Download size={17} />
               CSV
             </button>
-            <button className="icon-button primary" type="button" onClick={downloadExecutionDraft}>
+            <button
+              className="icon-button primary"
+              type="button"
+              disabled={activeStageDraftState.status === "loading"}
+              onClick={stageExecutionDraft}
+            >
               <Rocket size={17} />
-              실행 초안 준비
+              {activeStageDraftState.status === "loading" ? "검증 중" : "초안 검증"}
             </button>
           </div>
         </header>
@@ -458,6 +571,14 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 <h2>승인 대기 실행계획</h2>
               </div>
               <div className="inline-actions">
+                <button className="icon-button subtle" type="button" onClick={approveAllChanges}>
+                  <CheckCircle2 size={17} />
+                  전체 승인
+                </button>
+                <button className="icon-button subtle" type="button" onClick={resetDecisions}>
+                  <PauseCircle size={17} />
+                  초기화
+                </button>
                 <button className="icon-button subtle" type="button" onClick={downloadApprovalCsv}>
                   <Download size={17} />
                   승인 CSV
@@ -591,7 +712,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <span>안전 상태</span>
               <strong>Live off / Delete off</strong>
             </div>
+            <div>
+              <span>검증 차단</span>
+              <strong>{executionDraft.validation.blockerCount}건</strong>
+            </div>
           </div>
+          <StageDraftNotice state={activeStageDraftState} />
           <div className="payload-list">
             {executionDraft.payloads.length === 0 ? (
               <p>승인된 항목이 없어서 아직 Naver 전송 payload는 생성되지 않았습니다.</p>
@@ -630,6 +756,64 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         </section>
       </section>
     </main>
+  );
+}
+
+function StageDraftNotice({ state }: { state: StageDraftState }) {
+  if (state.status === "idle") {
+    return null;
+  }
+
+  if (state.status === "loading") {
+    return (
+      <div className="stage-notice neutral">
+        <strong>{state.message}</strong>
+        <span>서버에서 승인 항목과 안전 가드레일을 다시 계산합니다.</span>
+      </div>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <div className="stage-notice danger">
+        <strong>초안 검증 실패</strong>
+        <span>{state.message}</span>
+      </div>
+    );
+  }
+
+  const validation = state.response.draft.validation;
+  const readyLabel = validation.canExecuteTest ? "보호 실행 요청 가능" : `차단 ${validation.blockerCount}건`;
+  const visibleBlockers = validation.blockers.slice(0, 4);
+  const visibleWarnings = validation.warnings.slice(0, 3);
+
+  return (
+    <div className={`stage-notice ${validation.canExecuteTest ? "success" : "warning"}`}>
+      <div>
+        <strong>{readyLabel}</strong>
+        <span>{state.response.draft.draftId}</span>
+      </div>
+      {visibleBlockers.length > 0 ? (
+        <div className="blocker-list">
+          {visibleBlockers.map((blocker) => (
+            <span key={`${blocker.code}-${blocker.payloadId ?? "draft"}`}>
+              {blocker.payloadId ? `${blocker.payloadId}: ` : ""}
+              {blocker.message}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {visibleWarnings.length > 0 ? (
+        <div className="blocker-list">
+          {visibleWarnings.map((warning) => (
+            <span key={`${warning.code}-${warning.payloadId ?? "draft"}`}>
+              {warning.payloadId ? `${warning.payloadId}: ` : ""}
+              {warning.message}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

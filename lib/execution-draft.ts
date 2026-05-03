@@ -16,11 +16,34 @@ export type NaverExecutionPayload = {
   };
 };
 
+export type NaverExecutionBlocker = {
+  code: string;
+  payloadId?: string;
+  message: string;
+};
+
+export type NaverExecutionWarning = {
+  code: string;
+  payloadId?: string;
+  message: string;
+};
+
+export type NaverExecutionValidation = {
+  canExecuteTest: boolean;
+  blockerCount: number;
+  warningCount: number;
+  blockers: NaverExecutionBlocker[];
+  warnings: NaverExecutionWarning[];
+  requiredConfirmation: "TEST_EXECUTION_ONLY";
+};
+
 export type NaverExecutionDraft = {
+  draftId: string;
   generatedAt: string;
   brandName: string;
   approvedChangeCount: number;
   payloads: NaverExecutionPayload[];
+  validation: NaverExecutionValidation;
   blocked: {
     liveExecution: true;
     deleteExecution: true;
@@ -121,16 +144,84 @@ export function createNaverExecutionDraft(plan: PlannerPlan, decisions: Approval
     });
   }
 
+  const validation = validateNaverExecutionPayloads(payloads);
+  const generatedAt = new Date().toISOString();
+
   return {
-    generatedAt: new Date().toISOString(),
+    draftId: createDraftId(plan.input.brandName, payloads, generatedAt),
+    generatedAt,
     brandName: plan.input.brandName,
     approvedChangeCount: approvedIds.size,
     payloads,
+    validation,
     blocked: {
       liveExecution: true,
       deleteExecution: true,
       reason: "MVP only prepares approved payloads. It does not execute live Naver API mutations."
     }
+  };
+}
+
+export function validateNaverExecutionPayloads(payloads: NaverExecutionPayload[]): NaverExecutionValidation {
+  const blockers: NaverExecutionBlocker[] = [];
+  const warnings: NaverExecutionWarning[] = [];
+
+  if (payloads.length === 0) {
+    blockers.push({
+      code: "NO_APPROVED_PAYLOADS",
+      message: "No approved staged changes were selected."
+    });
+  }
+
+  for (const payload of payloads) {
+    if (payload.method !== "POST" && payload.method !== "PUT") {
+      blockers.push({
+        code: "UNSAFE_METHOD",
+        payloadId: payload.id,
+        message: "Only POST and PUT are allowed in MVP test execution."
+      });
+    }
+
+    if (!payload.safety.liveBlocked || !payload.safety.deleteBlocked || !payload.safety.requiresHumanApproval) {
+      blockers.push({
+        code: "SAFETY_FLAGS_MISSING",
+        payloadId: payload.id,
+        message: "Required safety flags are missing from the payload."
+      });
+    }
+
+    if (containsPendingPlaceholder(payload.body) || containsPendingPlaceholder(payload.params)) {
+      blockers.push({
+        code: "PENDING_NAVER_ID",
+        payloadId: payload.id,
+        message: "Naver channel, ad group, or entity IDs must be resolved before execution."
+      });
+    }
+
+    if (containsUserLockFalse(payload.body)) {
+      blockers.push({
+        code: "LIVE_UNLOCKED",
+        payloadId: payload.id,
+        message: "Payload must keep userLock enabled so created entities stay paused/off."
+      });
+    }
+
+    if (containsHighDailyBudget(payload.body)) {
+      warnings.push({
+        code: "HIGH_TEST_DAILY_BUDGET",
+        payloadId: payload.id,
+        message: "Daily budget is above the MVP test-budget review threshold."
+      });
+    }
+  }
+
+  return {
+    canExecuteTest: blockers.length === 0,
+    blockerCount: blockers.length,
+    warningCount: warnings.length,
+    blockers,
+    warnings,
+    requiredConfirmation: "TEST_EXECUTION_ONLY"
   };
 }
 
@@ -140,6 +231,43 @@ function defaultSafety() {
     deleteBlocked: true,
     requiresHumanApproval: true
   } as const;
+}
+
+function createDraftId(brandName: string, payloads: NaverExecutionPayload[], generatedAt: string): string {
+  const fingerprint = [brandName, generatedAt, ...payloads.map((payload) => `${payload.id}:${payload.method}:${payload.uri}`)].join("|");
+  return `draft_${generatedAt.replace(/[-:.TZ]/g, "").slice(0, 14)}_${stableHash(fingerprint).toString(36)}`;
+}
+
+function containsPendingPlaceholder(value: unknown): boolean {
+  return findInPayload(value, (item) => typeof item === "string" && item.includes("PENDING_"));
+}
+
+function containsUserLockFalse(value: unknown): boolean {
+  return findInPayload(value, (item, key) => key === "userLock" && item === false);
+}
+
+function containsHighDailyBudget(value: unknown): boolean {
+  return findInPayload(value, (item, key) => key === "dailyBudget" && typeof item === "number" && item > 100000);
+}
+
+function findInPayload(value: unknown, predicate: (item: unknown, key?: string) => boolean): boolean {
+  if (predicate(value)) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.some((item) => findInPayload(item, predicate));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.entries(value).some(([key, item]) => predicate(item, key) || findInPayload(item, predicate));
+  }
+
+  return false;
+}
+
+function stableHash(value: string): number {
+  return Array.from(value).reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0, 11);
 }
 
 function slugify(value: string): string {

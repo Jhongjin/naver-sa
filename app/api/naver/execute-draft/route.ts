@@ -61,6 +61,17 @@ export async function POST(request: Request) {
     );
   }
 
+  if (!draft.validation.canExecuteTest) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Execution draft has unresolved validation blockers.",
+        validation: draft.validation
+      },
+      { status: 409 }
+    );
+  }
+
   const results: ExecutionResponse["results"] = [];
 
   for (const payload of draft.payloads) {
