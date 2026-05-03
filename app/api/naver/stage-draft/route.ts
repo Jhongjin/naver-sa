@@ -1,15 +1,23 @@
 import { NextResponse } from "next/server";
-import { createNaverExecutionDraft } from "@/lib/execution-draft";
+import { createNaverExecutionDraft, type NaverExecutionContext } from "@/lib/execution-draft";
 import { getNaverConfigState } from "@/lib/naver-search-ad";
+import { verifyOperatorAccess } from "@/lib/operator-access";
 import { generatePlannerPlan, mardDefaultInput, type PlannerInput, type PlannerMode } from "@/lib/planner";
 import { summarizeApprovals, type ApprovalDecision, type ApprovalDecisionMap } from "@/lib/reporting";
 
 export async function POST(request: Request) {
+  const access = verifyOperatorAccess(request);
+
+  if (!access.ok) {
+    return NextResponse.json(access, { status: access.status });
+  }
+
   const body = await readJson(request);
   const input = coercePlannerInput(isRecord(body.input) ? body.input : {});
   const decisions = coerceDecisions(body.decisions);
+  const executionContext = coerceExecutionContext(body.executionContext);
   const plan = generatePlannerPlan(input);
-  const draft = createNaverExecutionDraft(plan, decisions);
+  const draft = createNaverExecutionDraft(plan, decisions, executionContext);
   const naverState = getNaverConfigState();
   const approvalSummary = summarizeApprovals(plan.stagedChanges, decisions);
 
@@ -18,6 +26,7 @@ export async function POST(request: Request) {
     dryRun: true,
     externalRequest: false,
     automationLevel: "Level 2 Staged Changes",
+    operatorAccess: access.state,
     naver: {
       ready: naverState.ready,
       missing: naverState.missing,
@@ -66,12 +75,29 @@ function coerceDecisions(value: unknown): ApprovalDecisionMap {
   );
 }
 
+function coerceExecutionContext(value: unknown): NaverExecutionContext {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return {
+    campaignId: stringValueOrUndefined(value.campaignId),
+    pcChannelId: stringValueOrUndefined(value.pcChannelId),
+    mobileChannelId: stringValueOrUndefined(value.mobileChannelId),
+    adgroupIdsByName: recordStringValue(value.adgroupIdsByName)
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function stringValue(value: unknown, fallback: string): string {
   return typeof value === "string" ? value : fallback;
+}
+
+function stringValueOrUndefined(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function numberValue(value: unknown, fallback: number): number {
@@ -97,4 +123,16 @@ function stringArrayValue(value: unknown, fallback: string[]): string[] {
   }
 
   return value.filter((item): item is string => typeof item === "string");
+}
+
+function recordStringValue(value: unknown): Record<string, string> | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const entries = Object.entries(value).filter((entry): entry is [string, string] => {
+    return typeof entry[1] === "string" && entry[1].trim().length > 0;
+  });
+
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }

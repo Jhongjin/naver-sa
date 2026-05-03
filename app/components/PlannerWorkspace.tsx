@@ -58,6 +58,11 @@ type StageDraftResponse = {
   ok: boolean;
   dryRun: boolean;
   automationLevel: string;
+  operatorAccess: {
+    configured: boolean;
+    sameOrigin: boolean;
+    mode: "operator-code" | "open-dry-run";
+  };
   naver: {
     ready: boolean;
     missing: string[];
@@ -93,6 +98,42 @@ type StageDraftResponse = {
   nextAction: string;
 };
 
+type AccountSnapshotResponse = {
+  ok: boolean;
+  externalRequest?: boolean;
+  error?: string;
+  code?: string;
+  channels?: Array<{
+    id: string;
+    name: string;
+    channelTp: string;
+    site: string | null;
+    mobileSite: string | null;
+    inspectStatus: string | null;
+  }>;
+  campaigns?: Array<{
+    nccCampaignId?: string;
+    name?: string;
+    userLock?: boolean | number;
+  }>;
+};
+
+type AccountSnapshotState =
+  | {
+      status: "idle";
+    }
+  | {
+      status: "loading";
+    }
+  | {
+      status: "success";
+      response: AccountSnapshotResponse;
+    }
+  | {
+      status: "error";
+      message: string;
+    };
+
 type StageDraftState =
   | {
       status: "idle";
@@ -124,6 +165,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [approvalDecisions, setApprovalDecisions] = useState<ApprovalDecisionMap>({});
   const [naverReadiness, setNaverReadiness] = useState<NaverReadiness | null>(null);
   const [stageDraftState, setStageDraftState] = useState<StageDraftState>({ status: "idle" });
+  const [accountSnapshotState, setAccountSnapshotState] = useState<AccountSnapshotState>({ status: "idle" });
+  const [operatorCode, setOperatorCode] = useState("");
+  const [pcChannelId, setPcChannelId] = useState("");
+  const [mobileChannelId, setMobileChannelId] = useState("");
 
   const seedKeywords = useMemo(
     () =>
@@ -146,20 +191,27 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     }),
     [brandName, maxBid, mode, monthlyBudget, seedKeywords, siteUrl, vertical]
   );
+  const executionContext = useMemo(
+    () => ({
+      pcChannelId: pcChannelId.trim() || undefined,
+      mobileChannelId: mobileChannelId.trim() || undefined
+    }),
+    [mobileChannelId, pcChannelId]
+  );
 
   const plan = useMemo(() => generatePlannerPlan(input), [input]);
   const optimizationRecommendations = useMemo(() => generateOptimizationRecommendations(plan), [plan]);
   const executionDraft = useMemo(
-    () => createNaverExecutionDraft(plan, approvalDecisions),
-    [approvalDecisions, plan]
+    () => createNaverExecutionDraft(plan, approvalDecisions, executionContext),
+    [approvalDecisions, executionContext, plan]
   );
   const approvalSummary = useMemo(
     () => summarizeApprovals(plan.stagedChanges, approvalDecisions),
     [approvalDecisions, plan.stagedChanges]
   );
   const draftFingerprint = useMemo(
-    () => JSON.stringify({ input, decisions: approvalDecisions }),
-    [approvalDecisions, input]
+    () => JSON.stringify({ input, decisions: approvalDecisions, executionContext }),
+    [approvalDecisions, executionContext, input]
   );
   const activeStageDraftState =
     stageDraftState.status !== "idle" && stageDraftState.fingerprint !== draftFingerprint
@@ -249,11 +301,13 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       const response = await fetch("/api/naver/stage-draft", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...(operatorCode.trim() ? { "x-operator-code": operatorCode.trim() } : {})
         },
         body: JSON.stringify({
           input,
-          decisions: approvalDecisions
+          decisions: approvalDecisions,
+          executionContext
         })
       });
       const data = (await response.json()) as StageDraftResponse | { ok?: boolean; error?: string };
@@ -270,6 +324,35 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         message: error instanceof Error ? error.message : "초안 검증에 실패했습니다."
       });
     }
+  }
+
+  async function loadAccountSnapshot() {
+    setAccountSnapshotState({ status: "loading" });
+
+    try {
+      const response = await fetch("/api/naver/account-snapshot", {
+        headers: {
+          ...(operatorCode.trim() ? { "x-operator-code": operatorCode.trim() } : {})
+        }
+      });
+      const data = (await response.json()) as AccountSnapshotResponse;
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error ?? "계정 스캔에 실패했습니다.");
+      }
+
+      setAccountSnapshotState({ status: "success", response: data });
+    } catch (error) {
+      setAccountSnapshotState({
+        status: "error",
+        message: error instanceof Error ? error.message : "계정 스캔에 실패했습니다."
+      });
+    }
+  }
+
+  function applyBusinessChannel(channelId: string) {
+    setPcChannelId(channelId);
+    setMobileChannelId(channelId);
   }
 
   return (
@@ -699,6 +782,35 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               JSON
             </button>
           </div>
+          <div className="execution-controls">
+            <label className="field">
+              <span>운영자 코드</span>
+              <input
+                autoComplete="off"
+                type="password"
+                value={operatorCode}
+                onChange={(event) => setOperatorCode(event.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>PC 채널 ID</span>
+              <input value={pcChannelId} onChange={(event) => setPcChannelId(event.target.value)} />
+            </label>
+            <label className="field">
+              <span>모바일 채널 ID</span>
+              <input value={mobileChannelId} onChange={(event) => setMobileChannelId(event.target.value)} />
+            </label>
+            <button
+              className="icon-button subtle"
+              type="button"
+              disabled={accountSnapshotState.status === "loading"}
+              onClick={loadAccountSnapshot}
+            >
+              <Search size={17} />
+              {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
+            </button>
+          </div>
+          <AccountSnapshotNotice state={accountSnapshotState} onApplyChannel={applyBusinessChannel} />
           <div className="execution-grid">
             <div>
               <span>승인된 변경</span>
@@ -813,6 +925,67 @@ function StageDraftNotice({ state }: { state: StageDraftState }) {
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function AccountSnapshotNotice({
+  state,
+  onApplyChannel
+}: {
+  state: AccountSnapshotState;
+  onApplyChannel: (channelId: string) => void;
+}) {
+  if (state.status === "idle") {
+    return null;
+  }
+
+  if (state.status === "loading") {
+    return (
+      <div className="stage-notice neutral">
+        <strong>Naver 계정 스캔 중</strong>
+        <span>비즈채널과 캠페인을 read-only로 조회합니다.</span>
+      </div>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <div className="stage-notice danger">
+        <strong>계정 스캔 실패</strong>
+        <span>{state.message}</span>
+      </div>
+    );
+  }
+
+  const siteChannels = (state.response.channels ?? []).filter((channel) => channel.id);
+
+  return (
+    <div className="account-snapshot">
+      <div className="snapshot-summary">
+        <span>비즈채널 {siteChannels.length}개</span>
+        <span>캠페인 {state.response.campaigns?.length ?? 0}개</span>
+      </div>
+      <div className="channel-list">
+        {siteChannels.length === 0 ? (
+          <span>사용 가능한 비즈채널이 없습니다. Naver 검색광고에서 사이트 비즈채널을 먼저 등록해야 합니다.</span>
+        ) : (
+          siteChannels.map((channel) => (
+            <div className="channel-item" key={channel.id}>
+              <div>
+                <strong>{channel.name}</strong>
+                <span>
+                  {channel.channelTp} / {channel.inspectStatus ?? "상태 미확인"}
+                </span>
+                <em>{channel.site ?? channel.mobileSite ?? "URL 미확인"}</em>
+              </div>
+              <button className="icon-button subtle" type="button" onClick={() => onApplyChannel(channel.id)}>
+                적용
+              </button>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

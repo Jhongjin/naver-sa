@@ -14,15 +14,21 @@ const requiredVariables = [
   "ENCRYPTION_KEY"
 ];
 
+const optionalVariables = ["OPERATOR_ACCESS_CODE"];
+
 export function GET() {
   const variables = requiredVariables.map((name) => ({
+    name,
+    present: Boolean(process.env[name])
+  }));
+  const optional = optionalVariables.map((name) => ({
     name,
     present: Boolean(process.env[name])
   }));
 
   return NextResponse.json({
     ok: variables.every((variable) => variable.present),
-    variables
+    variables,
+    optional
   });
 }
-

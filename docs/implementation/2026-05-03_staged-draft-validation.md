@@ -14,6 +14,7 @@ The route:
 
 - regenerates the planner plan server-side
 - applies the submitted approval decisions
+- accepts optional execution context such as Naver channel IDs
 - creates a Naver execution draft
 - validates the payloads
 - returns blockers and warnings
@@ -26,12 +27,27 @@ The planner UI now supports:
 
 - approve all staged changes
 - reset approval decisions
+- enter an operator access code
+- scan Naver account inventory when `OPERATOR_ACCESS_CODE` is configured
+- apply a business channel ID to PC and mobile channel fields
 - validate the approved draft from the browser
 - show draft ID, blocker count, warnings, and payload summaries
 
 ## Safety
 
 The browser route is dry-run only.
+
+The browser dry-run route:
+
+- rejects cross-origin requests
+- uses `OPERATOR_ACCESS_CODE` when configured
+- remains mutation-free even when open-dry-run mode is active
+
+Read-only account inventory is isolated in:
+
+- `GET /api/naver/account-snapshot`
+
+That route requires `OPERATOR_ACCESS_CODE` and only reads business channels and campaign summaries.
 
 Protected mutation remains isolated in:
 
@@ -43,6 +59,7 @@ Current blockers include:
 
 - no approved payloads
 - unresolved placeholder Naver IDs
+- missing Naver business channel IDs
 - unsafe methods
 - missing safety flags
 - `userLock: false`
@@ -55,7 +72,7 @@ Warnings include:
 
 Before protected test execution:
 
-- resolve real Naver channel IDs
-- resolve created ad group IDs for keyword/ad payloads
+- configure `OPERATOR_ACCESS_CODE` in Vercel
+- confirm a Naver business channel exists for the test website
 - store execution audit events
-- expose account/channel selection in the operator UI
+- add a final one-click protected test execution control after explicit action-time confirmation

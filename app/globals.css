@@ -768,6 +768,14 @@ td span {
   margin-top: 16px;
 }
 
+.execution-controls {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr auto;
+  align-items: end;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
 .execution-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -776,7 +784,8 @@ td span {
 
 .execution-grid div,
 .payload-item,
-.stage-notice {
+.stage-notice,
+.account-snapshot {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-strong);
@@ -860,6 +869,59 @@ td span {
   padding-left: 8px;
 }
 
+.account-snapshot {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.snapshot-summary,
+.channel-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.snapshot-summary span {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 7px 9px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.channel-list {
+  display: grid;
+  gap: 8px;
+}
+
+.channel-item {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.channel-item strong,
+.channel-item span,
+.channel-item em {
+  display: block;
+}
+
+.channel-item span,
+.channel-item em,
+.channel-list > span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.channel-item em {
+  margin-top: 3px;
+  font-style: normal;
+}
+
 .payload-list p {
   grid-column: 1 / -1;
   margin: 0;
@@ -941,6 +1003,7 @@ td span {
   .forecast-band,
   .report-grid,
   .execution-grid,
+  .execution-controls,
   .payload-list,
   .benchmark-grid {
     grid-template-columns: 1fr;

@@ -16,6 +16,13 @@ export type NaverExecutionPayload = {
   };
 };
 
+export type NaverExecutionContext = {
+  campaignId?: string;
+  pcChannelId?: string;
+  mobileChannelId?: string;
+  adgroupIdsByName?: Record<string, string>;
+};
+
 export type NaverExecutionBlocker = {
   code: string;
   payloadId?: string;
@@ -51,13 +58,18 @@ export type NaverExecutionDraft = {
   };
 };
 
-export function createNaverExecutionDraft(plan: PlannerPlan, decisions: ApprovalDecisionMap): NaverExecutionDraft {
+export function createNaverExecutionDraft(
+  plan: PlannerPlan,
+  decisions: ApprovalDecisionMap,
+  context: NaverExecutionContext = {}
+): NaverExecutionDraft {
   const approvedIds = new Set(
     plan.stagedChanges.filter((change) => decisions[change.id] === "approved").map((change) => change.id)
   );
   const payloads: NaverExecutionPayload[] = [];
+  const shouldCreateCampaign = approvedIds.has("campaign-create-draft");
 
-  if (approvedIds.has("campaign-create-draft")) {
+  if (shouldCreateCampaign) {
     payloads.push({
       id: "campaign-create",
       method: "POST",
@@ -76,72 +88,81 @@ export function createNaverExecutionDraft(plan: PlannerPlan, decisions: Approval
   }
 
   for (const group of plan.adGroups) {
-    if (!approvedIds.has(`adgroup-${slugify(group.name)}`)) {
+    const adgroupPayloadId = createAdgroupPayloadId(group.name);
+
+    if (!approvedIds.has(adgroupPayloadId)) {
       continue;
     }
 
     payloads.push({
-      id: `adgroup-${slugify(group.name)}`,
+      id: adgroupPayloadId,
       method: "POST",
       uri: "/ncc/adgroups",
       entityType: "Ad Group",
       target: group.name,
       body: {
         name: group.name,
+        nccCampaignId: context.campaignId ?? (shouldCreateCampaign ? runtimeRef("campaign-create", "nccCampaignId") : "PENDING_CAMPAIGN_ID"),
         userLock: true,
         useDailyBudget: true,
         dailyBudget: group.dailyBudget,
         bidAmt: group.avgBid,
-        pcChannelId: "PENDING_CHANNEL_ID",
-        mobileChannelId: "PENDING_CHANNEL_ID"
+        pcChannelId: context.pcChannelId ?? "PENDING_PC_CHANNEL_ID",
+        mobileChannelId: context.mobileChannelId ?? context.pcChannelId ?? "PENDING_MOBILE_CHANNEL_ID"
       },
       safety: defaultSafety()
     });
   }
 
   if (approvedIds.has("keyword-bulk-create")) {
-    const keywordBody = plan.keywords
-      .filter((keyword) => keyword.status === "include")
-      .map((keyword) => ({
-        keyword: keyword.term,
-        bidAmt: keyword.bid,
-        useGroupBidAmt: false,
-        userLock: true
-      }));
+    for (const group of plan.adGroups) {
+      const keywordBody = plan.keywords
+        .filter((keyword) => keyword.status === "include" && keyword.group === group.name)
+        .map((keyword) => ({
+          keyword: keyword.term,
+          bidAmt: keyword.bid,
+          useGroupBidAmt: false,
+          userLock: true
+        }));
 
-    payloads.push({
-      id: "keyword-bulk-create",
-      method: "POST",
-      uri: "/ncc/keywords",
-      entityType: "Keyword",
-      target: `${keywordBody.length} keywords`,
-      params: {
-        nccAdgroupId: "PENDING_ADGROUP_ID"
-      },
-      body: keywordBody,
-      safety: defaultSafety()
-    });
+      if (keywordBody.length === 0) {
+        continue;
+      }
+
+      payloads.push({
+        id: `keywords-${slugify(group.name)}`,
+        method: "POST",
+        uri: "/ncc/keywords",
+        entityType: "Keyword",
+        target: `${group.name} ${keywordBody.length} keywords`,
+        params: {
+          nccAdgroupId: resolveAdgroupReference(group.name, approvedIds, context)
+        },
+        body: keywordBody,
+        safety: defaultSafety()
+      });
+    }
   }
 
   if (approvedIds.has("copy-draft-create")) {
-    payloads.push({
-      id: "ad-copy-create",
-      method: "POST",
-      uri: "/ncc/ads",
-      entityType: "Ad Copy",
-      target: "광고 소재",
-      body: plan.adGroups.flatMap((group) =>
-        group.sampleAds.map((ad) => ({
-          nccAdgroupId: "PENDING_ADGROUP_ID",
+    for (const group of plan.adGroups) {
+      payloads.push({
+        id: `ad-copy-${slugify(group.name)}`,
+        method: "POST",
+        uri: "/ncc/ads",
+        entityType: "Ad Copy",
+        target: `${group.name} 광고 소재`,
+        body: group.sampleAds.map((ad) => ({
+          nccAdgroupId: resolveAdgroupReference(group.name, approvedIds, context),
           type: "TEXT_45",
           headline: ad.headline,
           description: ad.description,
           finalUrl: plan.input.siteUrl,
           userLock: true
-        }))
-      ),
-      safety: defaultSafety()
-    });
+        })),
+        safety: defaultSafety()
+      });
+    }
   }
 
   const validation = validateNaverExecutionPayloads(payloads);
@@ -231,6 +252,30 @@ function defaultSafety() {
     deleteBlocked: true,
     requiresHumanApproval: true
   } as const;
+}
+
+function resolveAdgroupReference(
+  groupName: string,
+  approvedIds: Set<string>,
+  context: NaverExecutionContext
+): string {
+  const existingAdgroupId = context.adgroupIdsByName?.[groupName];
+
+  if (existingAdgroupId) {
+    return existingAdgroupId;
+  }
+
+  const adgroupPayloadId = createAdgroupPayloadId(groupName);
+
+  return approvedIds.has(adgroupPayloadId) ? runtimeRef(adgroupPayloadId, "nccAdgroupId") : "PENDING_ADGROUP_ID";
+}
+
+function createAdgroupPayloadId(groupName: string): string {
+  return `adgroup-${slugify(groupName)}`;
+}
+
+export function runtimeRef(payloadId: string, field: string): string {
+  return `{{${payloadId}.${field}}}`;
 }
 
 function createDraftId(brandName: string, payloads: NaverExecutionPayload[], generatedAt: string): string {

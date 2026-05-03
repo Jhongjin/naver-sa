@@ -42,6 +42,20 @@ export type NaverCampaignSummary = {
   deliveryMethod?: string;
 };
 
+export type NaverBusinessChannelSummary = {
+  nccBusinessChannelId?: string;
+  name?: string;
+  channelTp?: string;
+  businessInfo?: {
+    site?: string;
+    mobileSite?: string;
+    [key: string]: unknown;
+  };
+  inspectStatus?: string;
+  regTm?: string;
+  editTm?: string;
+};
+
 const envNames = {
   apiKey: "NAVER_SEARCH_AD_API_KEY",
   secretKey: "NAVER_SEARCH_AD_SECRET_KEY",
@@ -154,6 +168,10 @@ export async function listNaverCampaigns(recordSize = 10): Promise<NaverApiResul
       recordSize
     }
   });
+}
+
+export async function listNaverBusinessChannels(): Promise<NaverApiResult<NaverBusinessChannelSummary[]>> {
+  return requestNaverSearchAd<NaverBusinessChannelSummary[]>("GET", "/ncc/channels");
 }
 
 function buildUrl(baseUrl: string, uri: string, query?: Record<string, string | number | boolean | undefined>): string {

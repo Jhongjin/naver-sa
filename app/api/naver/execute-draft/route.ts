@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { createNaverExecutionDraft } from "@/lib/execution-draft";
+import {
+  createNaverExecutionDraft,
+  type NaverExecutionContext,
+  type NaverExecutionPayload
+} from "@/lib/execution-draft";
 import { requestNaverSearchAd } from "@/lib/naver-search-ad";
 import { generatePlannerPlan, mardDefaultInput, type PlannerInput, type PlannerMode } from "@/lib/planner";
 import type { ApprovalDecision, ApprovalDecisionMap } from "@/lib/reporting";
@@ -28,10 +32,11 @@ export async function POST(request: Request) {
   const body = await readJson(request);
   const input = coercePlannerInput(isRecord(body.input) ? body.input : {});
   const decisions = coerceDecisions(body.decisions);
+  const executionContext = coerceExecutionContext(body.executionContext);
   const shouldExecute = body.execute === true;
   const confirmation = typeof body.confirmation === "string" ? body.confirmation : "";
   const plan = generatePlannerPlan(input);
-  const draft = createNaverExecutionDraft(plan, decisions);
+  const draft = createNaverExecutionDraft(plan, decisions, executionContext);
 
   if (!shouldExecute) {
     return NextResponse.json({
@@ -73,11 +78,25 @@ export async function POST(request: Request) {
   }
 
   const results: ExecutionResponse["results"] = [];
+  const runtimeValues: RuntimeValueMap = {};
 
   for (const payload of draft.payloads) {
+    const resolvedPayload = resolveExecutionPayload(payload, runtimeValues);
+
+    if (resolvedPayload.unresolved.length > 0) {
+      results.push({
+        id: payload.id,
+        ok: false,
+        status: 409,
+        target: payload.target,
+        error: `Unresolved runtime references: ${resolvedPayload.unresolved.join(", ")}`
+      });
+      break;
+    }
+
     const result = await requestNaverSearchAd<unknown>(payload.method, payload.uri, {
-      query: payload.params,
-      body: payload.body
+      query: resolvedPayload.params,
+      body: resolvedPayload.body
     });
 
     results.push({
@@ -91,6 +110,8 @@ export async function POST(request: Request) {
     if (!result.ok) {
       break;
     }
+
+    runtimeValues[payload.id] = extractRuntimeValues(result.data);
   }
 
   const response: ExecutionResponse = {
@@ -164,12 +185,29 @@ function coerceDecisions(value: unknown): ApprovalDecisionMap {
   );
 }
 
+function coerceExecutionContext(value: unknown): NaverExecutionContext {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return {
+    campaignId: stringValueOrUndefined(value.campaignId),
+    pcChannelId: stringValueOrUndefined(value.pcChannelId),
+    mobileChannelId: stringValueOrUndefined(value.mobileChannelId),
+    adgroupIdsByName: recordStringValue(value.adgroupIdsByName)
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function stringValue(value: unknown, fallback: string): string {
   return typeof value === "string" ? value : fallback;
+}
+
+function stringValueOrUndefined(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function numberValue(value: unknown, fallback: number): number {
@@ -195,4 +233,100 @@ function stringArrayValue(value: unknown, fallback: string[]): string[] {
   }
 
   return value.filter((item): item is string => typeof item === "string");
+}
+
+type RuntimeValueMap = Record<string, Record<string, string>>;
+
+function resolveExecutionPayload(payload: NaverExecutionPayload, runtimeValues: RuntimeValueMap) {
+  const bodyResult = resolveRuntimeRefs(payload.body, runtimeValues);
+  const paramsResult = resolveRuntimeRefs(payload.params, runtimeValues);
+
+  return {
+    body: bodyResult.value,
+    params: isRecord(paramsResult.value) ? (paramsResult.value as Record<string, string>) : undefined,
+    unresolved: [...bodyResult.unresolved, ...paramsResult.unresolved]
+  };
+}
+
+function resolveRuntimeRefs(value: unknown, runtimeValues: RuntimeValueMap): { value: unknown; unresolved: string[] } {
+  if (typeof value === "string") {
+    const match = value.match(/^\{\{([^{}]+)\.([^{}]+)\}\}$/);
+
+    if (!match) {
+      return {
+        value,
+        unresolved: []
+      };
+    }
+
+    const [, payloadId, field] = match;
+    const resolved = runtimeValues[payloadId]?.[field];
+
+    return resolved
+      ? {
+          value: resolved,
+          unresolved: []
+        }
+      : {
+          value,
+          unresolved: [`${payloadId}.${field}`]
+        };
+  }
+
+  if (Array.isArray(value)) {
+    const results = value.map((item) => resolveRuntimeRefs(item, runtimeValues));
+    return {
+      value: results.map((result) => result.value),
+      unresolved: results.flatMap((result) => result.unresolved)
+    };
+  }
+
+  if (isRecord(value)) {
+    const entries = Object.entries(value).map(([key, item]) => {
+      const result = resolveRuntimeRefs(item, runtimeValues);
+      return [key, result.value, result.unresolved] as const;
+    });
+
+    return {
+      value: Object.fromEntries(entries.map(([key, item]) => [key, item])),
+      unresolved: entries.flatMap(([, , unresolved]) => unresolved)
+    };
+  }
+
+  return {
+    value,
+    unresolved: []
+  };
+}
+
+function extractRuntimeValues(data: unknown): Record<string, string> {
+  const source = Array.isArray(data) ? data[0] : data;
+
+  if (!isRecord(source)) {
+    return {};
+  }
+
+  const values: Record<string, string> = {};
+
+  for (const field of ["nccCampaignId", "nccAdgroupId", "nccKeywordId", "nccAdId"]) {
+    const value = source[field];
+
+    if (typeof value === "string") {
+      values[field] = value;
+    }
+  }
+
+  return values;
+}
+
+function recordStringValue(value: unknown): Record<string, string> | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const entries = Object.entries(value).filter((entry): entry is [string, string] => {
+    return typeof entry[1] === "string" && entry[1].trim().length > 0;
+  });
+
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
