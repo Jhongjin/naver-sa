@@ -113,6 +113,48 @@ The local `.env.local` contains only `VERCEL_OIDC_TOKEN` from Vercel development
 
 `.env.local` and `.vercel/` are ignored by git.
 
+## 2026-05-03 Production Observations
+
+### Vercel Protection
+
+Resolved.
+
+- `/api/health` returned `HTTP 200`
+- all required environment variable names were present
+
+### Naver Search Ad
+
+Read-only campaign check reached Naver but failed authentication.
+
+- endpoint: `/api/naver/readiness?check=campaigns`
+- result: `403 Auth Failed`
+- response is now redacted before returning to the browser
+
+Recommended checks in Vercel Production env:
+
+- `NAVER_SEARCH_AD_API_KEY` belongs to customer `560401`
+- `NAVER_SEARCH_AD_SECRET_KEY` is paired with the same API key
+- `NAVER_SEARCH_AD_CUSTOMER_ID` is numeric only
+- `NAVER_SEARCH_AD_BASE_URL` is `https://api.searchad.naver.com`
+- redeploy production after changing env values
+
+### Supabase
+
+Supabase admin env names were present, but the configured Supabase host did not resolve through DNS.
+
+Observed readiness:
+
+- `NEXT_PUBLIC_SUPABASE_URL` was present
+- URL syntax looked valid
+- DNS lookup failed for the configured host
+
+Recommended checks in Vercel Production env:
+
+- copy the exact Project URL from Supabase dashboard
+- make sure it follows `https://<project-ref>.supabase.co`
+- confirm `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are from the same Supabase project
+- redeploy production after changing env values
+
 ## Rollback
 
 Code rollback:
