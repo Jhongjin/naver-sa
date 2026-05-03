@@ -26,6 +26,7 @@ Implemented:
 - Supabase planning/audit schema migration
 - dry-run optimization recommendation engine
 - approved Naver execution payload JSON preview
+- protected test execution route at `/api/naver/execute-draft`
 
 Planned stack:
 
