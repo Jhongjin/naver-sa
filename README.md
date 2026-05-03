@@ -43,10 +43,12 @@ Planned stack:
 - All Naver API mutations must remain approval-first.
 - Delete actions are not generated; use pause/off recommendations instead.
 - Secrets must stay in Vercel/Supabase environment settings and must never be committed.
+- Production secrets must not be pulled locally when TLS certificate verification is disabled.
 
 ## Setup Documents
 
 - `docs/SETUP.md`
 - `docs/ENVIRONMENT.md`
 - `docs/OPERATING_POLICY.md`
+- `docs/implementation/2026-05-03_safe-production-verification.md`
 - `.env.example`
