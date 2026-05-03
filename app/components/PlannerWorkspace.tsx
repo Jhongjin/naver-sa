@@ -229,6 +229,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const stageValidated = activeStageDraftState.status === "success";
   const canRequestProtectedExecution =
     stageValidated && activeStageDraftState.response.draft.validation.canExecuteTest && channelApplied;
+  const modeLabel = mode === "agency" ? "대행사 모드" : "광고주 모드";
+  const channelStatusLabel = channelApplied ? "연결됨" : "미연결";
+  const blockerTone = executionDraft.validation.blockerCount > 0 ? "rose" : "green";
+  const approvalTone = approvalSummary.pending > 0 ? "amber" : "green";
   const nextAction = getNextAction({
     approvedCount: approvalSummary.approved,
     channelApplied,
@@ -450,17 +454,22 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Powerlink / Site Search Ads</p>
-            <h1>키워드부터 승인 큐까지 자동 세팅</h1>
+            <p className="eyebrow">세팅 워크벤치</p>
+            <h1>{plan.input.brandName} 파워링크 자동 세팅</h1>
+            <div className="topbar-meta" aria-label="현재 작업 정보">
+              <span>{plan.input.vertical}</span>
+              <span>{modeLabel}</span>
+              <span>테스트 모드</span>
+            </div>
           </div>
           <div className="topbar-actions">
             <a className="icon-button subtle" href={plan.input.siteUrl} target="_blank" rel="noreferrer">
               <ExternalLink size={17} />
-              사이트 보기
+              사이트
             </a>
             <button className="icon-button subtle" type="button" onClick={downloadCsv}>
               <Download size={17} />
-              CSV
+              키워드 CSV
             </button>
             <button
               className="icon-button primary"
@@ -474,110 +483,40 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
           </div>
         </header>
 
-        <section className="workflow-strip" aria-label="세팅 진행 단계">
-          {setupSteps.map((step, index) => (
-            <div className={`workflow-step ${step.state}`} key={step.label}>
-              <span>{index + 1}</span>
-              <strong>{step.label}</strong>
-              <em>{step.detail}</em>
-            </div>
-          ))}
+        <section className="status-board" aria-label="작업 상태판">
+          <StatusTile
+            label="승인 큐"
+            value={`${approvalSummary.approved}/${plan.stagedChanges.length}`}
+            caption={`${approvalSummary.pending}건 대기`}
+            tone={approvalTone}
+          />
+          <StatusTile
+            label="비즈채널"
+            value={channelStatusLabel}
+            caption={channelApplied ? "PC/모바일 적용" : "계정 스캔 필요"}
+            tone={channelApplied ? "green" : "amber"}
+          />
+          <StatusTile
+            label="차단"
+            value={`${executionDraft.validation.blockerCount}건`}
+            caption="전송 전 해결"
+            tone={blockerTone}
+          />
+          <StatusTile
+            label="예상 클릭"
+            value={`${currencyFormatter.format(plan.forecast.expectedClicks)}회`}
+            caption={`평균 CPC ${currencyFormatter.format(plan.forecast.avgCpc)}원`}
+            tone="blue"
+          />
+          <StatusTile label="집행 상태" value="Live off" caption="삭제도 금지" tone="green" />
         </section>
 
-        <section className="command-grid" id="execution">
-          <article className={`next-action-panel ${nextAction.tone}`}>
-            <div>
-              <p className="eyebrow">Next Action</p>
-              <h2>{nextAction.title}</h2>
-              <span>{nextAction.description}</span>
-            </div>
-            <b>{nextAction.status}</b>
-          </article>
-
-          <section className="execution-panel priority">
-            <div className="section-heading">
+        <section className="workbench-grid" id="planner" aria-label="세팅 워크벤치">
+          <article className="setup-panel input-column">
+            <div className="section-heading compact">
               <div>
-                <p className="eyebrow">Execution Readiness</p>
-                <h2>전송 직전 점검</h2>
-              </div>
-              <button className="icon-button subtle" type="button" onClick={downloadExecutionDraft}>
-                <Download size={17} />
-                JSON
-              </button>
-            </div>
-            <div className="execution-controls">
-              <label className="field">
-                <span>운영자 코드</span>
-                <input
-                  autoComplete="off"
-                  type="password"
-                  value={operatorCode}
-                  onChange={(event) => setOperatorCode(event.target.value)}
-                />
-              </label>
-              <label className="field">
-                <span>PC 채널 ID</span>
-                <input value={pcChannelId} onChange={(event) => setPcChannelId(event.target.value)} />
-              </label>
-              <label className="field">
-                <span>모바일 채널 ID</span>
-                <input value={mobileChannelId} onChange={(event) => setMobileChannelId(event.target.value)} />
-              </label>
-              <button
-                className="icon-button subtle"
-                type="button"
-                disabled={accountSnapshotState.status === "loading"}
-                onClick={loadAccountSnapshot}
-              >
-                <Search size={17} />
-                {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
-              </button>
-            </div>
-            <AccountSnapshotNotice state={accountSnapshotState} onApplyChannel={applyBusinessChannel} />
-            <div className="execution-grid">
-              <div>
-                <span>승인</span>
-                <strong>{executionDraft.approvedChangeCount}건</strong>
-              </div>
-              <div>
-                <span>Payload</span>
-                <strong>{executionDraft.payloads.length}개</strong>
-              </div>
-              <div>
-                <span>가드레일</span>
-                <strong>Live off</strong>
-              </div>
-              <div>
-                <span>차단</span>
-                <strong>{executionDraft.validation.blockerCount}건</strong>
-              </div>
-            </div>
-            <StageDraftNotice state={activeStageDraftState} />
-            <div className="payload-list compact">
-              {executionDraft.payloads.length === 0 ? (
-                <p>승인된 항목이 없어서 아직 전송 초안이 없습니다.</p>
-              ) : (
-                executionDraft.payloads.slice(0, 6).map((payload) => (
-                  <div className="payload-item" key={payload.id}>
-                    <strong>{payload.target}</strong>
-                    <span>
-                      {payload.method} {payload.uri}
-                    </span>
-                    <em>{payload.entityType}</em>
-                  </div>
-                ))
-              )}
-              {executionDraft.payloads.length > 6 ? <p>외 {executionDraft.payloads.length - 6}개 payload</p> : null}
-            </div>
-          </section>
-        </section>
-
-        <section className="planner-grid" id="planner">
-          <article className="setup-panel">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Input</p>
-                <h2>세팅 입력값</h2>
+                <p className="eyebrow">입력값</p>
+                <h2>캠페인 기준</h2>
               </div>
               <div className="segmented-control" aria-label="사용자 모드">
                 <button className={mode === "agency" ? "active" : ""} type="button" onClick={() => setMode("agency")}>
@@ -593,7 +532,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               </div>
             </div>
 
-            <div className="control-grid">
+            <div className="control-grid single">
               <label className="field">
                 <span>브랜드명</span>
                 <input value={brandName} onChange={(event) => setBrandName(event.target.value)} />
@@ -629,56 +568,188 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             </div>
 
             <label className="field keyword-input">
-              <span>Seed keyword</span>
+              <span>시드 키워드</span>
               <textarea value={seedText} onChange={(event) => setSeedText(event.target.value)} />
             </label>
           </article>
 
-          <aside className="summary-stack">
-            <article className="workflow-panel">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">Forecast</p>
-                  <h2>예상 효과</h2>
-                </div>
-                <Sparkles size={20} />
+          <article className="table-panel approval-core" id="approval">
+            <div className="section-heading compact">
+              <div>
+                <p className="eyebrow">승인 큐</p>
+                <h2>전송 전 검수할 작업</h2>
               </div>
-              <div className="forecast-list">
-                <Metric label="월 예산" value={`${currencyFormatter.format(plan.forecast.monthlyBudget)}원`} />
-                <Metric label="예상 클릭" value={`${currencyFormatter.format(plan.forecast.expectedClicks)}회`} />
-                <Metric label="평균 CPC" value={`${currencyFormatter.format(plan.forecast.avgCpc)}원`} />
-                <Metric label="절감 시간" value={`${plan.forecast.setupHoursSaved}시간`} />
+              <div className="inline-actions">
+                <button className="icon-button subtle" type="button" onClick={approveAllChanges}>
+                  <CheckCircle2 size={17} />
+                  전체 승인
+                </button>
+                <button className="icon-button subtle" type="button" onClick={resetDecisions}>
+                  <PauseCircle size={17} />
+                  초기화
+                </button>
+                <button className="icon-button subtle" type="button" onClick={downloadApprovalCsv}>
+                  <Download size={17} />
+                  승인 CSV
+                </button>
               </div>
+            </div>
+            <div className="approval-summary" aria-label="승인 상태 요약">
+              <span>승인 {approvalSummary.approved}</span>
+              <span>보류 {approvalSummary.held}</span>
+              <span>대기 {approvalSummary.pending}</span>
+            </div>
+            <div className="table-wrap approval-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>상태</th>
+                    <th>유형</th>
+                    <th>대상</th>
+                    <th>작업</th>
+                    <th>위험</th>
+                    <th>결정</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {plan.stagedChanges.map((change) => {
+                    const decision = approvalDecisions[change.id] ?? "pending";
+
+                    return (
+                      <tr key={change.id}>
+                        <td>
+                          <span className={`status-pill ${decisionClass(decision)}`}>{decisionLabel(decision)}</span>
+                        </td>
+                        <td>{changeTypeLabel(change.type)}</td>
+                        <td>
+                          <strong>{change.target}</strong>
+                          <span>{change.details}</span>
+                        </td>
+                        <td>{change.action}</td>
+                        <td>
+                          <span className={`status-pill ${riskClass(change.risk)}`}>{riskLabel(change.risk)}</span>
+                        </td>
+                        <td>
+                          <div className="decision-actions inline">
+                            <button type="button" onClick={() => setDecision(change.id, "approved")}>
+                              승인
+                            </button>
+                            <button type="button" onClick={() => setDecision(change.id, "held")}>
+                              보류
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <aside className="inspector-stack" id="execution">
+            <article className={`next-action-panel ${nextAction.tone}`}>
+              <div>
+                <p className="eyebrow">다음 작업</p>
+                <h2>{nextAction.title}</h2>
+                <span>{nextAction.description}</span>
+              </div>
+              <b>{nextAction.status}</b>
             </article>
 
-            <article className="policy-panel">
-              <div className="section-heading">
+            <section className="execution-panel priority">
+              <div className="section-heading compact">
                 <div>
-                  <p className="eyebrow">Guardrails</p>
-                  <h2>실행 제한</h2>
+                  <p className="eyebrow">전송 점검</p>
+                  <h2>Naver 전송 준비</h2>
                 </div>
-                <ShieldCheck size={20} />
+                <button className="icon-button subtle" type="button" onClick={downloadExecutionDraft}>
+                  <Download size={17} />
+                  JSON
+                </button>
               </div>
-              <ul className="policy-list">
-                <li>
-                  <PauseCircle size={18} />
-                  라이브 캠페인 활성화 차단
-                </li>
-                <li>
-                  <AlertTriangle size={18} />
-                  입찰가 최대 {currencyFormatter.format(plan.input.maxBid)}원
-                </li>
-                <li>
-                  <CheckCircle2 size={18} />
-                  승인 {approvalSummary.approved}건 / 보류 {approvalSummary.held}건
-                </li>
-                <li>
-                  <ShieldCheck size={18} />
-                  {naverReadiness?.ok
-                    ? "공식 Search AD 서명 방식 준비 완료"
-                    : `환경변수 ${naverReadiness?.state.missing.length ?? "-"}개 확인 필요`}
-                </li>
-              </ul>
+              <div className="execution-controls">
+                <label className="field">
+                  <span>운영자 코드</span>
+                  <input
+                    autoComplete="off"
+                    type="password"
+                    value={operatorCode}
+                    onChange={(event) => setOperatorCode(event.target.value)}
+                  />
+                </label>
+                <label className="field">
+                  <span>PC 채널 ID</span>
+                  <input value={pcChannelId} onChange={(event) => setPcChannelId(event.target.value)} />
+                </label>
+                <label className="field">
+                  <span>모바일 채널 ID</span>
+                  <input value={mobileChannelId} onChange={(event) => setMobileChannelId(event.target.value)} />
+                </label>
+                <button
+                  className="icon-button subtle"
+                  type="button"
+                  disabled={accountSnapshotState.status === "loading"}
+                  onClick={loadAccountSnapshot}
+                >
+                  <Search size={17} />
+                  {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
+                </button>
+              </div>
+              <AccountSnapshotNotice state={accountSnapshotState} onApplyChannel={applyBusinessChannel} />
+              <div className="execution-grid">
+                <div>
+                  <span>승인</span>
+                  <strong>{executionDraft.approvedChangeCount}건</strong>
+                </div>
+                <div>
+                  <span>전송 초안</span>
+                  <strong>{executionDraft.payloads.length}개</strong>
+                </div>
+                <div>
+                  <span>안전모드</span>
+                  <strong>Live off</strong>
+                </div>
+                <div>
+                  <span>차단</span>
+                  <strong>{executionDraft.validation.blockerCount}건</strong>
+                </div>
+              </div>
+              <StageDraftNotice state={activeStageDraftState} />
+              <div className="payload-list compact">
+                {executionDraft.payloads.length === 0 ? (
+                  <p>승인된 항목이 없어서 아직 전송 초안이 없습니다.</p>
+                ) : (
+                  executionDraft.payloads.slice(0, 4).map((payload) => (
+                    <div className="payload-item" key={payload.id}>
+                      <strong>{payload.target}</strong>
+                      <span>
+                        {payload.method} {payload.uri}
+                      </span>
+                      <em>{payload.entityType}</em>
+                    </div>
+                  ))
+                )}
+                {executionDraft.payloads.length > 4 ? <p>외 {executionDraft.payloads.length - 4}개 초안</p> : null}
+              </div>
+            </section>
+
+            <article className="workflow-panel compact-flow">
+              <div className="section-heading compact">
+                <div>
+                  <p className="eyebrow">진행 단계</p>
+                  <h2>세팅 완료까지</h2>
+                </div>
+              </div>
+              <div className="workflow-strip vertical">
+                {setupSteps.map((step, index) => (
+                  <div className={`workflow-step ${step.state}`} key={step.label}>
+                    <span>{index + 1}</span>
+                    <strong>{step.label}</strong>
+                    <em>{step.detail}</em>
+                  </div>
+                ))}
+              </div>
             </article>
           </aside>
         </section>
@@ -694,7 +765,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
           <article className="table-panel" id="keywords">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Keyword Engine</p>
+                <p className="eyebrow">키워드 엔진</p>
                 <h2>추천 키워드와 입찰 초안</h2>
               </div>
               <button className="icon-button subtle" type="button" onClick={downloadCsv}>
@@ -737,10 +808,26 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
           </article>
 
           <aside className="side-stack">
+            <article className="workflow-panel">
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">예상 효과</p>
+                  <h2>테스트 운영 범위</h2>
+                </div>
+                <Sparkles size={20} />
+              </div>
+              <div className="forecast-list">
+                <Metric label="월 예산" value={`${currencyFormatter.format(plan.forecast.monthlyBudget)}원`} />
+                <Metric label="예상 클릭" value={`${currencyFormatter.format(plan.forecast.expectedClicks)}회`} />
+                <Metric label="평균 CPC" value={`${currencyFormatter.format(plan.forecast.avgCpc)}원`} />
+                <Metric label="절감 시간" value={`${plan.forecast.setupHoursSaved}시간`} />
+              </div>
+            </article>
+
             <article className="adgroup-panel">
               <div className="section-heading">
                 <div>
-                  <p className="eyebrow">Structure</p>
+                  <p className="eyebrow">광고 구조</p>
                   <h2>광고그룹 초안</h2>
                 </div>
               </div>
@@ -760,7 +847,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             <article className="policy-panel">
               <div className="section-heading">
                 <div>
-                  <p className="eyebrow">Negative</p>
+                  <p className="eyebrow">제외어</p>
                   <h2>제외 키워드 제안</h2>
                 </div>
               </div>
@@ -773,87 +860,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
           </aside>
         </section>
 
-        <section className="approval-grid" id="approval">
+        <section className="operation-section" id="operation">
           <article className="table-panel">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Approval Queue</p>
-                <h2>승인 대기 실행계획</h2>
-              </div>
-              <div className="inline-actions">
-                <button className="icon-button subtle" type="button" onClick={approveAllChanges}>
-                  <CheckCircle2 size={17} />
-                  전체 승인
-                </button>
-                <button className="icon-button subtle" type="button" onClick={resetDecisions}>
-                  <PauseCircle size={17} />
-                  초기화
-                </button>
-                <button className="icon-button subtle" type="button" onClick={downloadApprovalCsv}>
-                  <Download size={17} />
-                  승인 CSV
-                </button>
-                <span className="pill">Live off</span>
-              </div>
-            </div>
-            <div className="approval-summary" aria-label="승인 상태 요약">
-              <span>승인 {approvalSummary.approved}</span>
-              <span>보류 {approvalSummary.held}</span>
-              <span>대기 {approvalSummary.pending}</span>
-            </div>
-            <div className="table-wrap approval-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>상태</th>
-                    <th>유형</th>
-                    <th>대상</th>
-                    <th>작업</th>
-                    <th>위험</th>
-                    <th>결정</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {plan.stagedChanges.map((change) => {
-                    const decision = approvalDecisions[change.id] ?? "pending";
-
-                    return (
-                      <tr key={change.id}>
-                        <td>
-                          <span className={`status-pill ${decisionClass(decision)}`}>{decisionLabel(decision)}</span>
-                        </td>
-                        <td>{change.type}</td>
-                        <td>
-                          <strong>{change.target}</strong>
-                          <span>{change.details}</span>
-                        </td>
-                        <td>{change.action}</td>
-                        <td>
-                          <span className={`status-pill ${riskClass(change.risk)}`}>{riskLabel(change.risk)}</span>
-                        </td>
-                        <td>
-                          <div className="decision-actions inline">
-                            <button type="button" onClick={() => setDecision(change.id, "approved")}>
-                              승인
-                            </button>
-                            <button type="button" onClick={() => setDecision(change.id, "held")}>
-                              보류
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </article>
-
-          <article className="table-panel" id="operation">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Operation</p>
-                <h2>운영 자동화 추천</h2>
+                <p className="eyebrow">운영 추천</p>
+                <h2>자동 최적화 후보</h2>
               </div>
             </div>
             <div className="optimization-list">
@@ -882,13 +894,43 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               ))}
             </div>
           </article>
+
+          <article className="policy-panel">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">안전 제한</p>
+                <h2>실행 가드레일</h2>
+              </div>
+              <ShieldCheck size={20} />
+            </div>
+            <ul className="policy-list">
+              <li>
+                <PauseCircle size={18} />
+                라이브 캠페인 활성화 차단
+              </li>
+              <li>
+                <AlertTriangle size={18} />
+                입찰가 최대 {currencyFormatter.format(plan.input.maxBid)}원
+              </li>
+              <li>
+                <CheckCircle2 size={18} />
+                승인 {approvalSummary.approved}건 / 보류 {approvalSummary.held}건
+              </li>
+              <li>
+                <ShieldCheck size={18} />
+                {naverReadiness?.ok
+                  ? "공식 Search AD 서명 방식 준비 완료"
+                  : `환경변수 ${naverReadiness?.state.missing.length ?? "-"}개 확인 필요`}
+              </li>
+            </ul>
+          </article>
         </section>
 
         <section className="report-panel" id="report">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Report</p>
-              <h2>광고주/내부 공유용 리포트</h2>
+              <p className="eyebrow">리포트</p>
+              <h2>광고주/내부 공유용 요약</h2>
             </div>
             <button className="icon-button subtle" type="button" onClick={downloadReport}>
               <Download size={17} />
@@ -924,8 +966,8 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         <section className="benchmark-panel" id="benchmark">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Benchmark Coverage</p>
-              <h2>벤치마크 기능 구현 범위</h2>
+              <p className="eyebrow">구현 범위</p>
+              <h2>벤치마크 기능 반영 상태</h2>
             </div>
             <FileText size={20} />
           </div>
@@ -1083,6 +1125,16 @@ function SummaryCard({ label, value, caption, tone }: { label: string; value: st
   );
 }
 
+function StatusTile({ label, value, caption, tone }: { label: string; value: string; caption: string; tone: string }) {
+  return (
+    <article className={`status-tile ${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <em>{caption}</em>
+    </article>
+  );
+}
+
 function FeatureCard({ feature }: { feature: BenchmarkFeature }) {
   const label =
     feature.status === "implemented" ? "MVP 구현" : feature.status === "partial" ? "부분 구현" : "예정";
@@ -1108,6 +1160,18 @@ function riskClass(risk: ChangeRisk): string {
 
 function riskLabel(risk: ChangeRisk): string {
   return risk === "low" ? "낮음" : risk === "medium" ? "검토" : "차단";
+}
+
+function changeTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    Campaign: "캠페인",
+    Guardrail: "가드레일",
+    "Ad Group": "광고그룹",
+    Keyword: "키워드",
+    "Ad Copy": "소재"
+  };
+
+  return labels[type] ?? type;
 }
 
 function severityClass(severity: OptimizationSeverity): string {

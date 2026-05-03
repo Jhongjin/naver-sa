@@ -220,6 +220,23 @@ h3 {
   gap: 8px;
 }
 
+.topbar-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.topbar-meta span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 8px;
+}
+
 .icon-button {
   min-height: 36px;
   display: inline-flex;
@@ -270,6 +287,73 @@ h3 {
   gap: 8px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.status-board {
+  display: grid;
+  grid-template-columns: 1.08fr 0.92fr 0.78fr 1fr 0.86fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.status-tile {
+  min-height: 84px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 13px;
+  position: relative;
+}
+
+.status-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 8px 0 0 8px;
+  background: var(--soft);
+}
+
+.status-tile span,
+.status-tile strong,
+.status-tile em {
+  display: block;
+}
+
+.status-tile span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.status-tile strong {
+  margin-top: 9px;
+  font-size: 24px;
+  line-height: 1.05;
+}
+
+.status-tile em {
+  margin-top: 7px;
+  color: var(--soft);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.status-tile.green::before {
+  background: var(--green);
+}
+
+.status-tile.amber::before {
+  background: var(--amber);
+}
+
+.status-tile.rose::before {
+  background: var(--rose);
+}
+
+.status-tile.blue::before {
+  background: var(--blue);
 }
 
 .workflow-strip {
@@ -330,6 +414,63 @@ h3 {
 .workflow-step.attention span {
   background: var(--amber-soft);
   color: var(--amber);
+}
+
+.workflow-strip.vertical {
+  grid-template-columns: 1fr;
+  gap: 7px;
+  margin-bottom: 0;
+}
+
+.workflow-strip.vertical .workflow-step {
+  min-height: 56px;
+}
+
+.workbench-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.82fr) minmax(460px, 1.5fr) minmax(300px, 0.92fr);
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.input-column,
+.approval-core,
+.inspector-stack {
+  min-width: 0;
+}
+
+.input-column {
+  position: sticky;
+  top: 82px;
+}
+
+.approval-core .table-wrap {
+  max-height: 620px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.approval-core table {
+  min-width: 700px;
+}
+
+.approval-core thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.inspector-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: sticky;
+  top: 82px;
+}
+
+.compact-flow .section-heading {
+  margin-bottom: 10px;
 }
 
 .command-grid {
@@ -426,7 +567,8 @@ h3 {
 
 .planner-grid,
 .work-grid,
-.approval-grid {
+.approval-grid,
+.operation-section {
   display: grid;
   gap: 16px;
   margin-top: 16px;
@@ -442,6 +584,10 @@ h3 {
 
 .approval-grid {
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr);
+}
+
+.operation-section {
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
 }
 
 .setup-panel,
@@ -531,6 +677,10 @@ h3 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.control-grid.single {
+  grid-template-columns: 1fr;
 }
 
 .field {
@@ -955,10 +1105,18 @@ td span {
   margin-bottom: 10px;
 }
 
+.inspector-stack .execution-controls {
+  grid-template-columns: 1fr;
+}
+
 .execution-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
+}
+
+.inspector-stack .execution-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .execution-grid div,
@@ -999,6 +1157,10 @@ td span {
 
 .payload-list.compact {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.inspector-stack .payload-list.compact {
+  grid-template-columns: 1fr;
 }
 
 .stage-notice {
@@ -1191,10 +1353,12 @@ td span {
 
 @media (max-width: 1180px) {
   .app-shell,
+  .workbench-grid,
   .command-grid,
   .planner-grid,
   .work-grid,
   .approval-grid,
+  .operation-section,
   .forecast-band,
   .report-grid,
   .execution-grid,
@@ -1209,8 +1373,61 @@ td span {
   }
 
   .sidebar {
-    position: static;
+    align-items: center;
+    flex-direction: row;
+    gap: 14px;
     min-height: auto;
+    overflow-x: auto;
+    padding: 10px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+  }
+
+  .brand-block {
+    flex: 0 0 auto;
+  }
+
+  .nav-list {
+    flex: 1 1 auto;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .nav-link {
+    flex: 0 0 auto;
+  }
+
+  .sidebar-note {
+    display: none;
+  }
+
+  .status-board {
+    grid-template-columns: repeat(5, minmax(154px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .status-tile {
+    min-width: 154px;
+  }
+
+  .input-column,
+  .inspector-stack {
+    position: static;
+  }
+
+  .approval-core {
+    order: 1;
+  }
+
+  .inspector-stack {
+    order: 2;
+  }
+
+  .input-column {
+    order: 3;
   }
 }
 
@@ -1219,8 +1436,14 @@ td span {
     padding: 16px;
   }
 
+  .topbar {
+    margin: -16px -16px 14px;
+    padding: 12px 16px;
+  }
+
   .topbar,
   .topbar-actions,
+  .topbar-meta,
   .control-grid,
   .workflow-strip,
   .forecast-list,
@@ -1233,6 +1456,21 @@ td span {
 
   .icon-button {
     width: 100%;
+  }
+
+  .topbar-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .topbar-actions .primary {
+    grid-column: auto;
+  }
+
+  .topbar-meta {
+    align-items: center;
+    flex-direction: row;
   }
 
   h1 {
