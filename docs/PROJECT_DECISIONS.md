@@ -38,20 +38,27 @@ Implementation bias:
 MVP priority:
 
 1. Powerlink / Site Search Ads
-2. Shopping mall vertical first
-3. Other verticals later
+2. Shopping Search Ads setup assistant
+3. Shopping mall vertical first
+4. Other verticals later
 
 First sample site:
 
 - `https://mard.at/`
 
-Excluded from first build:
+Still excluded from first build:
 
 - Brand Search full automation
 - Place Ads full automation
-- Shopping Search full automation
+- Shopping Search live/full automation
 
-Shopping mall support in MVP means the first vertical/playbook is ecommerce-oriented Powerlink/Site Search Ads. Shopping Search Ads can become a later dedicated module.
+Shopping Search MVP support means:
+
+- product-type switch in the setup workbench
+- Shopping Search campaign/ad group draft generation
+- read-only product group inventory lookup
+- product group and shopping business channel selection before staged execution
+- no live activation and no destructive mutation
 
 ## Naver Search Ad API
 
@@ -118,7 +125,7 @@ Positioning difference:
 
 Current MVP implementation status:
 
-- Implemented: setup planner, keyword expansion/classification, ad group draft, bid/budget guardrails, approval queue, CSV/Markdown export, dry-run optimization recommendations, Naver execution payload preview, protected test execution route, Naver API readiness layer, Supabase planning/audit schema.
+- Implemented: setup planner, keyword/search-query expansion/classification, ad group draft, bid/budget guardrails, approval queue, CSV/Markdown export, dry-run optimization recommendations, Naver execution payload preview, protected test execution route, Naver API readiness layer, Shopping Search product-group scan, Supabase planning/audit schema.
 - Partial: real performance sync and live bidding automation.
 - Planned: Naver account sync, performance-based bidding recommendations, authenticated audit UI, PDF/share-link reports, execution audit persistence.
 

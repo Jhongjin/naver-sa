@@ -20,6 +20,8 @@ export type NaverExecutionContext = {
   campaignId?: string;
   pcChannelId?: string;
   mobileChannelId?: string;
+  shoppingChannelId?: string;
+  productGroupId?: string;
   adgroupIdsByName?: Record<string, string>;
 };
 
@@ -63,6 +65,8 @@ export function createNaverExecutionDraft(
   decisions: ApprovalDecisionMap,
   context: NaverExecutionContext = {}
 ): NaverExecutionDraft {
+  const isShoppingSearch = plan.input.productType === "shoppingSearch";
+  const productLabel = isShoppingSearch ? "쇼핑검색" : "파워링크";
   const approvedIds = new Set(
     plan.stagedChanges.filter((change) => decisions[change.id] === "approved").map((change) => change.id)
   );
@@ -75,10 +79,10 @@ export function createNaverExecutionDraft(
       method: "POST",
       uri: "/ncc/campaigns",
       entityType: "Campaign",
-      target: `${plan.input.brandName} 파워링크 테스트`,
+      target: `${plan.input.brandName} ${productLabel} 테스트`,
       body: {
-        name: `${plan.input.brandName} 파워링크 테스트`,
-        campaignTp: "WEB_SITE",
+        name: `${plan.input.brandName} ${productLabel} 테스트`,
+        campaignTp: isShoppingSearch ? "SHOPPING" : "WEB_SITE",
         userLock: true,
         useDailyBudget: true,
         dailyBudget: plan.forecast.dailyBudget
@@ -98,23 +102,37 @@ export function createNaverExecutionDraft(
       id: adgroupPayloadId,
       method: "POST",
       uri: "/ncc/adgroups",
-      entityType: "Ad Group",
+      entityType: isShoppingSearch ? "Shopping Ad Group" : "Ad Group",
       target: group.name,
-      body: {
-        name: group.name,
-        nccCampaignId: context.campaignId ?? (shouldCreateCampaign ? runtimeRef("campaign-create", "nccCampaignId") : "PENDING_CAMPAIGN_ID"),
-        userLock: true,
-        useDailyBudget: true,
-        dailyBudget: group.dailyBudget,
-        bidAmt: group.avgBid,
-        pcChannelId: context.pcChannelId ?? "PENDING_PC_CHANNEL_ID",
-        mobileChannelId: context.mobileChannelId ?? context.pcChannelId ?? "PENDING_MOBILE_CHANNEL_ID"
-      },
+      body: isShoppingSearch
+        ? {
+            name: group.name,
+            nccCampaignId:
+              context.campaignId ?? (shouldCreateCampaign ? runtimeRef("campaign-create", "nccCampaignId") : "PENDING_CAMPAIGN_ID"),
+            adgroupType: "SHOPPING",
+            userLock: true,
+            useDailyBudget: true,
+            dailyBudget: group.dailyBudget,
+            bidAmt: group.avgBid,
+            nccBusinessChannelId: context.shoppingChannelId ?? "PENDING_SHOPPING_CHANNEL_ID",
+            nccProductGroupId: context.productGroupId ?? "PENDING_PRODUCT_GROUP_ID"
+          }
+        : {
+            name: group.name,
+            nccCampaignId:
+              context.campaignId ?? (shouldCreateCampaign ? runtimeRef("campaign-create", "nccCampaignId") : "PENDING_CAMPAIGN_ID"),
+            userLock: true,
+            useDailyBudget: true,
+            dailyBudget: group.dailyBudget,
+            bidAmt: group.avgBid,
+            pcChannelId: context.pcChannelId ?? "PENDING_PC_CHANNEL_ID",
+            mobileChannelId: context.mobileChannelId ?? context.pcChannelId ?? "PENDING_MOBILE_CHANNEL_ID"
+          },
       safety: defaultSafety()
     });
   }
 
-  if (approvedIds.has("keyword-bulk-create")) {
+  if (!isShoppingSearch && approvedIds.has("keyword-bulk-create")) {
     for (const group of plan.adGroups) {
       const keywordBody = plan.keywords
         .filter((keyword) => keyword.status === "include" && keyword.group === group.name)
@@ -144,7 +162,7 @@ export function createNaverExecutionDraft(
     }
   }
 
-  if (approvedIds.has("copy-draft-create")) {
+  if (!isShoppingSearch && approvedIds.has("copy-draft-create")) {
     for (const group of plan.adGroups) {
       payloads.push({
         id: `ad-copy-${slugify(group.name)}`,
@@ -166,6 +184,7 @@ export function createNaverExecutionDraft(
   }
 
   const validation = validateNaverExecutionPayloads(payloads);
+
   const generatedAt = new Date().toISOString();
 
   return {

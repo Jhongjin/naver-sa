@@ -3,7 +3,9 @@ import {
   getNaverConfigState,
   listNaverBusinessChannels,
   listNaverCampaigns,
-  type NaverBusinessChannelSummary
+  listNaverProductGroups,
+  type NaverBusinessChannelSummary,
+  type NaverProductGroupSummary
 } from "@/lib/naver-search-ad";
 import { verifyOperatorAccess } from "@/lib/operator-access";
 
@@ -27,24 +29,29 @@ export async function GET(request: Request) {
     );
   }
 
-  const [channelsResult, campaignsResult] = await Promise.all([
+  const [channelsResult, campaignsResult, productGroupsResult] = await Promise.all([
     listNaverBusinessChannels(),
-    listNaverCampaigns(20)
+    listNaverCampaigns(20),
+    listNaverProductGroups()
   ]);
+
+  const ok = channelsResult.ok && campaignsResult.ok;
 
   return NextResponse.json(
     {
-      ok: channelsResult.ok && campaignsResult.ok,
+      ok,
       externalRequest: true,
       operatorAccess: access.state,
       channels: channelsResult.ok ? channelsResult.data.map(normalizeChannel) : [],
       campaigns: campaignsResult.ok ? campaignsResult.data : [],
+      productGroups: productGroupsResult.ok ? productGroupsResult.data.map(normalizeProductGroup) : [],
       errors: {
         channels: channelsResult.ok ? null : channelsResult.error,
-        campaigns: campaignsResult.ok ? null : campaignsResult.error
+        campaigns: campaignsResult.ok ? null : campaignsResult.error,
+        productGroups: productGroupsResult.ok ? null : productGroupsResult.error
       }
     },
-    { status: channelsResult.ok && campaignsResult.ok ? 200 : 502 }
+    { status: ok ? 200 : 502 }
   );
 }
 
@@ -56,5 +63,21 @@ function normalizeChannel(channel: NaverBusinessChannelSummary) {
     site: channel.businessInfo?.site ?? null,
     mobileSite: channel.businessInfo?.mobileSite ?? null,
     inspectStatus: channel.inspectStatus ?? null
+  };
+}
+
+function normalizeProductGroup(productGroup: NaverProductGroupSummary) {
+  return {
+    id: productGroup.nccProductGroupId ?? "",
+    businessChannelId: productGroup.nccBusinessChannelId ?? "",
+    name: productGroup.name ?? "상품그룹 이름 없음",
+    registrationMethod: productGroup.registrationMethod ?? null,
+    registeredProductType: productGroup.registeredProductType ?? null,
+    mallId: productGroup.mallId ?? null,
+    mallName: productGroup.mallName ?? null,
+    brandName: productGroup.brandName ?? null,
+    numberOfAdgroups: productGroup.numberOfAdgroups ?? 0,
+    productCount: productGroup.attrJson?.productNvmids?.length ?? null,
+    excludeCount: productGroup.attrJson?.excludeNvmids?.length ?? null
   };
 }

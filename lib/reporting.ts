@@ -45,6 +45,7 @@ export function createPlannerReport(plan: PlannerPlan, decisions: ApprovalDecisi
     "",
     "## Summary",
     "",
+    `- Product: ${plan.input.productType === "shoppingSearch" ? "Shopping Search Ads" : "Powerlink / Site Search Ads"}`,
     `- Site: ${plan.input.siteUrl}`,
     `- Vertical: ${plan.input.vertical}`,
     `- Monthly test budget: ${formatWon(plan.forecast.monthlyBudget)}`,

@@ -24,7 +24,8 @@ import {
   type ChangeRisk,
   type KeywordStatus,
   type PlannerInput,
-  type PlannerMode
+  type PlannerMode,
+  type PlannerProductType
 } from "@/lib/planner";
 import { createNaverExecutionDraft } from "@/lib/execution-draft";
 import {
@@ -116,6 +117,19 @@ type AccountSnapshotResponse = {
     name?: string;
     userLock?: boolean | number;
   }>;
+  productGroups?: Array<{
+    id: string;
+    businessChannelId: string;
+    name: string;
+    registrationMethod: string | null;
+    registeredProductType: string | null;
+    mallId: string | null;
+    mallName: string | null;
+    brandName: string | null;
+    numberOfAdgroups: number;
+    productCount: number | null;
+    excludeCount: number | null;
+  }>;
 };
 
 type AccountSnapshotState =
@@ -156,6 +170,7 @@ type StageDraftState =
 
 export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [mode, setMode] = useState<PlannerMode>(initialInput.mode);
+  const [productType, setProductType] = useState<PlannerProductType>(initialInput.productType);
   const [brandName, setBrandName] = useState(initialInput.brandName);
   const [siteUrl, setSiteUrl] = useState(initialInput.siteUrl);
   const [vertical, setVertical] = useState(initialInput.vertical);
@@ -169,6 +184,8 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [operatorCode, setOperatorCode] = useState("");
   const [pcChannelId, setPcChannelId] = useState("");
   const [mobileChannelId, setMobileChannelId] = useState("");
+  const [shoppingChannelId, setShoppingChannelId] = useState("");
+  const [productGroupId, setProductGroupId] = useState("");
 
   const seedKeywords = useMemo(
     () =>
@@ -187,16 +204,19 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       monthlyBudget,
       maxBid,
       seedKeywords,
-      mode
+      mode,
+      productType
     }),
-    [brandName, maxBid, mode, monthlyBudget, seedKeywords, siteUrl, vertical]
+    [brandName, maxBid, mode, monthlyBudget, productType, seedKeywords, siteUrl, vertical]
   );
   const executionContext = useMemo(
     () => ({
       pcChannelId: pcChannelId.trim() || undefined,
-      mobileChannelId: mobileChannelId.trim() || undefined
+      mobileChannelId: mobileChannelId.trim() || undefined,
+      shoppingChannelId: shoppingChannelId.trim() || undefined,
+      productGroupId: productGroupId.trim() || undefined
     }),
-    [mobileChannelId, pcChannelId]
+    [mobileChannelId, pcChannelId, productGroupId, shoppingChannelId]
   );
 
   const plan = useMemo(() => generatePlannerPlan(input), [input]);
@@ -221,10 +241,15 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const includedKeywords = plan.keywords.filter((keyword) => keyword.status === "include");
   const reviewKeywords = plan.keywords.filter((keyword) => keyword.status === "review");
   const excludedKeywords = plan.keywords.filter((keyword) => keyword.status === "exclude");
-  const channelApplied = Boolean(pcChannelId && mobileChannelId);
+  const isShoppingSearch = productType === "shoppingSearch";
+  const productLabel = isShoppingSearch ? "쇼핑검색" : "파워링크";
+  const keywordLabel = isShoppingSearch ? "검색어" : "키워드";
+  const channelApplied = isShoppingSearch ? Boolean(shoppingChannelId) : Boolean(pcChannelId && mobileChannelId);
   const appliedChannel =
     accountSnapshotState.status === "success"
-      ? accountSnapshotState.response.channels?.find((channel) => channel.id === pcChannelId)
+      ? accountSnapshotState.response.channels?.find((channel) =>
+          isShoppingSearch ? channel.id === shoppingChannelId : channel.id === pcChannelId
+        )
       : undefined;
   const stageValidated = activeStageDraftState.status === "success";
   const canRequestProtectedExecution =
@@ -239,7 +264,8 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     stageValidated,
     canRequestProtectedExecution,
     blockerCount: executionDraft.validation.blockerCount,
-    channelStatus: appliedChannel?.inspectStatus
+    channelStatus: appliedChannel?.inspectStatus,
+    productType
   });
   const setupSteps = [
     {
@@ -258,7 +284,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       detail: `${approvalSummary.approved}/${plan.stagedChanges.length}건`
     },
     {
-      label: "비즈채널",
+      label: isShoppingSearch ? "쇼핑채널" : "비즈채널",
       state: channelApplied ? "done" : "attention",
       detail: channelApplied ? "적용됨" : "필요"
     },
@@ -403,8 +429,21 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   }
 
   function applyBusinessChannel(channelId: string) {
+    if (isShoppingSearch) {
+      setShoppingChannelId(channelId);
+      return;
+    }
+
     setPcChannelId(channelId);
     setMobileChannelId(channelId);
+  }
+
+  function applyProductGroup(productGroupIdValue: string, businessChannelId: string) {
+    setProductGroupId(productGroupIdValue);
+
+    if (businessChannelId) {
+      setShoppingChannelId(businessChannelId);
+    }
   }
 
   return (
@@ -455,8 +494,9 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         <header className="topbar">
           <div>
             <p className="eyebrow">세팅 워크벤치</p>
-            <h1>{plan.input.brandName} 파워링크 자동 세팅</h1>
+            <h1>{plan.input.brandName} {productLabel} 자동 세팅</h1>
             <div className="topbar-meta" aria-label="현재 작업 정보">
+              <span>{productLabel}</span>
               <span>{plan.input.vertical}</span>
               <span>{modeLabel}</span>
               <span>테스트 모드</span>
@@ -469,7 +509,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             </a>
             <button className="icon-button subtle" type="button" onClick={downloadCsv}>
               <Download size={17} />
-              키워드 CSV
+              {keywordLabel} CSV
             </button>
             <button
               className="icon-button primary"
@@ -491,9 +531,9 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             tone={approvalTone}
           />
           <StatusTile
-            label="비즈채널"
+            label={isShoppingSearch ? "쇼핑채널" : "비즈채널"}
             value={channelStatusLabel}
-            caption={channelApplied ? "PC/모바일 적용" : "계정 스캔 필요"}
+            caption={channelApplied ? (isShoppingSearch ? "쇼핑몰 채널 적용" : "PC/모바일 적용") : "계정 스캔 필요"}
             tone={channelApplied ? "green" : "amber"}
           />
           <StatusTile
@@ -517,6 +557,22 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <div>
                 <p className="eyebrow">입력값</p>
                 <h2>캠페인 기준</h2>
+              </div>
+              <div className="segmented-control product-control" aria-label="검색 상품">
+                <button
+                  className={productType === "powerlink" ? "active" : ""}
+                  type="button"
+                  onClick={() => setProductType("powerlink")}
+                >
+                  파워링크
+                </button>
+                <button
+                  className={productType === "shoppingSearch" ? "active" : ""}
+                  type="button"
+                  onClick={() => setProductType("shoppingSearch")}
+                >
+                  쇼핑검색
+                </button>
               </div>
               <div className="segmented-control" aria-label="사용자 모드">
                 <button className={mode === "agency" ? "active" : ""} type="button" onClick={() => setMode("agency")}>
@@ -567,8 +623,8 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               </label>
             </div>
 
-            <label className="field keyword-input">
-              <span>시드 키워드</span>
+              <label className="field keyword-input">
+              <span>{isShoppingSearch ? "상품 검색어 시드" : "시드 키워드"}</span>
               <textarea value={seedText} onChange={(event) => setSeedText(event.target.value)} />
             </label>
           </article>
@@ -662,14 +718,29 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                     onChange={(event) => setOperatorCode(event.target.value)}
                   />
                 </label>
-                <label className="field">
-                  <span>PC 채널 ID</span>
-                  <input value={pcChannelId} onChange={(event) => setPcChannelId(event.target.value)} />
-                </label>
-                <label className="field">
-                  <span>모바일 채널 ID</span>
-                  <input value={mobileChannelId} onChange={(event) => setMobileChannelId(event.target.value)} />
-                </label>
+                {isShoppingSearch ? (
+                  <>
+                    <label className="field">
+                      <span>쇼핑몰 채널 ID</span>
+                      <input value={shoppingChannelId} onChange={(event) => setShoppingChannelId(event.target.value)} />
+                    </label>
+                    <label className="field">
+                      <span>상품그룹 ID</span>
+                      <input value={productGroupId} onChange={(event) => setProductGroupId(event.target.value)} />
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    <label className="field">
+                      <span>PC 채널 ID</span>
+                      <input value={pcChannelId} onChange={(event) => setPcChannelId(event.target.value)} />
+                    </label>
+                    <label className="field">
+                      <span>모바일 채널 ID</span>
+                      <input value={mobileChannelId} onChange={(event) => setMobileChannelId(event.target.value)} />
+                    </label>
+                  </>
+                )}
                 <button
                   className="icon-button subtle"
                   type="button"
@@ -680,7 +751,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                   {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
                 </button>
               </div>
-              <AccountSnapshotNotice state={accountSnapshotState} onApplyChannel={applyBusinessChannel} />
+              <AccountSnapshotNotice
+                productType={productType}
+                state={accountSnapshotState}
+                onApplyChannel={applyBusinessChannel}
+                onApplyProductGroup={applyProductGroup}
+              />
               <div className="execution-grid">
                 <div>
                   <span>승인</span>
@@ -739,9 +815,9 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         </section>
 
         <section className="forecast-band" aria-label="자동 생성 요약">
-          <SummaryCard label="포함 키워드" value={`${includedKeywords.length}개`} caption="등록 초안 생성 대상" tone="green" />
-          <SummaryCard label="검토 키워드" value={`${reviewKeywords.length}개`} caption="승인 전 보류" tone="amber" />
-          <SummaryCard label="제외 키워드" value={`${excludedKeywords.length}개`} caption="저품질 유입 차단" tone="rose" />
+          <SummaryCard label={`포함 ${keywordLabel}`} value={`${includedKeywords.length}개`} caption="등록 초안 생성 대상" tone="green" />
+          <SummaryCard label={`검토 ${keywordLabel}`} value={`${reviewKeywords.length}개`} caption="승인 전 보류" tone="amber" />
+          <SummaryCard label={`제외 ${keywordLabel}`} value={`${excludedKeywords.length}개`} caption="저품질 유입 차단" tone="rose" />
           <SummaryCard label="광고그룹" value={`${plan.forecast.adGroupCount}개`} caption="상품군/의도 기준" tone="blue" />
         </section>
 
@@ -750,7 +826,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             <div className="section-heading">
               <div>
                 <p className="eyebrow">키워드 엔진</p>
-                <h2>추천 키워드와 입찰 초안</h2>
+                <h2>{isShoppingSearch ? "상품 검색어와 그룹 초안" : "추천 키워드와 입찰 초안"}</h2>
               </div>
               <button className="icon-button subtle" type="button" onClick={downloadCsv}>
                 <Download size={17} />
@@ -811,8 +887,8 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             <article className="adgroup-panel">
               <div className="section-heading">
                 <div>
-                  <p className="eyebrow">광고 구조</p>
-                  <h2>광고그룹 초안</h2>
+                <p className="eyebrow">광고 구조</p>
+                  <h2>{isShoppingSearch ? "쇼핑 광고그룹 초안" : "광고그룹 초안"}</h2>
                 </div>
               </div>
               <div className="adgroup-list">
@@ -926,7 +1002,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <strong>{plan.input.brandName} 세팅 요약</strong>
               <p>
                 {plan.input.vertical} 기준으로 {plan.forecast.adGroupCount}개 광고그룹과{" "}
-                {plan.forecast.includedKeywords}개 포함 키워드를 생성했습니다.
+                {plan.forecast.includedKeywords}개 포함 {keywordLabel}를 생성했습니다.
               </p>
             </div>
             <div>
@@ -1030,11 +1106,15 @@ function StageDraftNotice({ state }: { state: StageDraftState }) {
 }
 
 function AccountSnapshotNotice({
+  productType,
   state,
-  onApplyChannel
+  onApplyChannel,
+  onApplyProductGroup
 }: {
+  productType: PlannerProductType;
   state: AccountSnapshotState;
   onApplyChannel: (channelId: string) => void;
+  onApplyProductGroup: (productGroupId: string, businessChannelId: string) => void;
 }) {
   if (state.status === "idle") {
     return null;
@@ -1044,7 +1124,7 @@ function AccountSnapshotNotice({
     return (
       <div className="stage-notice neutral">
         <strong>Naver 계정 스캔 중</strong>
-        <span>비즈채널과 캠페인을 read-only로 조회합니다.</span>
+        <span>비즈채널, 상품그룹, 캠페인을 read-only로 조회합니다.</span>
       </div>
     );
   }
@@ -1058,19 +1138,39 @@ function AccountSnapshotNotice({
     );
   }
 
-  const siteChannels = (state.response.channels ?? []).filter((channel) => channel.id);
+  const isShoppingSearch = productType === "shoppingSearch";
+  const productGroups = (state.response.productGroups ?? []).filter((productGroup) => productGroup.id);
+  const eligibleChannels = (state.response.channels ?? []).filter((channel) => {
+    if (!channel.id) {
+      return false;
+    }
+
+    if (!isShoppingSearch) {
+      return channel.channelTp === "SITE" || Boolean(channel.site || channel.mobileSite);
+    }
+
+    return (
+      ["MALL", "CATALOG", "SHOPPING", "SHOPPING_BRAND"].includes(channel.channelTp) ||
+      productGroups.some((productGroup) => productGroup.businessChannelId === channel.id)
+    );
+  });
 
   return (
     <div className="account-snapshot">
       <div className="snapshot-summary">
-        <span>비즈채널 {siteChannels.length}개</span>
+        <span>{isShoppingSearch ? "쇼핑채널" : "비즈채널"} {eligibleChannels.length}개</span>
+        {isShoppingSearch ? <span>상품그룹 {productGroups.length}개</span> : null}
         <span>캠페인 {state.response.campaigns?.length ?? 0}개</span>
       </div>
       <div className="channel-list">
-        {siteChannels.length === 0 ? (
-          <span>사용 가능한 비즈채널이 없습니다. Naver 검색광고에서 사이트 비즈채널을 먼저 등록해야 합니다.</span>
+        {eligibleChannels.length === 0 ? (
+          <span>
+            {isShoppingSearch
+              ? "사용 가능한 쇼핑몰 채널이 없습니다. Naver 검색광고에서 쇼핑몰 비즈채널을 먼저 등록해야 합니다."
+              : "사용 가능한 비즈채널이 없습니다. Naver 검색광고에서 사이트 비즈채널을 먼저 등록해야 합니다."}
+          </span>
         ) : (
-          siteChannels.map((channel) => (
+          eligibleChannels.map((channel) => (
             <div className="channel-item" key={channel.id}>
               <div>
                 <strong>{channel.name}</strong>
@@ -1086,6 +1186,34 @@ function AccountSnapshotNotice({
           ))
         )}
       </div>
+      {isShoppingSearch ? (
+        <div className="channel-list product-group-list">
+          {productGroups.length === 0 ? (
+            <span>등록된 상품그룹이 없습니다. 쇼핑검색 상품그룹은 네이버 콘솔에서 먼저 구성한 뒤 API로 조회합니다.</span>
+          ) : (
+            productGroups.map((productGroup) => (
+              <div className="channel-item" key={productGroup.id}>
+                <div>
+                  <strong>{productGroup.name}</strong>
+                  <span>
+                    {productGroup.mallName ?? "몰 이름 없음"} / {productGroup.registeredProductType ?? "유형 미확인"}
+                  </span>
+                  <em>
+                    상품 {productGroup.productCount ?? "-"}개 / 연결 광고그룹 {productGroup.numberOfAdgroups}개
+                  </em>
+                </div>
+                <button
+                  className="icon-button subtle"
+                  type="button"
+                  onClick={() => onApplyProductGroup(productGroup.id, productGroup.businessChannelId)}
+                >
+                  적용
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1151,8 +1279,11 @@ function changeTypeLabel(type: string): string {
     Campaign: "캠페인",
     Guardrail: "가드레일",
     "Ad Group": "광고그룹",
+    "Shopping Ad Group": "쇼핑광고그룹",
     Keyword: "키워드",
-    "Ad Copy": "소재"
+    "Ad Copy": "소재",
+    "Shopping Feed": "쇼핑피드",
+    "Product Query": "상품검색어"
   };
 
   return labels[type] ?? type;
@@ -1181,9 +1312,12 @@ type NextActionInput = {
   canRequestProtectedExecution: boolean;
   blockerCount: number;
   channelStatus?: string | null;
+  productType: PlannerProductType;
 };
 
 function getNextAction(input: NextActionInput) {
+  const isShoppingSearch = input.productType === "shoppingSearch";
+
   if (input.approvedCount === 0) {
     return {
       title: "승인 큐에서 항목을 승인하세요",
@@ -1195,9 +1329,11 @@ function getNextAction(input: NextActionInput) {
 
   if (!input.channelApplied) {
     return {
-      title: "비즈채널을 스캔하고 적용하세요",
-      description: "Naver 계정에서 사이트 비즈채널을 가져와 PC/모바일 채널 ID를 채워야 합니다.",
-      status: "채널 필요",
+      title: isShoppingSearch ? "쇼핑몰 채널을 스캔하고 적용하세요" : "비즈채널을 스캔하고 적용하세요",
+      description: isShoppingSearch
+        ? "Naver 계정의 쇼핑몰 비즈채널 또는 상품그룹을 가져와 쇼핑검색 채널 ID를 채워야 합니다."
+        : "Naver 계정에서 사이트 비즈채널을 가져와 PC/모바일 채널 ID를 채워야 합니다.",
+      status: isShoppingSearch ? "쇼핑채널 필요" : "채널 필요",
       tone: "warning"
     };
   }

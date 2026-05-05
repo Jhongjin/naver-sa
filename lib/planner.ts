@@ -1,5 +1,7 @@
 export type PlannerMode = "agency" | "advertiser";
 
+export type PlannerProductType = "powerlink" | "shoppingSearch";
+
 export type KeywordStatus = "include" | "review" | "exclude";
 
 export type ChangeRisk = "low" | "medium" | "blocked";
@@ -12,6 +14,7 @@ export type PlannerInput = {
   maxBid: number;
   seedKeywords: string[];
   mode: PlannerMode;
+  productType: PlannerProductType;
 };
 
 export type KeywordPlan = {
@@ -167,6 +170,7 @@ export const mardDefaultInput: PlannerInput = {
   monthlyBudget: 1000000,
   maxBid: 1200,
   mode: "agency",
+  productType: "powerlink",
   seedKeywords: [
     "여성의류 쇼핑몰",
     "여자 블라우스",
@@ -198,15 +202,10 @@ export function generatePlannerPlan(input: PlannerInput): PlannerPlan {
     adGroups,
     negativeKeywords: buildNegativeKeywords(safeInput),
     stagedChanges,
-    benchmarkFeatures: buildBenchmarkFeatures(),
-    operationRules: buildOperationRules(),
+    benchmarkFeatures: buildBenchmarkFeatures(safeInput.productType),
+    operationRules: buildOperationRules(safeInput.productType),
     forecast,
-    assumptions: [
-      "Naver 실시간 검색량 API가 연결되기 전까지는 업종별 기준값과 키워드 의도 점수로 예측합니다.",
-      "모든 생성/수정은 승인 대기 상태로만 준비하며 라이브 활성화는 MVP에서 차단합니다.",
-      "입찰가는 입력된 최대 입찰가를 절대 넘지 않도록 보정합니다.",
-      "삭제는 생성하지 않고 제외 또는 pause/off 권고로만 표시합니다."
-    ]
+    assumptions: buildAssumptions(safeInput.productType)
   };
 }
 
@@ -248,6 +247,7 @@ function normalizeInput(input: PlannerInput): PlannerInput {
     monthlyBudget: clampNumber(input.monthlyBudget, 100000, 10000000),
     maxBid: clampNumber(input.maxBid, 300, 5000),
     mode: input.mode,
+    productType: productTypeValue(input.productType),
     seedKeywords: normalizeTerms(input.seedKeywords).slice(0, 40)
   };
 }
@@ -450,15 +450,17 @@ function buildStagedChanges(
   reviewKeywords: KeywordPlan[],
   input: PlannerInput
 ): StagedChange[] {
+  const isShoppingSearch = input.productType === "shoppingSearch";
+  const productLabel = getProductLabel(input.productType);
   const changes: StagedChange[] = [
     {
       id: "campaign-create-draft",
       type: "Campaign",
-      target: `${input.brandName} 파워링크 테스트`,
+      target: `${input.brandName} ${productLabel} 테스트`,
       action: "캠페인 생성 초안",
       risk: "medium",
       approval: "승인 필요",
-      details: "테스트 계정에서만 생성 가능하며 라이브 활성화는 차단합니다."
+      details: `${productLabel} 테스트 계정에서만 생성 가능하며 라이브 활성화는 차단합니다.`
     },
     {
       id: "guardrail-budget",
@@ -471,37 +473,63 @@ function buildStagedChanges(
     }
   ];
 
+  if (isShoppingSearch) {
+    changes.push({
+      id: "shopping-channel-check",
+      type: "Shopping Feed",
+      target: "쇼핑몰 채널/상품그룹",
+      action: "계정 스캔 및 연결 확인",
+      risk: "blocked",
+      approval: "계정 스캔 필요",
+      details: "쇼핑검색은 네이버쇼핑에 등록된 몰 비즈채널과 상품그룹을 API로 조회해 연결해야 합니다."
+    });
+  }
+
   for (const group of adGroups) {
     changes.push({
       id: `adgroup-${slugify(group.name)}`,
-      type: "Ad Group",
+      type: isShoppingSearch ? "Shopping Ad Group" : "Ad Group",
       target: group.name,
       action: "광고그룹 생성 초안",
       risk: "medium",
       approval: "승인 필요",
-      details: `${group.keywordCount}개 키워드, 일 ${formatWon(group.dailyBudget)} 테스트 예산.`
+      details: isShoppingSearch
+        ? `${group.keywordCount}개 검색어/상품명 후보, 일 ${formatWon(group.dailyBudget)} 테스트 예산.`
+        : `${group.keywordCount}개 키워드, 일 ${formatWon(group.dailyBudget)} 테스트 예산.`
     });
   }
 
-  changes.push({
-    id: "keyword-bulk-create",
-    type: "Keyword",
-    target: `${includedKeywords.length}개 포함 키워드`,
-    action: "키워드 일괄 등록 초안",
-    risk: "medium",
-    approval: "승인 필요",
-    details: `${reviewKeywords.length}개 검토 키워드는 승인 전 보류합니다.`
-  });
+  if (isShoppingSearch) {
+    changes.push({
+      id: "shopping-query-map",
+      type: "Product Query",
+      target: `${includedKeywords.length}개 상품 검색어`,
+      action: "상품명/검색어 매핑 초안",
+      risk: "low",
+      approval: "승인 필요",
+      details: `${reviewKeywords.length}개 검토 검색어는 상품명/카테고리 적합성 확인 후 반영합니다.`
+    });
+  } else {
+    changes.push({
+      id: "keyword-bulk-create",
+      type: "Keyword",
+      target: `${includedKeywords.length}개 포함 키워드`,
+      action: "키워드 일괄 등록 초안",
+      risk: "medium",
+      approval: "승인 필요",
+      details: `${reviewKeywords.length}개 검토 키워드는 승인 전 보류합니다.`
+    });
 
-  changes.push({
-    id: "copy-draft-create",
-    type: "Ad Copy",
-    target: "광고 소재",
-    action: "소재 초안 생성",
-    risk: "low",
-    approval: "승인 필요",
-    details: "광고그룹별 2개 소재를 생성하되, 랜딩 URL과 문구 검수 후 전송합니다."
-  });
+    changes.push({
+      id: "copy-draft-create",
+      type: "Ad Copy",
+      target: "광고 소재",
+      action: "소재 초안 생성",
+      risk: "low",
+      approval: "승인 필요",
+      details: "광고그룹별 2개 소재를 생성하되, 랜딩 URL과 문구 검수 후 전송합니다."
+    });
+  }
 
   return changes;
 }
@@ -551,7 +579,20 @@ function buildNegativeKeywords(input: PlannerInput): string[] {
   ];
 }
 
-function buildBenchmarkFeatures(): BenchmarkFeature[] {
+function buildBenchmarkFeatures(productType: PlannerProductType): BenchmarkFeature[] {
+  const shoppingFeature: BenchmarkFeature =
+    productType === "shoppingSearch"
+      ? {
+          name: "쇼핑검색 상품그룹 연동",
+          status: "implemented",
+          description: "네이버 계정의 쇼핑몰 비즈채널과 상품그룹을 조회해 쇼핑검색 세팅 전제조건을 검수합니다."
+        }
+      : {
+          name: "쇼핑검색 상품그룹 연동",
+          status: "partial",
+          description: "쇼핑검색 모드 선택 시 몰 채널/상품그룹 스캔과 별도 세팅 큐를 제공합니다."
+        };
+
   return [
     {
       name: "AI 키워드 확장/분류",
@@ -587,12 +628,13 @@ function buildBenchmarkFeatures(): BenchmarkFeature[] {
       name: "Naver API 연결 준비",
       status: "implemented",
       description: "공식 서명 방식 기반의 read-only 준비 상태와 캠페인 조회 헬퍼를 제공합니다."
-    }
+    },
+    shoppingFeature
   ];
 }
 
-function buildOperationRules(): OperationRule[] {
-  return [
+function buildOperationRules(productType: PlannerProductType): OperationRule[] {
+  const commonRules = [
     {
       name: "저성과 키워드 pause 후보",
       trigger: "클릭 30회 이상, 전환 0건",
@@ -618,6 +660,52 @@ function buildOperationRules(): OperationRule[] {
       automationLevel: "Level 2 Staged"
     }
   ];
+
+  if (productType !== "shoppingSearch") {
+    return commonRules;
+  }
+
+  return [
+    {
+      name: "상품 검색어 개선 후보",
+      trigger: "쇼핑검색 유입 검색어는 있으나 상품명/카테고리 매칭이 약함",
+      recommendation: "상품명, 태그, 카테고리 문구 개선안을 승인 큐에 추가",
+      automationLevel: "Level 1 Draft"
+    },
+    {
+      name: "상품그룹 제외 후보",
+      trigger: "클릭은 발생하지만 전환가치가 낮은 상품군",
+      recommendation: "상품그룹 제외 또는 예산 축소 후보로 표시",
+      automationLevel: "Level 2 Staged"
+    },
+    ...commonRules
+  ];
+}
+
+function buildAssumptions(productType: PlannerProductType): string[] {
+  const assumptions = [
+    "Naver 실시간 검색량 API가 연결되기 전까지는 업종별 기준값과 키워드 의도 점수로 예측합니다.",
+    "모든 생성/수정은 승인 대기 상태로만 준비하며 라이브 활성화는 MVP에서 차단합니다.",
+    "입찰가는 입력된 최대 입찰가를 절대 넘지 않도록 보정합니다.",
+    "삭제는 생성하지 않고 제외 또는 pause/off 권고로만 표시합니다."
+  ];
+
+  if (productType === "shoppingSearch") {
+    assumptions.push(
+      "쇼핑검색의 몰 비즈채널과 상품그룹은 네이버 정책상 API 생성이 아니라 계정 스캔/선택 대상으로 취급합니다.",
+      "쇼핑검색 모드의 검색어 목록은 상품명, 카테고리, 태그 개선 및 상품그룹 구조화 후보로 사용합니다."
+    );
+  }
+
+  return assumptions;
+}
+
+function getProductLabel(productType: PlannerProductType): string {
+  return productType === "shoppingSearch" ? "쇼핑검색" : "파워링크";
+}
+
+function productTypeValue(value: unknown): PlannerProductType {
+  return value === "shoppingSearch" ? "shoppingSearch" : "powerlink";
 }
 
 function intentBidMultiplier(intent: string): number {

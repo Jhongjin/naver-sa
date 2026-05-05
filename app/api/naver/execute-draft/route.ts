@@ -5,7 +5,13 @@ import {
   type NaverExecutionPayload
 } from "@/lib/execution-draft";
 import { requestNaverSearchAd } from "@/lib/naver-search-ad";
-import { generatePlannerPlan, mardDefaultInput, type PlannerInput, type PlannerMode } from "@/lib/planner";
+import {
+  generatePlannerPlan,
+  mardDefaultInput,
+  type PlannerInput,
+  type PlannerMode,
+  type PlannerProductType
+} from "@/lib/planner";
 import type { ApprovalDecision, ApprovalDecisionMap } from "@/lib/reporting";
 
 type ExecutionResponse = {
@@ -168,6 +174,7 @@ function coercePlannerInput(body: Record<string, unknown>): PlannerInput {
     monthlyBudget: numberValue(body.monthlyBudget, mardDefaultInput.monthlyBudget),
     maxBid: numberValue(body.maxBid, mardDefaultInput.maxBid),
     mode: plannerModeValue(body.mode, mardDefaultInput.mode),
+    productType: plannerProductTypeValue(body.productType, mardDefaultInput.productType),
     seedKeywords: stringArrayValue(body.seedKeywords, mardDefaultInput.seedKeywords)
   };
 }
@@ -194,6 +201,8 @@ function coerceExecutionContext(value: unknown): NaverExecutionContext {
     campaignId: stringValueOrUndefined(value.campaignId),
     pcChannelId: stringValueOrUndefined(value.pcChannelId),
     mobileChannelId: stringValueOrUndefined(value.mobileChannelId),
+    shoppingChannelId: stringValueOrUndefined(value.shoppingChannelId),
+    productGroupId: stringValueOrUndefined(value.productGroupId),
     adgroupIdsByName: recordStringValue(value.adgroupIdsByName)
   };
 }
@@ -225,6 +234,10 @@ function numberValue(value: unknown, fallback: number): number {
 
 function plannerModeValue(value: unknown, fallback: PlannerMode): PlannerMode {
   return value === "agency" || value === "advertiser" ? value : fallback;
+}
+
+function plannerProductTypeValue(value: unknown, fallback: PlannerProductType): PlannerProductType {
+  return value === "shoppingSearch" || value === "powerlink" ? value : fallback;
 }
 
 function stringArrayValue(value: unknown, fallback: string[]): string[] {

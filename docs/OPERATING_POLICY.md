@@ -17,6 +17,7 @@ Allowed:
 - ad group sync
 - keyword sync
 - ad sync
+- shopping product group sync
 - stats sync
 - estimate API calls
 - account audit
@@ -46,6 +47,7 @@ Allowed:
 - prepare ad group creation payloads
 - prepare keyword creation payloads
 - prepare ad creative payloads
+- prepare Shopping Search campaign/ad group payloads
 - prepare pause/off changes
 - prepare bid changes
 
@@ -59,6 +61,7 @@ Allowed only in a test account or explicitly marked test campaign:
 - create ad groups
 - create keywords
 - create ads
+- create Shopping Search test campaigns/ad groups after shopping business channel and product group IDs are resolved
 - update bids
 - pause/off entities
 
@@ -66,6 +69,7 @@ Restrictions:
 
 - do not activate live campaigns
 - do not remove entities
+- do not create product groups through the API
 - do not exceed configured bid or budget limits
 
 ### Level 4: Live Execution
@@ -197,4 +201,3 @@ Default:
 - limited controls
 
 The same backend should support both modes.
-

@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { generatePlannerPlan, mardDefaultInput, type PlannerInput, type PlannerMode } from "@/lib/planner";
+import {
+  generatePlannerPlan,
+  mardDefaultInput,
+  type PlannerInput,
+  type PlannerMode,
+  type PlannerProductType
+} from "@/lib/planner";
 import { savePlanningRun } from "@/lib/persistence/planning-runs";
 import type { ApprovalDecision, ApprovalDecisionMap } from "@/lib/reporting";
 import { getSupabaseAdminState } from "@/lib/supabase-admin";
@@ -77,6 +83,7 @@ function coercePlannerInput(body: Record<string, unknown>): PlannerInput {
     monthlyBudget: numberValue(body.monthlyBudget, mardDefaultInput.monthlyBudget),
     maxBid: numberValue(body.maxBid, mardDefaultInput.maxBid),
     mode: plannerModeValue(body.mode, mardDefaultInput.mode),
+    productType: plannerProductTypeValue(body.productType, mardDefaultInput.productType),
     seedKeywords: stringArrayValue(body.seedKeywords, mardDefaultInput.seedKeywords)
   };
 }
@@ -117,6 +124,10 @@ function numberValue(value: unknown, fallback: number): number {
 
 function plannerModeValue(value: unknown, fallback: PlannerMode): PlannerMode {
   return value === "agency" || value === "advertiser" ? value : fallback;
+}
+
+function plannerProductTypeValue(value: unknown, fallback: PlannerProductType): PlannerProductType {
+  return value === "shoppingSearch" || value === "powerlink" ? value : fallback;
 }
 
 function stringArrayValue(value: unknown, fallback: string[]): string[] {

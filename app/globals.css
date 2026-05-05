@@ -780,6 +780,10 @@ h3 {
   color: var(--ink);
 }
 
+.product-control {
+  width: 100%;
+}
+
 .control-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1360,6 +1364,12 @@ td span {
 .channel-list {
   display: grid;
   gap: 8px;
+}
+
+.product-group-list {
+  border-top: 1px solid var(--line);
+  margin-top: 10px;
+  padding-top: 10px;
 }
 
 .channel-item {

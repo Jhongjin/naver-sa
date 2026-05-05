@@ -56,6 +56,27 @@ export type NaverBusinessChannelSummary = {
   editTm?: string;
 };
 
+export type NaverProductGroupSummary = {
+  nccProductGroupId?: string;
+  nccBusinessChannelId?: string;
+  name?: string;
+  registrationMethod?: string;
+  registeredProductType?: string;
+  mallId?: string;
+  mallName?: string;
+  brandNo?: string;
+  brandName?: string;
+  attrJson?: {
+    productNvmids?: string[];
+    excludeNvmids?: string[];
+    prvdrId?: string;
+    [key: string]: unknown;
+  };
+  numberOfAdgroups?: number;
+  regTm?: string;
+  editTm?: string;
+};
+
 const envNames = {
   apiKey: "NAVER_SEARCH_AD_API_KEY",
   secretKey: "NAVER_SEARCH_AD_SECRET_KEY",
@@ -172,6 +193,10 @@ export async function listNaverCampaigns(recordSize = 10): Promise<NaverApiResul
 
 export async function listNaverBusinessChannels(): Promise<NaverApiResult<NaverBusinessChannelSummary[]>> {
   return requestNaverSearchAd<NaverBusinessChannelSummary[]>("GET", "/ncc/channels");
+}
+
+export async function listNaverProductGroups(): Promise<NaverApiResult<NaverProductGroupSummary[]>> {
+  return requestNaverSearchAd<NaverProductGroupSummary[]>("GET", "/ncc/product-groups");
 }
 
 function buildUrl(baseUrl: string, uri: string, query?: Record<string, string | number | boolean | undefined>): string {
