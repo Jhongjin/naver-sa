@@ -1614,6 +1614,10 @@ td span {
   grid-template-columns: 1fr;
 }
 
+.execution-save-button {
+  width: 100%;
+}
+
 .preflight-checklist {
   display: grid;
   gap: 7px;

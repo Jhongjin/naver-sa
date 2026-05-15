@@ -1085,6 +1085,15 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                   <Search size={17} />
                   {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
                 </button>
+                <button
+                  className="icon-button primary execution-save-button"
+                  type="button"
+                  disabled={saveDraftState.status === "loading"}
+                  onClick={saveDraftHistory}
+                >
+                  <FileText size={17} />
+                  {saveDraftState.status === "loading" ? "저장 중" : "이력 저장"}
+                </button>
               </div>
               <OperatorSessionNotice state={operatorSessionState} />
               <ul className="preflight-checklist" aria-label="전송 전 체크리스트">
