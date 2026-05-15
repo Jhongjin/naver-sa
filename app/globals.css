@@ -600,6 +600,8 @@ h3 {
   max-height: 620px;
   overflow: auto;
   padding-right: 4px;
+  scrollbar-color: rgba(23, 23, 23, 0.22) transparent;
+  scrollbar-width: thin;
 }
 
 .approval-row {
@@ -994,6 +996,12 @@ h3 {
   font-weight: 550;
 }
 
+.field small {
+  color: var(--soft);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .field input,
 .field textarea {
   width: 100%;
@@ -1279,7 +1287,7 @@ td span {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .approval-summary span {
@@ -1291,6 +1299,38 @@ td span {
   color: var(--muted);
   font-size: 13px;
   font-weight: 550;
+}
+
+.approval-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.approval-progress span {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  box-shadow: var(--ring-soft);
+}
+
+.approval-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+  transition: width 220ms var(--motion-ease);
+}
+
+.approval-progress em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .change-item > div:first-child {
@@ -1344,11 +1384,32 @@ td span {
   font-size: 12px;
   font-weight: 600;
   padding: 0 10px;
+  transition:
+    background-color 160ms var(--motion-ease),
+    color 160ms var(--motion-ease),
+    box-shadow 160ms var(--motion-ease),
+    transform 160ms var(--motion-ease);
 }
 
 .decision-actions button:hover {
-  box-shadow: rgba(94, 106, 210, 0.35) 0 0 0 1px;
+  box-shadow: var(--ring);
   color: var(--ink);
+}
+
+.decision-actions button:active {
+  transform: scale(0.98);
+}
+
+.decision-actions button.selected.approved {
+  background: var(--green-soft);
+  box-shadow: rgba(23, 125, 78, 0.26) 0 0 0 1px;
+  color: var(--green);
+}
+
+.decision-actions button.selected.held {
+  background: var(--amber-soft);
+  box-shadow: rgba(158, 87, 0, 0.26) 0 0 0 1px;
+  color: var(--amber);
 }
 
 .rule-item p {
@@ -1416,6 +1477,63 @@ td span {
 
 .inspector-stack .execution-controls {
   grid-template-columns: 1fr;
+}
+
+.preflight-checklist {
+  display: grid;
+  gap: 7px;
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+}
+
+.preflight-checklist li {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  border-radius: 8px;
+  background: var(--surface-strong);
+  box-shadow: var(--ring-soft);
+  padding: 10px;
+}
+
+.preflight-checklist li > span {
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: var(--soft);
+}
+
+.preflight-checklist li.done > span {
+  background: var(--green);
+}
+
+.preflight-checklist li.attention > span {
+  background: var(--amber);
+}
+
+.preflight-checklist li.pending > span {
+  background: var(--soft);
+}
+
+.preflight-checklist strong,
+.preflight-checklist em {
+  display: block;
+}
+
+.preflight-checklist strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.preflight-checklist em {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.45;
 }
 
 .execution-grid {

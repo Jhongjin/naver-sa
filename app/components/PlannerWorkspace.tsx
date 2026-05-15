@@ -279,6 +279,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const channelStatusLabel = channelApplied ? "연결됨" : "미연결";
   const blockerTone = executionDraft.validation.blockerCount > 0 ? "rose" : "green";
   const approvalTone = approvalSummary.pending > 0 ? "amber" : "green";
+  const approvalProgress =
+    plan.stagedChanges.length === 0
+      ? 100
+      : Math.round((approvalSummary.approved / plan.stagedChanges.length) * 100);
   const nextAction = getNextAction({
     approvedCount: approvalSummary.approved,
     channelApplied,
@@ -318,6 +322,34 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       label: "테스트 실행",
       state: canRequestProtectedExecution ? "attention" : "pending",
       detail: "별도 확인 필요"
+    }
+  ] as const;
+  const preflightChecks = [
+    {
+      label: "승인 항목",
+      detail:
+        approvalSummary.approved > 0
+          ? `${approvalSummary.approved}건 승인됨`
+          : "승인된 항목이 아직 없습니다",
+      state: approvalSummary.approved > 0 ? "done" : "attention"
+    },
+    {
+      label: isShoppingSearch ? "쇼핑 연결" : "채널 연결",
+      detail: channelApplied ? "전송 대상 채널 적용됨" : "계정 스캔 후 채널을 적용하세요",
+      state: channelApplied ? "done" : "attention"
+    },
+    {
+      label: "검증 차단",
+      detail:
+        executionDraft.validation.blockerCount === 0
+          ? "차단 항목 없음"
+          : `${executionDraft.validation.blockerCount}건 해결 필요`,
+      state: executionDraft.validation.blockerCount === 0 ? "done" : "attention"
+    },
+    {
+      label: "서버 검증",
+      detail: stageValidated ? "전송 직전 payload 검증 완료" : "초안 검증을 실행하세요",
+      state: stageValidated ? "done" : "pending"
     }
   ] as const;
 
@@ -702,6 +734,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <span>보류 {approvalSummary.held}</span>
               <span>대기 {approvalSummary.pending}</span>
             </div>
+            <div className="approval-progress" aria-label={`승인 진행률 ${approvalProgress}%`}>
+              <span>
+                <i style={{ width: `${approvalProgress}%` }} />
+              </span>
+              <em>{approvalProgress}% 승인 완료</em>
+            </div>
             <div className="approval-worklist" aria-label="승인할 변경 목록">
               {plan.stagedChanges.map((change) => {
                 const decision = approvalDecisions[change.id] ?? "pending";
@@ -721,10 +759,20 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                       <span className={`status-pill ${riskClass(change.risk)}`}>{riskLabel(change.risk)}</span>
                     </div>
                     <div className="decision-actions inline">
-                      <button type="button" onClick={() => setDecision(change.id, "approved")}>
+                      <button
+                        aria-pressed={decision === "approved"}
+                        className={decision === "approved" ? "selected approved" : ""}
+                        type="button"
+                        onClick={() => setDecision(change.id, "approved")}
+                      >
                         승인
                       </button>
-                      <button type="button" onClick={() => setDecision(change.id, "held")}>
+                      <button
+                        aria-pressed={decision === "held"}
+                        className={decision === "held" ? "selected held" : ""}
+                        type="button"
+                        onClick={() => setDecision(change.id, "held")}
+                      >
                         보류
                       </button>
                     </div>
@@ -764,6 +812,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                     value={operatorCode}
                     onChange={(event) => setOperatorCode(event.target.value)}
                   />
+                  <small>검증 요청에만 사용하며 화면에는 저장하지 않습니다.</small>
                 </label>
                 {isShoppingSearch ? (
                   <>
@@ -798,6 +847,17 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                   {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
                 </button>
               </div>
+              <ul className="preflight-checklist" aria-label="전송 전 체크리스트">
+                {preflightChecks.map((check) => (
+                  <li className={check.state} key={check.label}>
+                    <span aria-hidden="true" />
+                    <div>
+                      <strong>{check.label}</strong>
+                      <em>{check.detail}</em>
+                    </div>
+                  </li>
+                ))}
+              </ul>
               <AccountSnapshotNotice
                 productType={productType}
                 state={accountSnapshotState}
