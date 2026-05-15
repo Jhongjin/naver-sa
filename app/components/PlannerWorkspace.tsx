@@ -1096,6 +1096,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 </button>
               </div>
               <OperatorSessionNotice state={operatorSessionState} />
+              <SaveDraftNotice state={saveDraftState} />
               <ul className="preflight-checklist" aria-label="전송 전 체크리스트">
                 {preflightChecks.map((check) => (
                   <li className={check.state} key={check.label}>
