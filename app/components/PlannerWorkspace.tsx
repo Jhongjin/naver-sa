@@ -189,6 +189,46 @@ type SaveDraftState =
       message: string;
     };
 
+type OperatorSessionResponse = {
+  ok: boolean;
+  role?: "operator" | "open-dry-run";
+  mode?: "operator-code" | "open-dry-run";
+  error?: string;
+  code?: string;
+  capabilities?: {
+    canReadAccountInventory: boolean;
+    canSaveDraftHistory: boolean;
+    canCreateTestEntities: boolean;
+    canActivateLiveCampaigns: boolean;
+    canDeleteProductionData: boolean;
+  };
+  session?: {
+    expiresInSeconds: number;
+    workspaceScope: string;
+  };
+  guardrails?: {
+    liveCampaignActivation: string;
+    productionDeletion: string;
+    externalWriteExecution: string;
+  };
+};
+
+type OperatorSessionState =
+  | {
+      status: "idle";
+    }
+  | {
+      status: "loading";
+    }
+  | {
+      status: "success";
+      response: OperatorSessionResponse;
+    }
+  | {
+      status: "error";
+      message: string;
+    };
+
 type ApprovalFilter = "all" | "pending" | "approved" | "held" | "blocked";
 
 export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
@@ -205,6 +245,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [stageDraftState, setStageDraftState] = useState<StageDraftState>({ status: "idle" });
   const [saveDraftState, setSaveDraftState] = useState<SaveDraftState>({ status: "idle" });
   const [accountSnapshotState, setAccountSnapshotState] = useState<AccountSnapshotState>({ status: "idle" });
+  const [operatorSessionState, setOperatorSessionState] = useState<OperatorSessionState>({ status: "idle" });
   const [approvalFilter, setApprovalFilter] = useState<ApprovalFilter>("all");
   const [approvalSearch, setApprovalSearch] = useState("");
   const [operatorCode, setOperatorCode] = useState("");
@@ -487,6 +528,48 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     setApprovalDecisions({});
   }
 
+  function operatorHeaders(): Record<string, string> {
+    const code = operatorCode.trim();
+    return code ? { "x-operator-code": code } : {};
+  }
+
+  function updateOperatorCode(value: string) {
+    setOperatorCode(value);
+    setOperatorSessionState({ status: "idle" });
+  }
+
+  async function verifyOperatorSession() {
+    if (!operatorCode.trim()) {
+      setOperatorSessionState({ status: "error", message: "운영자 코드를 먼저 입력해 주세요." });
+      return;
+    }
+
+    setOperatorSessionState({ status: "loading" });
+
+    try {
+      const response = await fetch("/api/operator/session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...operatorHeaders()
+        },
+        body: "{}"
+      });
+      const data = (await response.json()) as OperatorSessionResponse;
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error ?? "운영자 세션 확인에 실패했습니다.");
+      }
+
+      setOperatorSessionState({ status: "success", response: data });
+    } catch (error) {
+      setOperatorSessionState({
+        status: "error",
+        message: error instanceof Error ? error.message : "운영자 세션 확인에 실패했습니다."
+      });
+    }
+  }
+
   async function stageExecutionDraft() {
     setStageDraftState({ status: "loading", fingerprint: draftFingerprint, message: "초안 검증 중" });
 
@@ -495,7 +578,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(operatorCode.trim() ? { "x-operator-code": operatorCode.trim() } : {})
+          ...operatorHeaders()
         },
         body: JSON.stringify({
           input,
@@ -527,7 +610,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(operatorCode.trim() ? { "x-operator-code": operatorCode.trim() } : {})
+          ...operatorHeaders()
         },
         body: JSON.stringify({
           input,
@@ -571,9 +654,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
     try {
       const response = await fetch("/api/naver/account-snapshot", {
-        headers: {
-          ...(operatorCode.trim() ? { "x-operator-code": operatorCode.trim() } : {})
-        }
+        headers: operatorHeaders()
       });
       const data = (await response.json()) as AccountSnapshotResponse;
 
@@ -959,10 +1040,19 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                     autoComplete="off"
                     type="password"
                     value={operatorCode}
-                    onChange={(event) => setOperatorCode(event.target.value)}
+                    onChange={(event) => updateOperatorCode(event.target.value)}
                   />
                   <small>검증 요청에만 사용하며 화면에는 저장하지 않습니다.</small>
                 </label>
+                <button
+                  className="icon-button subtle"
+                  type="button"
+                  disabled={operatorSessionState.status === "loading"}
+                  onClick={verifyOperatorSession}
+                >
+                  <ShieldCheck size={17} />
+                  {operatorSessionState.status === "loading" ? "확인 중" : "세션 확인"}
+                </button>
                 {isShoppingSearch ? (
                   <>
                     <label className="field">
@@ -996,6 +1086,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                   {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
                 </button>
               </div>
+              <OperatorSessionNotice state={operatorSessionState} />
               <ul className="preflight-checklist" aria-label="전송 전 체크리스트">
                 {preflightChecks.map((check) => (
                   <li className={check.state} key={check.label}>
@@ -1445,6 +1536,55 @@ function StageDraftNotice({ state }: { state: StageDraftState }) {
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function OperatorSessionNotice({ state }: { state: OperatorSessionState }) {
+  if (state.status === "idle") {
+    return null;
+  }
+
+  if (state.status === "loading") {
+    return (
+      <div className="stage-notice neutral">
+        <strong>운영자 세션 확인 중</strong>
+        <span>입력된 코드를 서버에서 검증하고 허용된 작업 범위를 확인합니다.</span>
+      </div>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <div className="stage-notice danger">
+        <strong>운영자 세션 확인 실패</strong>
+        <span>{state.message}</span>
+      </div>
+    );
+  }
+
+  const capabilities = state.response.capabilities;
+  const sessionMinutes = Math.round((state.response.session?.expiresInSeconds ?? 0) / 60);
+
+  return (
+    <div className="stage-notice success operator-session-notice">
+      <div>
+        <strong>운영자 세션 확인 완료</strong>
+        <span>
+          {state.response.role ?? "operator"} / {sessionMinutes > 0 ? `${sessionMinutes}분 유효` : "세션 TTL 없음"}
+        </span>
+      </div>
+      <div className="operator-capability-grid">
+        <span className={capabilities?.canReadAccountInventory ? "enabled" : "blocked"}>계정 스캔</span>
+        <span className={capabilities?.canSaveDraftHistory ? "enabled" : "blocked"}>이력 저장</span>
+        <span className={capabilities?.canCreateTestEntities ? "enabled" : "blocked"}>테스트 생성</span>
+        <span className={capabilities?.canActivateLiveCampaigns ? "enabled" : "blocked"}>라이브 활성화</span>
+        <span className={capabilities?.canDeleteProductionData ? "enabled" : "blocked"}>삭제</span>
+      </div>
+      <span>
+        live: {state.response.guardrails?.liveCampaignActivation ?? "blocked"} / delete:{" "}
+        {state.response.guardrails?.productionDeletion ?? "blocked"}
+      </span>
     </div>
   );
 }

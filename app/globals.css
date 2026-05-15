@@ -1767,6 +1767,34 @@ td span {
   background: rgba(79, 70, 229, 0.07);
 }
 
+.operator-session-notice {
+  margin-bottom: 10px;
+}
+
+.operator-capability-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.operator-capability-grid span {
+  border-radius: 999px;
+  padding: 6px 8px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.operator-capability-grid .enabled {
+  background: rgba(21, 128, 61, 0.1);
+  color: var(--green);
+}
+
+.operator-capability-grid .blocked {
+  background: rgba(190, 18, 60, 0.08);
+  color: var(--rose);
+}
+
 .blocker-list {
   display: grid;
   gap: 6px;
@@ -2195,6 +2223,10 @@ td span {
   .section-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .operator-capability-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .change-meta {
