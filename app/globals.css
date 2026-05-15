@@ -1950,6 +1950,55 @@ td span {
   line-height: 1.65;
 }
 
+@media print {
+  body.print-report-mode {
+    background: #ffffff;
+  }
+
+  body.print-report-mode .sidebar,
+  body.print-report-mode .topbar,
+  body.print-report-mode .status-board,
+  body.print-report-mode .workbench-grid,
+  body.print-report-mode .forecast-band,
+  body.print-report-mode .work-grid,
+  body.print-report-mode .operation-section,
+  body.print-report-mode .execution-panel,
+  body.print-report-mode .benchmark-panel,
+  body.print-report-mode .productization-panel {
+    display: none !important;
+  }
+
+  body.print-report-mode .app-shell {
+    display: block;
+    min-height: auto;
+  }
+
+  body.print-report-mode .workspace {
+    max-width: none;
+    padding: 0;
+  }
+
+  body.print-report-mode .report-panel {
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  body.print-report-mode .report-panel .section-heading {
+    break-after: avoid;
+  }
+
+  body.print-report-mode .report-actions {
+    display: none !important;
+  }
+
+  body.print-report-mode .report-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

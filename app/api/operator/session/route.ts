@@ -10,14 +10,17 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    role: "operator",
+    role: access.state.role,
     mode: access.state.mode,
-    capabilities: {
-      canReadAccountInventory: true,
-      canSaveDraftHistory: true,
-      canCreateTestEntities: false,
-      canActivateLiveCampaigns: false,
-      canDeleteProductionData: false
+    capabilities: access.state.capabilities,
+    session: {
+      expiresInSeconds: access.state.sessionTtlSeconds,
+      workspaceScope: "default"
+    },
+    guardrails: {
+      liveCampaignActivation: "blocked",
+      productionDeletion: "blocked",
+      externalWriteExecution: "test-route-only"
     }
   });
 }

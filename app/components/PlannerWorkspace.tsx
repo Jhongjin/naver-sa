@@ -9,6 +9,7 @@ import {
   ExternalLink,
   FileText,
   PauseCircle,
+  Printer,
   Rocket,
   Search,
   Settings2,
@@ -30,6 +31,7 @@ import {
 import { createNaverExecutionDraft } from "@/lib/execution-draft";
 import {
   createApprovalCsv,
+  createPlannerExcelReport,
   createPlannerReport,
   summarizeApprovals,
   type ApprovalDecision,
@@ -438,6 +440,26 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       `${slugFileName(plan.input.brandName)}-setup-report.md`,
       "text/markdown;charset=utf-8"
     );
+  }
+
+  function downloadExcelReport() {
+    downloadTextFile(
+      createPlannerExcelReport(plan, approvalDecisions),
+      `${slugFileName(plan.input.brandName)}-setup-report.xls`,
+      "application/vnd.ms-excel;charset=utf-8"
+    );
+  }
+
+  function printReport() {
+    const cleanup = () => {
+      document.body.classList.remove("print-report-mode");
+      window.removeEventListener("afterprint", cleanup);
+    };
+
+    window.addEventListener("afterprint", cleanup, { once: true });
+    document.body.classList.add("print-report-mode");
+    window.print();
+    window.setTimeout(cleanup, 1200);
   }
 
   function downloadExecutionDraft() {
@@ -1279,10 +1301,20 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <p className="eyebrow">리포트</p>
               <h2>광고주/내부 공유용 요약</h2>
             </div>
-            <button className="icon-button subtle" type="button" onClick={downloadReport}>
-              <Download size={17} />
-              Markdown
-            </button>
+            <div className="inline-actions report-actions">
+              <button className="icon-button subtle" type="button" onClick={printReport}>
+                <Printer size={17} />
+                PDF
+              </button>
+              <button className="icon-button subtle" type="button" onClick={downloadExcelReport}>
+                <Download size={17} />
+                Excel
+              </button>
+              <button className="icon-button subtle" type="button" onClick={downloadReport}>
+                <Download size={17} />
+                Markdown
+              </button>
+            </div>
           </div>
           <div className="report-grid">
             <div>

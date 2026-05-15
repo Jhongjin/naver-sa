@@ -8,7 +8,17 @@ const requiredTables = [
   "planning_keywords",
   "planning_ad_groups",
   "staged_changes",
-  "audit_events"
+  "audit_events",
+  "execution_drafts",
+  "execution_payloads",
+  "execution_results"
+];
+
+const requiredColumns = [
+  {
+    table: "planning_runs",
+    column: "product_type"
+  }
 ];
 
 export async function GET() {
@@ -21,6 +31,7 @@ export async function GET() {
       state,
       connectivity,
       tables: [],
+      columns: [],
       note: "Supabase admin environment is not configured."
     });
   }
@@ -33,6 +44,7 @@ export async function GET() {
       state,
       connectivity,
       tables: [],
+      columns: [],
       note: "Supabase admin client is unavailable."
     });
   }
@@ -62,12 +74,38 @@ export async function GET() {
         errorCode: "CONNECTIVITY_UNREACHABLE"
       }));
 
+  const columns = connectivity.reachable
+    ? await Promise.all(requiredColumns.map((column) => checkColumnPresence(supabase, column)))
+    : requiredColumns.map((column) => ({
+        ...column,
+        present: false,
+        error: "Skipped because the Supabase REST endpoint is not reachable.",
+        errorCode: "CONNECTIVITY_UNREACHABLE"
+      }));
+
   return NextResponse.json({
-    ok: connectivity.reachable && tables.every((table) => table.present),
+    ok: connectivity.reachable && tables.every((table) => table.present) && columns.every((column) => column.present),
     state,
     connectivity,
-    tables
+    tables,
+    columns
   });
+}
+
+async function checkColumnPresence(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  input: { table: string; column: string }
+) {
+  const { error } = await supabase.from(input.table).select(`id,${input.column}`, {
+    head: true
+  });
+
+  return {
+    ...input,
+    present: !error,
+    error: error ? sanitizeSupabaseError(error.message) : null,
+    errorCode: error?.code ?? null
+  };
 }
 
 async function checkSupabaseConnectivity(url: SupabaseUrlState) {

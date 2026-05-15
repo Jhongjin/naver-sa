@@ -25,4 +25,4 @@ The migration is additive only. It does not delete or mutate production data.
 ## Follow-Up
 - Apply the Supabase migration in the dashboard or CLI.
 - Replace operator-code access with real user identity before onboarding multiple operators.
-- Add PDF/XLSX generation after the core history model is stable.
+- Replace Excel-compatible `.xls` export with true `.xlsx` generation if the reporting workflow needs formulas or multi-sheet styling.
