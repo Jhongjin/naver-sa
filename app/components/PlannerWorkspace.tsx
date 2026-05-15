@@ -244,6 +244,27 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const isShoppingSearch = productType === "shoppingSearch";
   const productLabel = isShoppingSearch ? "쇼핑검색" : "파워링크";
   const keywordLabel = isShoppingSearch ? "검색어" : "키워드";
+  const productBrief = isShoppingSearch
+    ? {
+        eyebrow: "SHOPPING SEARCH",
+        title: "상품그룹 기반으로 검색어를 묶습니다",
+        description: "쇼핑검색은 쇼핑몰 채널과 상품그룹 연결이 먼저 맞아야 전송 초안을 안정적으로 만들 수 있습니다.",
+        rows: [
+          ["세팅 단위", "캠페인 / 쇼핑 광고그룹 / 상품검색어"],
+          ["필수 연결", "쇼핑몰 채널 ID와 상품그룹 ID"],
+          ["현재 정책", "조회와 초안 검증만, 라이브 전송 차단"]
+        ]
+      }
+    : {
+        eyebrow: "POWERLINK",
+        title: "사이트 비즈채널 기준으로 키워드를 확장합니다",
+        description: "파워링크는 PC/모바일 사이트 채널을 기준으로 캠페인, 광고그룹, 키워드, 소재 초안을 생성합니다.",
+        rows: [
+          ["세팅 단위", "캠페인 / 광고그룹 / 키워드 / 소재"],
+          ["필수 연결", "PC 채널 ID와 모바일 채널 ID"],
+          ["현재 정책", "승인된 초안만 생성, 삭제와 라이브 전환 금지"]
+        ]
+      };
   const channelApplied = isShoppingSearch ? Boolean(shoppingChannelId) : Boolean(pcChannelId && mobileChannelId);
   const appliedChannel =
     accountSnapshotState.status === "success"
@@ -447,7 +468,11 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   }
 
   return (
-    <main className="app-shell">
+    <>
+      <a className="skip-link" href="#main-content">
+        본문으로 이동
+      </a>
+      <main className="app-shell" data-product={productType}>
       <aside className="sidebar" aria-label="주요 메뉴">
         <div className="brand-block">
           <div className="brand-mark">SA</div>
@@ -490,7 +515,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         </div>
       </aside>
 
-      <section className="workspace">
+      <section className="workspace" id="main-content" tabIndex={-1}>
         <header className="topbar">
           <div>
             <p className="eyebrow">세팅 워크벤치</p>
@@ -560,6 +585,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               </div>
               <div className="segmented-control product-control" aria-label="검색 상품">
                 <button
+                  aria-pressed={productType === "powerlink"}
                   className={productType === "powerlink" ? "active" : ""}
                   type="button"
                   onClick={() => setProductType("powerlink")}
@@ -567,6 +593,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                   파워링크
                 </button>
                 <button
+                  aria-pressed={productType === "shoppingSearch"}
                   className={productType === "shoppingSearch" ? "active" : ""}
                   type="button"
                   onClick={() => setProductType("shoppingSearch")}
@@ -575,10 +602,16 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 </button>
               </div>
               <div className="segmented-control" aria-label="사용자 모드">
-                <button className={mode === "agency" ? "active" : ""} type="button" onClick={() => setMode("agency")}>
+                <button
+                  aria-pressed={mode === "agency"}
+                  className={mode === "agency" ? "active" : ""}
+                  type="button"
+                  onClick={() => setMode("agency")}
+                >
                   대행사
                 </button>
                 <button
+                  aria-pressed={mode === "advertiser"}
                   className={mode === "advertiser" ? "active" : ""}
                   type="button"
                   onClick={() => setMode("advertiser")}
@@ -586,6 +619,20 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                   광고주
                 </button>
               </div>
+            </div>
+
+            <div className="product-brief" aria-label={`${productLabel} 세팅 안내`}>
+              <p>{productBrief.eyebrow}</p>
+              <strong>{productBrief.title}</strong>
+              <span>{productBrief.description}</span>
+              <dl>
+                {productBrief.rows.map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
 
             <div className="control-grid single">
@@ -623,7 +670,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               </label>
             </div>
 
-              <label className="field keyword-input">
+            <label className="field keyword-input">
               <span>{isShoppingSearch ? "상품 검색어 시드" : "시드 키워드"}</span>
               <textarea value={seedText} onChange={(event) => setSeedText(event.target.value)} />
             </label>
@@ -655,7 +702,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <span>보류 {approvalSummary.held}</span>
               <span>대기 {approvalSummary.pending}</span>
             </div>
-            <div className="approval-worklist">
+            <div className="approval-worklist" aria-label="승인할 변경 목록">
               {plan.stagedChanges.map((change) => {
                 const decision = approvalDecisions[change.id] ?? "pending";
 
@@ -688,7 +735,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
           </article>
 
           <aside className="inspector-stack" id="execution">
-            <article className={`next-action-panel ${nextAction.tone}`}>
+            <article className={`next-action-panel ${nextAction.tone}`} aria-live="polite">
               <div>
                 <p className="eyebrow">다음 작업</p>
                 <h2>{nextAction.title}</h2>
@@ -836,6 +883,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
             <div className="table-wrap">
               <table>
+                <caption className="sr-only">{productLabel} 추천 {keywordLabel} 목록</caption>
                 <thead>
                   <tr>
                     <th>키워드</th>
@@ -1044,6 +1092,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         </section>
       </section>
     </main>
+    </>
   );
 }
 
