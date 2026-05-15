@@ -1,10 +1,12 @@
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { PlannerPlan } from "@/lib/planner";
 import type { ApprovalDecisionMap } from "@/lib/reporting";
+import type { NaverExecutionDraft } from "@/lib/execution-draft";
 
 export type SavePlanningRunInput = {
   plan: PlannerPlan;
   decisions: ApprovalDecisionMap;
+  executionDraft?: NaverExecutionDraft;
   createdBy?: string;
 };
 
@@ -12,6 +14,8 @@ export type SavePlanningRunResult =
   | {
       ok: true;
       planningRunId: string;
+      executionDraftId?: string;
+      warnings: string[];
     }
   | {
       ok: false;
@@ -29,6 +33,7 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
   }
 
   const { plan, decisions } = input;
+  const warnings: string[] = [];
   const { data: workspace, error: workspaceError } = await supabase
     .from("workspaces")
     .insert({
@@ -137,9 +142,112 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
     };
   }
 
+  let executionDraftId: string | undefined;
+
+  if (input.executionDraft) {
+    const draftResult = await saveExecutionDraft({
+      supabase,
+      workspaceId: workspace.id as string,
+      planningRunId,
+      draft: input.executionDraft,
+      actor: input.createdBy
+    });
+
+    if (draftResult.ok) {
+      executionDraftId = draftResult.executionDraftId;
+    } else {
+      warnings.push(draftResult.error);
+    }
+  }
+
   return {
     ok: true,
-    planningRunId
+    planningRunId,
+    executionDraftId,
+    warnings
+  };
+}
+
+async function saveExecutionDraft(input: {
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>;
+  workspaceId: string;
+  planningRunId: string;
+  draft: NaverExecutionDraft;
+  actor?: string;
+}): Promise<{ ok: true; executionDraftId: string } | { ok: false; error: string }> {
+  const { supabase, draft } = input;
+  const { data: executionDraft, error: draftError } = await supabase
+    .from("execution_drafts")
+    .upsert(
+      {
+        planning_run_id: input.planningRunId,
+        draft_key: draft.draftKey,
+        draft_id: draft.draftId,
+        brand_name: draft.brandName,
+        approved_change_count: draft.approvedChangeCount,
+        status: draft.validation.canExecuteTest ? "ready" : "blocked",
+        validation: draft.validation,
+        blocked: draft.blocked,
+        generated_at: draft.generatedAt
+      },
+      { onConflict: "draft_key" }
+    )
+    .select("id")
+    .single();
+
+  if (draftError || !executionDraft) {
+    return {
+      ok: false,
+      error: `Execution draft history was not saved: ${sanitizeSupabaseError(draftError?.message)}`
+    };
+  }
+
+  const executionDraftId = executionDraft.id as string;
+
+  if (draft.payloads.length > 0) {
+    const { error: payloadError } = await supabase.from("execution_payloads").upsert(
+      draft.payloads.map((payload) => ({
+        execution_draft_id: executionDraftId,
+        payload_key: payload.id,
+        idempotency_key: payload.idempotencyKey,
+        method: payload.method,
+        uri: payload.uri,
+        entity_type: payload.entityType,
+        target: payload.target,
+        params: payload.params ?? {},
+        body: payload.body,
+        safety: payload.safety
+      })),
+      { onConflict: "execution_draft_id,payload_key" }
+    );
+
+    if (payloadError) {
+      return {
+        ok: false,
+        error: `Execution payload history was not saved: ${sanitizeSupabaseError(payloadError.message)}`
+      };
+    }
+  }
+
+  await supabase.from("audit_events").insert({
+    workspace_id: input.workspaceId,
+    planning_run_id: input.planningRunId,
+    event_type: "execution_draft.created",
+    actor: input.actor,
+    entity_type: "execution_draft",
+    entity_id: executionDraftId,
+    after_value: {
+      draftKey: draft.draftKey,
+      draftId: draft.draftId,
+      payloadCount: draft.payloads.length,
+      validation: draft.validation
+    },
+    reason: "Operator saved a staged Naver execution draft."
+  });
+
+  return {
+    ok: true,
+    executionDraftId
   };
 }
 

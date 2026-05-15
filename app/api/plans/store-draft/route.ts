@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { createNaverExecutionDraft, type NaverExecutionContext } from "@/lib/execution-draft";
+import { verifyOperatorAccess } from "@/lib/operator-access";
 import {
   generatePlannerPlan,
   mardDefaultInput,
@@ -6,16 +8,15 @@ import {
   type PlannerMode,
   type PlannerProductType
 } from "@/lib/planner";
-import { createNaverExecutionDraft, type NaverExecutionContext } from "@/lib/execution-draft";
 import { savePlanningRun } from "@/lib/persistence/planning-runs";
 import type { ApprovalDecision, ApprovalDecisionMap } from "@/lib/reporting";
 import { getSupabaseAdminState } from "@/lib/supabase-admin";
 
 export async function POST(request: Request) {
-  const authResult = verifyAdminSecret(request);
+  const access = verifyOperatorAccess(request, { requireConfigured: true });
 
-  if (!authResult.ok) {
-    return NextResponse.json(authResult, { status: authResult.status });
+  if (!access.ok) {
+    return NextResponse.json(access, { status: access.status });
   }
 
   const state = getSupabaseAdminState();
@@ -35,38 +36,24 @@ export async function POST(request: Request) {
   const input = coercePlannerInput(isRecord(body.input) ? body.input : {});
   const decisions = coerceDecisions(body.decisions);
   const executionContext = coerceExecutionContext(body.executionContext);
-  const createdBy = typeof body.createdBy === "string" ? body.createdBy : undefined;
+  const createdBy = typeof body.createdBy === "string" ? body.createdBy : "operator";
   const plan = generatePlannerPlan(input);
   const executionDraft = createNaverExecutionDraft(plan, decisions, executionContext);
   const result = await savePlanningRun({ plan, decisions, executionDraft, createdBy });
 
-  return NextResponse.json(result, { status: result.ok ? 201 : 500 });
-}
-
-function verifyAdminSecret(request: Request): { ok: true } | { ok: false; status: number; error: string } {
-  const configuredSecret = process.env.CRON_SECRET;
-
-  if (!configuredSecret) {
-    return {
-      ok: false,
-      status: 503,
-      error: "Persistence route is disabled because CRON_SECRET is not configured."
-    };
-  }
-
-  const providedSecret = request.headers.get("x-admin-secret");
-
-  if (providedSecret !== configuredSecret) {
-    return {
-      ok: false,
-      status: 401,
-      error: "Unauthorized."
-    };
-  }
-
-  return {
-    ok: true
-  };
+  return NextResponse.json(
+    {
+      ...result,
+      draft: {
+        draftId: executionDraft.draftId,
+        draftKey: executionDraft.draftKey,
+        payloadCount: executionDraft.payloads.length,
+        canExecuteTest: executionDraft.validation.canExecuteTest,
+        blockerCount: executionDraft.validation.blockerCount
+      }
+    },
+    { status: result.ok ? 201 : 500 }
+  );
 }
 
 async function readJson(request: Request): Promise<Record<string, unknown>> {

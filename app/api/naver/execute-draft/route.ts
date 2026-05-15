@@ -21,9 +21,11 @@ type ExecutionResponse = {
   executedCount: number;
   results: Array<{
     id: string;
+    idempotencyKey: string;
     ok: boolean;
     status: number;
     target: string;
+    naverEntityId?: string;
     error?: string;
   }>;
 };
@@ -92,6 +94,7 @@ export async function POST(request: Request) {
     if (resolvedPayload.unresolved.length > 0) {
       results.push({
         id: payload.id,
+        idempotencyKey: payload.idempotencyKey,
         ok: false,
         status: 409,
         target: payload.target,
@@ -107,9 +110,11 @@ export async function POST(request: Request) {
 
     results.push({
       id: payload.id,
+      idempotencyKey: payload.idempotencyKey,
       ok: result.ok,
       status: result.status,
       target: payload.target,
+      naverEntityId: result.ok ? extractPrimaryEntityId(result.data) : undefined,
       error: result.ok ? undefined : result.error
     });
 
@@ -330,6 +335,11 @@ function extractRuntimeValues(data: unknown): Record<string, string> {
   }
 
   return values;
+}
+
+function extractPrimaryEntityId(data: unknown): string | undefined {
+  const values = extractRuntimeValues(data);
+  return values.nccCampaignId ?? values.nccAdgroupId ?? values.nccKeywordId ?? values.nccAdId;
 }
 
 function recordStringValue(value: unknown): Record<string, string> | undefined {

@@ -36,6 +36,7 @@ export type KeywordPlan = {
 export type AdCopyDraft = {
   headline: string;
   description: string;
+  angle?: string;
 };
 
 export type AdGroupPlan = {
@@ -88,6 +89,21 @@ export type OperationRule = {
   automationLevel: string;
 };
 
+export type ProductGroupRecommendation = {
+  name: string;
+  sourceGroup: string;
+  queryCount: number;
+  productHints: string[];
+  feedActions: string[];
+};
+
+export type IndustryTemplate = {
+  name: string;
+  landingChecks: string[];
+  copyRules: string[];
+  negativeThemes: string[];
+};
+
 export type PlannerPlan = {
   input: PlannerInput;
   keywords: KeywordPlan[];
@@ -96,6 +112,8 @@ export type PlannerPlan = {
   stagedChanges: StagedChange[];
   benchmarkFeatures: BenchmarkFeature[];
   operationRules: OperationRule[];
+  productGroups: ProductGroupRecommendation[];
+  industryTemplate: IndustryTemplate;
   forecast: ForecastSummary;
   assumptions: string[];
 };
@@ -204,6 +222,8 @@ export function generatePlannerPlan(input: PlannerInput): PlannerPlan {
     stagedChanges,
     benchmarkFeatures: buildBenchmarkFeatures(safeInput.productType),
     operationRules: buildOperationRules(safeInput.productType),
+    productGroups: buildProductGroupRecommendations(safeInput, includedKeywords),
+    industryTemplate: buildIndustryTemplate(safeInput.vertical),
     forecast,
     assumptions: buildAssumptions(safeInput.productType)
   };
@@ -435,13 +455,90 @@ function buildAdCopies(brandName: string, group: string): AdCopyDraft[] {
   return [
     {
       headline: `${brandName} ${group} 신상품`,
-      description: "감도 있는 데일리 스타일을 공식몰에서 확인하세요."
+      description: "감도 있는 데일리 스타일을 공식몰에서 확인하세요.",
+      angle: "신상품"
     },
     {
       headline: `${group} 추천 셀렉션`,
-      description: "구매 의도 키워드에 맞춘 랜딩과 소재를 테스트합니다."
+      description: "구매 의도 키워드에 맞춘 랜딩과 소재를 테스트합니다.",
+      angle: "카테고리"
+    },
+    {
+      headline: `${brandName} 공식몰 혜택`,
+      description: "신규 상품과 시즌 코디를 안전한 공식몰에서 비교하세요.",
+      angle: "신뢰"
+    },
+    {
+      headline: `${group} 데일리룩`,
+      description: "출근룩부터 주말 코디까지 상품군별 랜딩을 테스트합니다.",
+      angle: "상황"
     }
   ];
+}
+
+function buildProductGroupRecommendations(
+  input: PlannerInput,
+  includedKeywords: KeywordPlan[]
+): ProductGroupRecommendation[] {
+  if (input.productType !== "shoppingSearch") {
+    return [];
+  }
+
+  return groupRules
+    .map((rule) => {
+      const groupKeywords = includedKeywords.filter((keyword) => keyword.group === rule.name);
+
+      return {
+        name: `${rule.name} 상품그룹`,
+        sourceGroup: rule.name,
+        queryCount: groupKeywords.length,
+        productHints: groupKeywords.slice(0, 4).map((keyword) => keyword.term),
+        feedActions: [
+          `${rule.name} 대표 상품명을 검색어와 맞춥니다.`,
+          "품절/저재고 상품은 테스트 예산에서 제외 후보로 둡니다.",
+          "카테고리, 태그, 대표 이미지를 상품그룹 기준으로 점검합니다."
+        ]
+      };
+    })
+    .filter((group) => group.queryCount > 0);
+}
+
+function buildIndustryTemplate(vertical: string): IndustryTemplate {
+  const lowered = vertical.toLowerCase();
+
+  if (lowered.includes("병원") || lowered.includes("의료")) {
+    return {
+      name: "병원/의료",
+      landingChecks: ["진료 과목과 지역 표시", "의료광고 심의 문구 확인", "상담/예약 전환 경로 분리"],
+      copyRules: ["과장 표현 제외", "가격 강조 최소화", "전문의/장비 표현은 근거 확인"],
+      negativeThemes: ["무료", "부작용", "후기만", "보험사"]
+    };
+  }
+
+  if (lowered.includes("교육") || lowered.includes("학원")) {
+    return {
+      name: "교육/학원",
+      landingChecks: ["수강 대상과 커리큘럼 연결", "상담 신청 CTA 고정", "지역/온라인 여부 명시"],
+      copyRules: ["성과 보장 표현 제외", "강사/커리큘럼 차별점 우선", "무료체험은 조건 명시"],
+      negativeThemes: ["무료자료", "알바", "답안", "후기만"]
+    };
+  }
+
+  if (lowered.includes("법률") || lowered.includes("변호")) {
+    return {
+      name: "법률",
+      landingChecks: ["상담 분야별 랜딩 분리", "신뢰 정보와 문의 경로 표시", "지역 키워드 대응"],
+      copyRules: ["승소 보장 표현 제외", "전문 분야 중심", "긴급 상담 문구는 사실 확인"],
+      negativeThemes: ["무료", "양식", "판례", "셀프"]
+    };
+  }
+
+  return {
+    name: "쇼핑몰",
+    landingChecks: ["상품군별 랜딩 연결", "배송/교환 안내 노출", "모바일 구매 CTA 확인"],
+    copyRules: ["시즌/상황 키워드 반영", "공식몰 신뢰 문구 사용", "가격 과장 표현 제외"],
+    negativeThemes: ["중고", "도매", "수선", "짝퉁"]
+  };
 }
 
 function buildStagedChanges(
@@ -567,7 +664,9 @@ function buildForecast(
 }
 
 function buildNegativeKeywords(input: PlannerInput): string[] {
-  return [
+  const template = buildIndustryTemplate(input.vertical);
+
+  return Array.from(new Set([
     "무료",
     "중고",
     "도매",
@@ -575,8 +674,9 @@ function buildNegativeKeywords(input: PlannerInput): string[] {
     "수선",
     "반품",
     `${input.brandName} 후기만`,
-    "짝퉁"
-  ];
+    "짝퉁",
+    ...template.negativeThemes
+  ]));
 }
 
 function buildBenchmarkFeatures(productType: PlannerProductType): BenchmarkFeature[] {

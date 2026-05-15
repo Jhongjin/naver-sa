@@ -1278,6 +1278,62 @@ td span {
   font-weight: 500;
 }
 
+.keyword-chips.compact {
+  margin-top: 9px;
+}
+
+.keyword-chips.compact span {
+  padding: 5px 7px;
+  font-size: 12px;
+}
+
+.product-group-card,
+.template-list div,
+.productization-grid div {
+  border-radius: 8px;
+  background: var(--surface-strong);
+  box-shadow: var(--ring-soft);
+  padding: 12px;
+}
+
+.product-group-card strong,
+.product-group-card span,
+.template-list strong,
+.template-list span,
+.productization-grid strong,
+.productization-grid span {
+  display: block;
+}
+
+.product-group-card > span,
+.template-list span,
+.productization-grid span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.product-group-card > span {
+  margin-top: 5px;
+}
+
+.product-group-card ul {
+  margin: 9px 0 0;
+  padding-left: 17px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.template-list {
+  display: grid;
+  gap: 10px;
+}
+
+.template-list span {
+  margin-top: 6px;
+}
+
 .change-item {
   justify-content: space-between;
   gap: 16px;
@@ -1299,6 +1355,44 @@ td span {
   color: var(--muted);
   font-size: 13px;
   font-weight: 550;
+}
+
+.approval-toolbar {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(220px, 0.82fr);
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.filter-control {
+  grid-template-columns: repeat(5, minmax(54px, 1fr));
+}
+
+.search-field {
+  min-height: 36px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--ring-soft);
+  color: var(--muted);
+  padding: 0 10px;
+}
+
+.search-field input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.search-field input::placeholder {
+  color: var(--soft);
 }
 
 .approval-progress {
@@ -1331,6 +1425,29 @@ td span {
   font-style: normal;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.empty-state {
+  border-radius: 8px;
+  background: var(--surface-strong);
+  box-shadow: var(--ring-soft);
+  padding: 14px;
+}
+
+.empty-state strong,
+.empty-state span {
+  display: block;
+}
+
+.empty-state strong {
+  font-size: 14px;
+}
+
+.empty-state span {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .change-item > div:first-child {
@@ -1461,6 +1578,24 @@ td span {
 
 .report-panel {
   margin-top: 16px;
+}
+
+.productization-panel {
+  margin-top: 16px;
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  padding: 18px;
+}
+
+.productization-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.productization-grid strong {
+  margin-bottom: 6px;
 }
 
 .execution-panel {
@@ -1856,7 +1991,8 @@ td span {
   .execution-grid,
   .execution-controls,
   .payload-list,
-  .benchmark-grid {
+  .benchmark-grid,
+  .productization-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1962,6 +2098,7 @@ td span {
   .topbar-actions,
   .topbar-meta,
   .control-grid,
+  .approval-toolbar,
   .workflow-strip,
   .forecast-list,
   .change-item,

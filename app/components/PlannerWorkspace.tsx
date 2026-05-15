@@ -168,6 +168,27 @@ type StageDraftState =
       message: string;
     };
 
+type SaveDraftState =
+  | {
+      status: "idle";
+    }
+  | {
+      status: "loading";
+    }
+  | {
+      status: "success";
+      message: string;
+      planningRunId: string;
+      executionDraftId?: string;
+      warnings: string[];
+    }
+  | {
+      status: "error";
+      message: string;
+    };
+
+type ApprovalFilter = "all" | "pending" | "approved" | "held" | "blocked";
+
 export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [mode, setMode] = useState<PlannerMode>(initialInput.mode);
   const [productType, setProductType] = useState<PlannerProductType>(initialInput.productType);
@@ -180,7 +201,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [approvalDecisions, setApprovalDecisions] = useState<ApprovalDecisionMap>({});
   const [naverReadiness, setNaverReadiness] = useState<NaverReadiness | null>(null);
   const [stageDraftState, setStageDraftState] = useState<StageDraftState>({ status: "idle" });
+  const [saveDraftState, setSaveDraftState] = useState<SaveDraftState>({ status: "idle" });
   const [accountSnapshotState, setAccountSnapshotState] = useState<AccountSnapshotState>({ status: "idle" });
+  const [approvalFilter, setApprovalFilter] = useState<ApprovalFilter>("all");
+  const [approvalSearch, setApprovalSearch] = useState("");
   const [operatorCode, setOperatorCode] = useState("");
   const [pcChannelId, setPcChannelId] = useState("");
   const [mobileChannelId, setMobileChannelId] = useState("");
@@ -324,6 +348,22 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       detail: "별도 확인 필요"
     }
   ] as const;
+  const filteredStagedChanges = plan.stagedChanges.filter((change) => {
+    const decision = approvalDecisions[change.id] ?? "pending";
+    const matchesFilter =
+      approvalFilter === "all" ||
+      approvalFilter === decision ||
+      (approvalFilter === "blocked" && change.risk === "blocked");
+    const query = approvalSearch.trim().toLowerCase();
+    const matchesSearch =
+      !query ||
+      [change.target, change.details, change.action, change.type, change.risk]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+
+    return matchesFilter && matchesSearch;
+  });
   const preflightChecks = [
     {
       label: "승인 항목",
@@ -453,6 +493,53 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         status: "error",
         fingerprint: draftFingerprint,
         message: error instanceof Error ? error.message : "초안 검증에 실패했습니다."
+      });
+    }
+  }
+
+  async function saveDraftHistory() {
+    setSaveDraftState({ status: "loading" });
+
+    try {
+      const response = await fetch("/api/plans/store-draft", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(operatorCode.trim() ? { "x-operator-code": operatorCode.trim() } : {})
+        },
+        body: JSON.stringify({
+          input,
+          decisions: approvalDecisions,
+          executionContext,
+          createdBy: mode === "agency" ? "agency-operator" : "advertiser-operator"
+        })
+      });
+      const data = (await response.json()) as
+        | {
+            ok: true;
+            planningRunId: string;
+            executionDraftId?: string;
+            warnings?: string[];
+          }
+        | { ok?: false; error?: string; missing?: string[] };
+
+      if (!response.ok || data.ok !== true) {
+        const missing = "missing" in data && data.missing?.length ? ` (${data.missing.join(", ")})` : "";
+        const message = "error" in data ? data.error : undefined;
+        throw new Error(`${message ?? "저장에 실패했습니다."}${missing}`);
+      }
+
+      setSaveDraftState({
+        status: "success",
+        message: "승인 상태와 전송 초안 이력을 저장했습니다.",
+        planningRunId: data.planningRunId,
+        executionDraftId: data.executionDraftId,
+        warnings: data.warnings ?? []
+      });
+    } catch (error) {
+      setSaveDraftState({
+        status: "error",
+        message: error instanceof Error ? error.message : "저장에 실패했습니다."
       });
     }
   }
@@ -727,6 +814,15 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                   <Download size={17} />
                   승인 CSV
                 </button>
+                <button
+                  className="icon-button subtle"
+                  type="button"
+                  disabled={saveDraftState.status === "loading"}
+                  onClick={saveDraftHistory}
+                >
+                  <FileText size={17} />
+                  {saveDraftState.status === "loading" ? "저장 중" : "이력 저장"}
+                </button>
               </div>
             </div>
             <div className="approval-summary" aria-label="승인 상태 요약">
@@ -734,14 +830,45 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <span>보류 {approvalSummary.held}</span>
               <span>대기 {approvalSummary.pending}</span>
             </div>
+            <div className="approval-toolbar" aria-label="승인 큐 필터와 검색">
+              <div className="segmented-control filter-control" aria-label="승인 상태 필터">
+                {(["all", "pending", "approved", "held", "blocked"] as const).map((filter) => (
+                  <button
+                    aria-pressed={approvalFilter === filter}
+                    className={approvalFilter === filter ? "active" : ""}
+                    key={filter}
+                    type="button"
+                    onClick={() => setApprovalFilter(filter)}
+                  >
+                    {approvalFilterLabel(filter)}
+                  </button>
+                ))}
+              </div>
+              <label className="search-field">
+                <Search size={16} />
+                <span className="sr-only">승인 큐 검색</span>
+                <input
+                  placeholder="대상, 액션, 위험도 검색"
+                  value={approvalSearch}
+                  onChange={(event) => setApprovalSearch(event.target.value)}
+                />
+              </label>
+            </div>
             <div className="approval-progress" aria-label={`승인 진행률 ${approvalProgress}%`}>
               <span>
                 <i style={{ width: `${approvalProgress}%` }} />
               </span>
               <em>{approvalProgress}% 승인 완료</em>
             </div>
+            <SaveDraftNotice state={saveDraftState} />
             <div className="approval-worklist" aria-label="승인할 변경 목록">
-              {plan.stagedChanges.map((change) => {
+              {filteredStagedChanges.length === 0 ? (
+                <div className="empty-state">
+                  <strong>조건에 맞는 승인 항목이 없습니다</strong>
+                  <span>필터나 검색어를 조정하면 숨겨진 항목을 다시 볼 수 있습니다.</span>
+                </div>
+              ) : null}
+              {filteredStagedChanges.map((change) => {
                 const decision = approvalDecisions[change.id] ?? "pending";
 
                 return (
@@ -893,7 +1020,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                       <span>
                         {payload.method} {payload.uri}
                       </span>
-                      <em>{payload.entityType}</em>
+                      <em>{payload.entityType} / {payload.idempotencyKey}</em>
                     </div>
                   ))
                 )}
@@ -1011,6 +1138,58 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 ))}
               </div>
             </article>
+
+            {isShoppingSearch ? (
+              <article className="adgroup-panel">
+                <div className="section-heading">
+                  <div>
+                    <p className="eyebrow">쇼핑 구조</p>
+                    <h2>상품그룹 추천</h2>
+                  </div>
+                </div>
+                <div className="adgroup-list">
+                  {plan.productGroups.map((group) => (
+                    <div className="product-group-card" key={group.name}>
+                      <strong>{group.name}</strong>
+                      <span>{group.queryCount}개 검색어를 {group.sourceGroup} 상품군에 연결합니다.</span>
+                      <div className="keyword-chips compact">
+                        {group.productHints.map((hint) => (
+                          <span key={hint}>{hint}</span>
+                        ))}
+                      </div>
+                      <ul>
+                        {group.feedActions.slice(0, 2).map((action) => (
+                          <li key={action}>{action}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ) : (
+              <article className="adgroup-panel">
+                <div className="section-heading">
+                  <div>
+                    <p className="eyebrow">파워링크 템플릿</p>
+                    <h2>{plan.industryTemplate.name} 세팅 기준</h2>
+                  </div>
+                </div>
+                <div className="template-list">
+                  <div>
+                    <strong>랜딩 체크</strong>
+                    {plan.industryTemplate.landingChecks.map((item) => (
+                      <span key={item}>{item}</span>
+                    ))}
+                  </div>
+                  <div>
+                    <strong>소재 규칙</strong>
+                    {plan.industryTemplate.copyRules.map((item) => (
+                      <span key={item}>{item}</span>
+                    ))}
+                  </div>
+                </div>
+              </article>
+            )}
 
             <article className="policy-panel">
               <div className="section-heading">
@@ -1150,6 +1329,30 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             ))}
           </div>
         </section>
+
+        <section className="productization-panel" aria-label="제품화 준비 상태">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">제품화</p>
+              <h2>대행사/광고주 운영 전환 체크</h2>
+            </div>
+            <ShieldCheck size={20} />
+          </div>
+          <div className="productization-grid">
+            <div>
+              <strong>권한</strong>
+              <span>현재 operator code 기반 보호. 다음 단계는 사용자/워크스페이스 권한 분리입니다.</span>
+            </div>
+            <div>
+              <strong>워크스페이스</strong>
+              <span>저장 시 workspace와 planning run을 생성해 계정별 이력을 묶을 수 있습니다.</span>
+            </div>
+            <div>
+              <strong>리포트</strong>
+              <span>Markdown/CSV export 이후 PDF, Excel, 공유 링크로 확장할 준비가 되어 있습니다.</span>
+            </div>
+          </div>
+        </section>
       </section>
     </main>
     </>
@@ -1207,6 +1410,45 @@ function StageDraftNotice({ state }: { state: StageDraftState }) {
               {warning.payloadId ? `${warning.payloadId}: ` : ""}
               {warning.message}
             </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SaveDraftNotice({ state }: { state: SaveDraftState }) {
+  if (state.status === "idle") {
+    return null;
+  }
+
+  if (state.status === "loading") {
+    return (
+      <div className="stage-notice neutral">
+        <strong>이력 저장 중</strong>
+        <span>승인 상태, 전송 초안, payload 지문을 Supabase에 저장합니다.</span>
+      </div>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <div className="stage-notice danger">
+        <strong>이력 저장 실패</strong>
+        <span>{state.message}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="stage-notice success">
+      <strong>{state.message}</strong>
+      <span>planning run: {state.planningRunId}</span>
+      {state.executionDraftId ? <span>execution draft: {state.executionDraftId}</span> : null}
+      {state.warnings.length > 0 ? (
+        <div className="blocker-list">
+          {state.warnings.map((warning) => (
+            <span key={warning}>{warning}</span>
           ))}
         </div>
       ) : null}
@@ -1412,6 +1654,18 @@ function decisionLabel(decision: ApprovalDecision): string {
 
 function decisionClass(decision: ApprovalDecision): string {
   return decision === "approved" ? "include" : decision === "held" ? "review" : "neutral";
+}
+
+function approvalFilterLabel(filter: ApprovalFilter): string {
+  const labels: Record<ApprovalFilter, string> = {
+    all: "전체",
+    pending: "대기",
+    approved: "승인",
+    held: "보류",
+    blocked: "차단"
+  };
+
+  return labels[filter];
 }
 
 type NextActionInput = {

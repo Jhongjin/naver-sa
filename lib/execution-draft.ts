@@ -3,6 +3,7 @@ import type { ApprovalDecisionMap } from "@/lib/reporting";
 
 export type NaverExecutionPayload = {
   id: string;
+  idempotencyKey: string;
   method: "POST" | "PUT";
   uri: string;
   entityType: string;
@@ -48,6 +49,7 @@ export type NaverExecutionValidation = {
 
 export type NaverExecutionDraft = {
   draftId: string;
+  draftKey: string;
   generatedAt: string;
   brandName: string;
   approvedChangeCount: number;
@@ -74,7 +76,7 @@ export function createNaverExecutionDraft(
   const shouldCreateCampaign = approvedIds.has("campaign-create-draft");
 
   if (shouldCreateCampaign) {
-    payloads.push({
+    payloads.push(withIdempotency(plan, {
       id: "campaign-create",
       method: "POST",
       uri: "/ncc/campaigns",
@@ -88,7 +90,7 @@ export function createNaverExecutionDraft(
         dailyBudget: plan.forecast.dailyBudget
       },
       safety: defaultSafety()
-    });
+    }));
   }
 
   for (const group of plan.adGroups) {
@@ -98,7 +100,7 @@ export function createNaverExecutionDraft(
       continue;
     }
 
-    payloads.push({
+    payloads.push(withIdempotency(plan, {
       id: adgroupPayloadId,
       method: "POST",
       uri: "/ncc/adgroups",
@@ -129,7 +131,7 @@ export function createNaverExecutionDraft(
             mobileChannelId: context.mobileChannelId ?? context.pcChannelId ?? "PENDING_MOBILE_CHANNEL_ID"
           },
       safety: defaultSafety()
-    });
+    }));
   }
 
   if (!isShoppingSearch && approvedIds.has("keyword-bulk-create")) {
@@ -147,7 +149,7 @@ export function createNaverExecutionDraft(
         continue;
       }
 
-      payloads.push({
+      payloads.push(withIdempotency(plan, {
         id: `keywords-${slugify(group.name)}`,
         method: "POST",
         uri: "/ncc/keywords",
@@ -158,13 +160,13 @@ export function createNaverExecutionDraft(
         },
         body: keywordBody,
         safety: defaultSafety()
-      });
+      }));
     }
   }
 
   if (!isShoppingSearch && approvedIds.has("copy-draft-create")) {
     for (const group of plan.adGroups) {
-      payloads.push({
+      payloads.push(withIdempotency(plan, {
         id: `ad-copy-${slugify(group.name)}`,
         method: "POST",
         uri: "/ncc/ads",
@@ -179,7 +181,7 @@ export function createNaverExecutionDraft(
           userLock: true
         })),
         safety: defaultSafety()
-      });
+      }));
     }
   }
 
@@ -189,6 +191,7 @@ export function createNaverExecutionDraft(
 
   return {
     draftId: createDraftId(plan.input.brandName, payloads, generatedAt),
+    draftKey: createDraftKey(plan, payloads),
     generatedAt,
     brandName: plan.input.brandName,
     approvedChangeCount: approvedIds.size,
@@ -199,6 +202,16 @@ export function createNaverExecutionDraft(
       deleteExecution: true,
       reason: "MVP only prepares approved payloads. It does not execute live Naver API mutations."
     }
+  };
+}
+
+function withIdempotency(
+  plan: PlannerPlan,
+  payload: Omit<NaverExecutionPayload, "idempotencyKey">
+): NaverExecutionPayload {
+  return {
+    ...payload,
+    idempotencyKey: createPayloadIdempotencyKey(plan, payload)
   };
 }
 
@@ -300,6 +313,40 @@ export function runtimeRef(payloadId: string, field: string): string {
 function createDraftId(brandName: string, payloads: NaverExecutionPayload[], generatedAt: string): string {
   const fingerprint = [brandName, generatedAt, ...payloads.map((payload) => `${payload.id}:${payload.method}:${payload.uri}`)].join("|");
   return `draft_${generatedAt.replace(/[-:.TZ]/g, "").slice(0, 14)}_${stableHash(fingerprint).toString(36)}`;
+}
+
+function createDraftKey(plan: PlannerPlan, payloads: NaverExecutionPayload[]): string {
+  const fingerprint = [
+    plan.input.productType,
+    plan.input.brandName,
+    plan.input.siteUrl,
+    plan.input.vertical,
+    plan.input.monthlyBudget,
+    plan.input.maxBid,
+    ...plan.input.seedKeywords,
+    ...payloads.map((payload) => `${payload.id}:${payload.idempotencyKey}`)
+  ].join("|");
+
+  return `draftkey_${stableHash(fingerprint).toString(36)}`;
+}
+
+function createPayloadIdempotencyKey(
+  plan: PlannerPlan,
+  payload: Omit<NaverExecutionPayload, "idempotencyKey">
+): string {
+  const fingerprint = JSON.stringify({
+    productType: plan.input.productType,
+    brandName: plan.input.brandName,
+    siteUrl: plan.input.siteUrl,
+    payloadId: payload.id,
+    method: payload.method,
+    uri: payload.uri,
+    target: payload.target,
+    params: payload.params,
+    body: payload.body
+  });
+
+  return `naver_sa_${stableHash(fingerprint).toString(36)}`;
 }
 
 function containsPendingPlaceholder(value: unknown): boolean {

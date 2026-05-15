@@ -77,6 +77,28 @@ export function createPlannerReport(plan: PlannerPlan, decisions: ApprovalDecisi
     "",
     ...plan.negativeKeywords.map((keyword) => `- ${keyword}`),
     "",
+    "## Industry Template",
+    "",
+    `- Template: ${plan.industryTemplate.name}`,
+    ...plan.industryTemplate.landingChecks.map((item) => `- Landing check: ${item}`),
+    ...plan.industryTemplate.copyRules.map((item) => `- Copy rule: ${item}`),
+    ...(plan.productGroups.length > 0
+      ? [
+          "",
+          "## Shopping Product Groups",
+          "",
+          ...plan.productGroups.flatMap((group) => [
+            `### ${group.name}`,
+            "",
+            `- Source group: ${group.sourceGroup}`,
+            `- Query count: ${group.queryCount}`,
+            `- Product hints: ${group.productHints.join(", ")}`,
+            ...group.feedActions.map((action) => `- Feed action: ${action}`),
+            ""
+          ])
+        ]
+      : []),
+    "",
     "## Assumptions",
     "",
     ...plan.assumptions.map((assumption) => `- ${assumption}`)
