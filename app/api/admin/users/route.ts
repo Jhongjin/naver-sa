@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
 import { getConfiguredAdminEmails, getUserRole, verifyUserAccess, type AppUserRole } from "@/lib/auth-access";
+import { jsonNoStore } from "@/lib/http";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 type WorkspaceMemberActivityRow = {
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
   const access = await verifyUserAccess(request, { requireAdmin: true });
 
   if (!access.ok) {
-    return NextResponse.json(access, { status: access.status });
+    return jsonNoStore(access, { status: access.status });
   }
 
   const admin = getAdminClientOrResponse();
@@ -36,13 +37,13 @@ export async function GET(request: Request) {
   });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: sanitizeAdminError(error.message) }, { status: 502 });
+    return jsonNoStore({ ok: false, error: sanitizeAdminError(error.message) }, { status: 502 });
   }
 
   const activity = await getUserActivitySummary(admin, data.users);
 
   if (!activity.ok) {
-    return NextResponse.json({ ok: false, error: activity.error }, { status: 502 });
+    return jsonNoStore({ ok: false, error: activity.error }, { status: 502 });
   }
 
   const users = data.users.map((user) => ({
@@ -62,7 +63,7 @@ export async function GET(request: Request) {
     latestPlanningRunAt: activity.byUser.get(user.id)?.latestPlanningRunAt ?? null
   }));
 
-  return NextResponse.json({
+  return jsonNoStore({
     ok: true,
     users,
     total: users.length
@@ -73,7 +74,7 @@ export async function PATCH(request: Request) {
   const access = await verifyUserAccess(request, { requireAdmin: true });
 
   if (!access.ok) {
-    return NextResponse.json(access, { status: access.status });
+    return jsonNoStore(access, { status: access.status });
   }
 
   const admin = getAdminClientOrResponse();
@@ -87,21 +88,21 @@ export async function PATCH(request: Request) {
   const role = body.role === "admin" || body.role === "member" ? (body.role as AppUserRole) : null;
 
   if (!userId || !role) {
-    return NextResponse.json({ ok: false, error: "userId and role are required." }, { status: 400 });
+    return jsonNoStore({ ok: false, error: "userId and role are required." }, { status: 400 });
   }
 
   const { data: existing, error: getError } = await admin.auth.admin.getUserById(userId);
 
   if (getError || !existing.user) {
-    return NextResponse.json({ ok: false, error: "User was not found." }, { status: 404 });
+    return jsonNoStore({ ok: false, error: "User was not found." }, { status: 404 });
   }
 
   if (existing.user.id === access.user.id && role === "member") {
-    return NextResponse.json({ ok: false, error: "You cannot demote your own administrator account." }, { status: 400 });
+    return jsonNoStore({ ok: false, error: "You cannot demote your own administrator account." }, { status: 400 });
   }
 
   if (role === "member" && getRoleSource(existing.user) === "adminEmails") {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         ok: false,
         error: "This user is still listed in ADMIN_EMAILS. Remove that environment allowlist entry before demotion."
@@ -117,7 +118,7 @@ export async function PATCH(request: Request) {
     });
 
     if (usersError) {
-      return NextResponse.json({ ok: false, error: sanitizeAdminError(usersError.message) }, { status: 502 });
+      return jsonNoStore({ ok: false, error: sanitizeAdminError(usersError.message) }, { status: 502 });
     }
 
     const remainingAdminCount = usersData.users.filter((user) => {
@@ -125,7 +126,7 @@ export async function PATCH(request: Request) {
     }).length;
 
     if (remainingAdminCount === 0) {
-      return NextResponse.json(
+      return jsonNoStore(
         { ok: false, error: "At least one administrator account must remain active." },
         { status: 400 }
       );
@@ -141,10 +142,10 @@ export async function PATCH(request: Request) {
   });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: sanitizeAdminError(error.message) }, { status: 502 });
+    return jsonNoStore({ ok: false, error: sanitizeAdminError(error.message) }, { status: 502 });
   }
 
-  return NextResponse.json({
+  return jsonNoStore({
     ok: true,
     userId,
     role
@@ -155,7 +156,7 @@ function getAdminClientOrResponse() {
   const state = getSupabaseAdminState();
 
   if (!state.ready) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         ok: false,
         error: "Supabase admin environment is not configured."
@@ -167,7 +168,7 @@ function getAdminClientOrResponse() {
   const admin = getSupabaseAdminClient();
 
   if (!admin) {
-    return NextResponse.json({ ok: false, error: "Supabase admin client is unavailable." }, { status: 503 });
+    return jsonNoStore({ ok: false, error: "Supabase admin client is unavailable." }, { status: 503 });
   }
 
   return admin;
