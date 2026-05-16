@@ -2490,6 +2490,30 @@ td span {
   transform: rotate(-9deg) translateX(-32vw);
 }
 
+.hero-white-sweep {
+  animation: hero-white-sweep 5s linear infinite;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0) 32%,
+    rgba(255, 255, 255, 0.62) 50%,
+    rgba(255, 255, 255, 0) 68%,
+    transparent 100%
+  );
+  bottom: -16%;
+  filter: blur(12px);
+  left: 0;
+  mix-blend-mode: screen;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  top: -16%;
+  transform: translate3d(-46vw, 0, 0) skewX(-15deg);
+  width: min(34vw, 420px);
+  will-change: opacity, transform;
+  z-index: 1;
+}
+
 .landing-hero-shell {
   align-items: center;
   display: grid;
@@ -2584,7 +2608,7 @@ td span {
     inset 0 1px 0 rgba(245, 239, 228, 0.12);
   justify-self: end;
   max-width: 560px;
-  min-height: 520px;
+  min-height: 620px;
   overflow: hidden;
   position: relative;
   width: 100%;
@@ -2692,25 +2716,37 @@ td span {
 }
 
 .orbit-ring {
-  animation: orbit-spin 18s linear infinite;
   border: 1px solid rgba(245, 239, 228, 0.12);
-  inset: 0;
+  height: var(--ring-size, 100%);
+  left: var(--ring-left, 0);
+  top: var(--ring-top, 0);
+  transform-origin: 50% 50%;
+  width: var(--ring-size, 100%);
+  will-change: transform;
 }
 
 .orbit-ring.outer {
+  --ring-left: 8%;
+  --ring-size: 86%;
+  --ring-top: 6%;
+  animation: orbit-ring-drift-outer 18s var(--motion-ease) infinite;
   border-color: rgba(255, 91, 57, 0.36);
 }
 
 .orbit-ring.middle {
-  animation-duration: 12s;
+  --ring-left: 17%;
+  --ring-size: 62%;
+  --ring-top: 20%;
+  animation: orbit-ring-drift-middle 22s var(--motion-ease) infinite;
   border-color: rgba(116, 217, 170, 0.28);
-  inset: 16%;
 }
 
 .orbit-ring.inner {
-  animation-duration: 8s;
+  --ring-left: 32%;
+  --ring-size: 36%;
+  --ring-top: 34%;
+  animation: orbit-ring-drift-inner 26s var(--motion-ease) infinite;
   border-color: rgba(245, 239, 228, 0.18);
-  inset: 32%;
 }
 
 .orbit-ring::before {
@@ -2820,12 +2856,12 @@ td span {
 }
 
 .payload-window {
-  bottom: 48px;
+  bottom: 36px;
   display: grid;
   gap: 9px;
-  left: 26px;
+  left: 28px;
   padding: 16px;
-  width: min(270px, calc(100% - 52px));
+  width: clamp(174px, calc(100% - 248px), 270px);
 }
 
 .payload-window span {
@@ -2859,12 +2895,12 @@ td span {
 
 .scan-window {
   align-items: center;
-  bottom: 112px;
+  bottom: 164px;
   display: flex;
   gap: 12px;
   padding: 16px;
-  right: 22px;
-  width: min(292px, calc(100% - 44px));
+  right: 26px;
+  width: min(292px, calc(100% - 52px));
 }
 
 .scan-window svg {
@@ -2881,16 +2917,24 @@ td span {
 
 .hero-status-stack {
   display: grid;
+  bottom: 34px;
   gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   right: 28px;
-  top: 410px;
+  width: 184px;
+  z-index: 2;
 }
 
 .hero-status-stack span {
+  align-items: center;
   background: rgba(245, 239, 228, 0.08);
   border: 1px solid rgba(245, 239, 228, 0.11);
   border-radius: 999px;
-  padding: 8px 10px;
+  display: flex;
+  justify-content: center;
+  min-height: 30px;
+  padding: 7px 9px;
+  white-space: nowrap;
 }
 
 .hero-marquee {
@@ -3192,6 +3236,51 @@ td span {
   }
 }
 
+@keyframes orbit-ring-drift-outer {
+  0%,
+  100% {
+    transform: translate3d(-10px, 2px, 0) rotate(-2deg);
+  }
+
+  34% {
+    transform: translate3d(12px, -9px, 0) rotate(4deg);
+  }
+
+  68% {
+    transform: translate3d(4px, 11px, 0) rotate(-5deg);
+  }
+}
+
+@keyframes orbit-ring-drift-middle {
+  0%,
+  100% {
+    transform: translate3d(8px, -6px, 0) rotate(3deg);
+  }
+
+  40% {
+    transform: translate3d(-12px, 10px, 0) rotate(-4deg);
+  }
+
+  74% {
+    transform: translate3d(15px, 4px, 0) rotate(6deg);
+  }
+}
+
+@keyframes orbit-ring-drift-inner {
+  0%,
+  100% {
+    transform: translate3d(-6px, -4px, 0) rotate(-4deg);
+  }
+
+  38% {
+    transform: translate3d(11px, 9px, 0) rotate(7deg);
+  }
+
+  72% {
+    transform: translate3d(-13px, 7px, 0) rotate(2deg);
+  }
+}
+
 @keyframes hero-vector-sweep {
   0% {
     opacity: 0;
@@ -3206,6 +3295,28 @@ td span {
   100% {
     opacity: 0;
     transform: rotate(var(--vector-rotate, -18deg)) translateX(112vw);
+  }
+}
+
+@keyframes hero-white-sweep {
+  0%,
+  68% {
+    opacity: 0;
+    transform: translate3d(-46vw, 0, 0) skewX(-15deg);
+  }
+
+  72% {
+    opacity: 0.82;
+  }
+
+  84% {
+    opacity: 0.38;
+    transform: translate3d(130vw, 0, 0) skewX(-15deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(130vw, 0, 0) skewX(-15deg);
   }
 }
 
@@ -3692,7 +3803,7 @@ td span {
     aspect-ratio: auto;
     justify-self: stretch;
     max-width: none;
-    min-height: 500px;
+    min-height: 620px;
   }
 
   .flow-lanes,
