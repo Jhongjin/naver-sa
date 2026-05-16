@@ -2,7 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, BadgeCheck, Building2, Clock3, DatabaseZap, FileClock, LogOut, ShieldCheck } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Building2,
+  Clock3,
+  DatabaseZap,
+  FileClock,
+  LogOut,
+  Network,
+  ShieldCheck,
+  UsersRound
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
@@ -55,6 +66,26 @@ type HistoryResponse = {
   scope: "mine" | "all";
 };
 
+type WorkspaceMembership = {
+  id: string;
+  name: string;
+  mode: "agency" | "advertiser";
+  ownerUserId: string | null;
+  role: "owner" | "admin" | "member" | "viewer";
+  memberEmail: string | null;
+  memberCreatedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  planningRunCount: number;
+  latestRunAt: string | null;
+};
+
+type WorkspaceResponse = {
+  ok: true;
+  workspaces: WorkspaceMembership[];
+  total: number;
+};
+
 export function MyPageClient() {
   return (
     <AuthGate>
@@ -69,6 +100,8 @@ function MyPageContent() {
   const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
   const [historyRuns, setHistoryRuns] = useState<HistoryRun[]>([]);
   const [historyStatus, setHistoryStatus] = useState<"idle" | "loading" | "error">("loading");
+  const [workspaceMemberships, setWorkspaceMemberships] = useState<WorkspaceMembership[]>([]);
+  const [workspaceStatus, setWorkspaceStatus] = useState<"idle" | "loading" | "error">("loading");
   const [error, setError] = useState("");
   const displayName =
     typeof user?.user_metadata?.display_name === "string" && user.user_metadata.display_name
@@ -88,10 +121,11 @@ function MyPageContent() {
       if (!token) {
         setError("로그인이 필요합니다.");
         setHistoryStatus("error");
+        setWorkspaceStatus("error");
         return;
       }
 
-      const response = await fetch("/api/auth/session", {
+      const sessionRequest = fetch("/api/auth/session", {
         headers: {
           authorization: `Bearer ${token}`
         }
@@ -101,9 +135,25 @@ function MyPageContent() {
           authorization: `Bearer ${token}`
         }
       });
-      const data = (await response.json()) as SessionSummary | { ok?: false; error?: string };
-      const historyResult = await historyResponse;
-      const historyData = (await historyResult.json()) as HistoryResponse | { ok?: false; error?: string };
+      const workspaceResponse = fetch("/api/workspaces/mine", {
+        headers: {
+          authorization: `Bearer ${token}`
+        }
+      });
+      const [response, historyResult, workspaceResult] = await Promise.all([
+        sessionRequest,
+        historyResponse,
+        workspaceResponse
+      ]);
+      const [data, historyData, workspaceData] = (await Promise.all([
+        response.json(),
+        historyResult.json(),
+        workspaceResult.json()
+      ])) as [
+        SessionSummary | { ok?: false; error?: string },
+        HistoryResponse | { ok?: false; error?: string },
+        WorkspaceResponse | { ok?: false; error?: string }
+      ];
 
       if (!active) {
         return;
@@ -122,12 +172,20 @@ function MyPageContent() {
       } else {
         setHistoryStatus("error");
       }
+
+      if (workspaceResult.ok && workspaceData.ok === true) {
+        setWorkspaceMemberships(workspaceData.workspaces);
+        setWorkspaceStatus("idle");
+      } else {
+        setWorkspaceStatus("error");
+      }
     }
 
     loadSession().catch(() => {
       if (active) {
         setError("세션 정보를 불러오지 못했습니다.");
         setHistoryStatus("error");
+        setWorkspaceStatus("error");
       }
     });
 
@@ -205,6 +263,68 @@ function MyPageContent() {
             로그아웃
           </button>
         </div>
+      </section>
+
+      <section className="account-panel workspace-membership-panel">
+        <div className="workspace-panel-heading">
+          <div>
+            <p className="eyebrow">Workspace Access</p>
+            <h2>내 워크스페이스</h2>
+            <p>소유자와 멤버십 기준으로 저장 이력과 실행 초안을 묶어 확인합니다.</p>
+          </div>
+          <Link className="icon-button subtle" href="/workspace">
+            <Network size={17} />
+            작업 화면
+          </Link>
+        </div>
+        {workspaceStatus === "loading" ? (
+          <div className="history-empty workspace-empty">
+            <span className="skeleton-line wide" />
+            <span className="skeleton-line" />
+            <span className="skeleton-line short" />
+          </div>
+        ) : null}
+        {workspaceStatus === "error" ? (
+          <div className="history-empty workspace-empty">
+            <DatabaseZap size={20} />
+            <strong>워크스페이스 멤버십을 불러오지 못했습니다</strong>
+            <span>최근 SQL 적용 상태나 Supabase readiness를 확인해 주세요.</span>
+          </div>
+        ) : null}
+        {workspaceStatus === "idle" && workspaceMemberships.length === 0 ? (
+          <div className="history-empty workspace-empty">
+            <UsersRound size={20} />
+            <strong>아직 연결된 워크스페이스가 없습니다</strong>
+            <span>워크스페이스에서 이력을 한 번 저장하면 소유자 멤버십이 자동으로 연결됩니다.</span>
+          </div>
+        ) : null}
+        {workspaceMemberships.length > 0 ? (
+          <div className="workspace-membership-list">
+            {workspaceMemberships.map((workspace) => (
+              <article className="workspace-membership-item" key={workspace.id}>
+                <div>
+                  <span className="status-pill include">{modeLabel(workspace.mode)}</span>
+                  <strong>{workspace.name}</strong>
+                  <p>{workspace.latestRunAt ? `최근 저장 ${formatDateTime(workspace.latestRunAt)}` : "저장 이력 대기"}</p>
+                </div>
+                <dl>
+                  <div>
+                    <dt>역할</dt>
+                    <dd>{workspaceRoleLabel(workspace.role)}</dd>
+                  </div>
+                  <div>
+                    <dt>Planning runs</dt>
+                    <dd>{workspace.planningRunCount}건</dd>
+                  </div>
+                  <div>
+                    <dt>소유 상태</dt>
+                    <dd>{workspace.ownerUserId === user?.id ? "Owner" : "Member"}</dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <section className="account-panel history-panel">
@@ -302,6 +422,21 @@ function guardrailLabel(guardrails: SessionSummary["guardrails"]) {
 
 function productLabel(productType: "powerlink" | "shoppingSearch") {
   return productType === "shoppingSearch" ? "쇼핑검색" : "파워링크";
+}
+
+function modeLabel(mode: "agency" | "advertiser") {
+  return mode === "agency" ? "대행사" : "광고주";
+}
+
+function workspaceRoleLabel(role: "owner" | "admin" | "member" | "viewer") {
+  const labels = {
+    owner: "소유자",
+    admin: "관리자",
+    member: "멤버",
+    viewer: "조회"
+  };
+
+  return labels[role];
 }
 
 function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {

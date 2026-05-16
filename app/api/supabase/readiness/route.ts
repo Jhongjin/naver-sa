@@ -12,13 +12,34 @@ const requiredTables = [
   "audit_events",
   "execution_drafts",
   "execution_payloads",
-  "execution_results"
+  "execution_results",
+  "workspace_members"
 ];
 
 const requiredColumns = [
   {
     table: "planning_runs",
     column: "product_type"
+  },
+  {
+    table: "planning_runs",
+    column: "created_by_user_id"
+  },
+  {
+    table: "workspaces",
+    column: "owner_user_id"
+  },
+  {
+    table: "staged_changes",
+    column: "decided_by"
+  },
+  {
+    table: "staged_changes",
+    column: "decision_note"
+  },
+  {
+    table: "staged_changes",
+    column: "decision_source"
   }
 ];
 

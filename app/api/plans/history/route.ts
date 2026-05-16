@@ -4,6 +4,7 @@ import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-ad
 
 type PlanningRunRow = {
   id: string;
+  workspace_id: string | null;
   brand_name: string;
   site_url: string;
   vertical: string;
@@ -17,6 +18,7 @@ type PlanningRunRow = {
     adGroupCount?: number;
   } | null;
   created_by: string | null;
+  created_by_user_id: string | null;
   created_at: string;
 };
 
@@ -67,17 +69,28 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const limit = clampLimit(url.searchParams.get("limit"));
+  const readableWorkspaceIds =
+    access.state.role === "admin" ? [] : await getReadableWorkspaceIds(supabase, access.state.userId);
   let runsQuery = supabase
     .from("planning_runs")
     .select(
-      "id, brand_name, site_url, vertical, monthly_budget, max_bid, mode, product_type, forecast, created_by, created_at"
+      "id, workspace_id, brand_name, site_url, vertical, monthly_budget, max_bid, mode, product_type, forecast, created_by, created_by_user_id, created_at"
     )
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (access.state.role !== "admin") {
     const creators = [access.state.email, access.state.userId].filter((value): value is string => Boolean(value));
-    runsQuery = runsQuery.in("created_by", creators.length > 0 ? creators : [""]);
+    const ownershipFilters = [
+      `created_by_user_id.eq.${access.state.userId}`,
+      ...creators.map((creator) => `created_by.eq.${creator}`)
+    ];
+
+    if (readableWorkspaceIds.length > 0) {
+      ownershipFilters.push(`workspace_id.in.(${readableWorkspaceIds.join(",")})`);
+    }
+
+    runsQuery = runsQuery.or(ownershipFilters.join(","));
   }
 
   const { data: runs, error: runsError } = await runsQuery;
@@ -163,6 +176,8 @@ export async function GET(request: Request) {
       avgCpc: run.forecast?.avgCpc ?? null,
       adGroupCount: run.forecast?.adGroupCount ?? null,
       createdBy: run.created_by,
+      createdByUserId: run.created_by_user_id,
+      workspaceId: run.workspace_id,
       createdAt: run.created_at,
       approvalSummary: approvalSummaryByRun.get(run.id) ?? {
         approved: 0,
@@ -201,6 +216,22 @@ function clampLimit(value: string | null): number {
   }
 
   return Math.min(Math.max(Math.trunc(parsed), 1), 25);
+}
+
+async function getReadableWorkspaceIds(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  userId: string
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("workspace_members")
+    .select("workspace_id")
+    .eq("user_id", userId);
+
+  if (error) {
+    return [];
+  }
+
+  return [...new Set((data ?? []).map((membership) => membership.workspace_id).filter(Boolean))];
 }
 
 function sanitizeError(message: string | undefined): string {

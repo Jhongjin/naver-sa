@@ -3996,6 +3996,90 @@ td span {
   margin-top: 6px;
 }
 
+.workspace-membership-panel {
+  align-items: stretch;
+  grid-template-columns: 1fr;
+}
+
+.workspace-panel-heading {
+  align-items: start;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+}
+
+.workspace-membership-list {
+  display: grid;
+  gap: 10px;
+}
+
+.workspace-membership-item {
+  align-items: center;
+  background:
+    linear-gradient(90deg, rgba(15, 118, 110, 0.06), transparent 44%),
+    #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.82fr);
+  padding: 16px;
+}
+
+.workspace-membership-item strong,
+.workspace-membership-item p {
+  display: block;
+}
+
+.workspace-membership-item strong {
+  color: #0f172a;
+  font-size: 17px;
+  margin-top: 8px;
+}
+
+.workspace-membership-item p {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+
+.workspace-membership-item dl {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+}
+
+.workspace-membership-item dl div {
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.workspace-membership-item dt,
+.workspace-membership-item dd {
+  margin: 0;
+}
+
+.workspace-membership-item dt {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.workspace-membership-item dd {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 900;
+  margin-top: 6px;
+}
+
+.workspace-empty {
+  min-height: 116px;
+}
+
 .history-detail-page {
   min-height: 100dvh;
 }
@@ -4674,6 +4758,7 @@ td span {
 
   .admin-filter-panel,
   .history-item,
+  .workspace-membership-item,
   .history-detail-grid,
   .history-detail-grid.secondary {
     grid-template-columns: 1fr;
@@ -4871,8 +4956,16 @@ td span {
     flex-direction: column;
   }
 
+  .workspace-panel-heading {
+    flex-direction: column;
+  }
+
   .history-item dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspace-membership-item dl {
+    grid-template-columns: 1fr;
   }
 
   .history-detail-summary,

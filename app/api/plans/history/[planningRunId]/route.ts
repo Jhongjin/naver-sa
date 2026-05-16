@@ -4,6 +4,7 @@ import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-ad
 
 type PlanningRunRow = {
   id: string;
+  workspace_id: string | null;
   brand_name: string;
   site_url: string;
   vertical: string;
@@ -15,6 +16,7 @@ type PlanningRunRow = {
   forecast: Record<string, unknown>;
   assumptions: string[];
   created_by: string | null;
+  created_by_user_id: string | null;
   created_at: string;
 };
 
@@ -146,7 +148,7 @@ export async function GET(request: Request, context: RouteContext) {
   const { data: run, error: runError } = await supabase
     .from("planning_runs")
     .select(
-      "id, brand_name, site_url, vertical, monthly_budget, max_bid, mode, product_type, seed_keywords, forecast, assumptions, created_by, created_at"
+      "id, workspace_id, brand_name, site_url, vertical, monthly_budget, max_bid, mode, product_type, seed_keywords, forecast, assumptions, created_by, created_by_user_id, created_at"
     )
     .eq("id", planningRunId)
     .single();
@@ -157,8 +159,15 @@ export async function GET(request: Request, context: RouteContext) {
 
   const planningRun = run as PlanningRunRow;
   const creators = new Set([access.state.email, access.state.userId].filter(Boolean));
+  const ownsRun =
+    planningRun.created_by_user_id === access.state.userId ||
+    Boolean(planningRun.created_by && creators.has(planningRun.created_by));
+  const canReadWorkspace =
+    !ownsRun && planningRun.workspace_id
+      ? await hasWorkspaceMembership(supabase, planningRun.workspace_id, access.state.userId)
+      : false;
 
-  if (access.state.role !== "admin" && (!planningRun.created_by || !creators.has(planningRun.created_by))) {
+  if (access.state.role !== "admin" && !ownsRun && !canReadWorkspace) {
     return NextResponse.json({ ok: false, error: "Planning run was not found." }, { status: 404 });
   }
 
@@ -264,6 +273,8 @@ export async function GET(request: Request, context: RouteContext) {
       forecast: planningRun.forecast,
       assumptions: planningRun.assumptions,
       createdBy: planningRun.created_by,
+      createdByUserId: planningRun.created_by_user_id,
+      workspaceId: planningRun.workspace_id,
       createdAt: planningRun.created_at,
       approvalSummary: summarizeChanges(changes)
     },
@@ -374,6 +385,26 @@ function summarizeChanges(changes: StagedChangeRow[]) {
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+async function hasWorkspaceMembership(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  workspaceId: string,
+  userId: string
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("workspace_members")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    return false;
+  }
+
+  return Boolean(data);
 }
 
 function sanitizeError(message: string | undefined): string {
