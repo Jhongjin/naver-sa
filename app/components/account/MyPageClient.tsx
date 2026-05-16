@@ -379,6 +379,9 @@ function MyPageContent() {
               <Link className="history-item history-item-link" href={`/history/${run.id}`} key={run.id}>
                 <div>
                   <span className="status-pill include">{productLabel(run.productType)}</span>
+                  <span className={`status-pill ${draftStatusClass(run.executionDraft?.status)}`}>
+                    {run.executionDraft ? draftStatusLabel(run.executionDraft.status) : "초안 없음"}
+                  </span>
                   {run.workspaceName ? <span className="status-pill neutral">{run.workspaceName}</span> : null}
                   <strong>{run.brandName}</strong>
                   <p>
@@ -472,6 +475,18 @@ function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {
   };
 
   return labels[status];
+}
+
+function draftStatusClass(status: "blocked" | "ready" | "executed" | "failed" | undefined) {
+  if (status === "ready" || status === "executed") {
+    return "include";
+  }
+
+  if (status === "blocked" || status === "failed") {
+    return "review";
+  }
+
+  return "neutral";
 }
 
 function formatDateTime(value: string) {
