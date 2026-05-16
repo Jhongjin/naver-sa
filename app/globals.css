@@ -4793,6 +4793,31 @@ td span {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.admin-toolbar-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.admin-check-result {
+  display: block;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.45;
+  margin-top: 8px;
+}
+
+.admin-check-result.success {
+  color: #0f766e;
+}
+
+.admin-check-result.error {
+  color: #b45309;
+}
+
 .admin-summary-grid {
   display: grid;
   gap: 12px;
@@ -5384,6 +5409,10 @@ td span {
   .history-detail-grid,
   .history-detail-grid.secondary {
     grid-template-columns: 1fr;
+  }
+
+  .admin-toolbar-actions {
+    justify-content: flex-start;
   }
 
   .history-detail-summary {

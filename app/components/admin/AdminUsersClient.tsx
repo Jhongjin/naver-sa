@@ -64,6 +64,17 @@ type ActivityResponse = {
   };
 };
 
+type NaverReadinessCheckResponse = {
+  ok: boolean;
+  externalRequest?: boolean;
+  error?: string;
+  readOnlyCheck?: {
+    ok: boolean;
+    error?: string;
+    status?: number;
+  };
+};
+
 const emptyActivitySummary: ActivityResponse["summary"] = {
   total: 0,
   approved: 0,
@@ -87,6 +98,8 @@ function AdminUsersContent() {
   const [activitySummary, setActivitySummary] = useState<ActivityResponse["summary"]>(emptyActivitySummary);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [activityStatus, setActivityStatus] = useState<"idle" | "loading" | "error">("loading");
+  const [naverCheckStatus, setNaverCheckStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [naverCheckMessage, setNaverCheckMessage] = useState("");
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "member">("all");
@@ -210,6 +223,33 @@ function AdminUsersContent() {
     await loadUsers();
   }
 
+  async function runNaverReadinessCheck() {
+    setNaverCheckStatus("loading");
+    setNaverCheckMessage("");
+    const token = await getAccessToken();
+
+    if (!token) {
+      setNaverCheckStatus("error");
+      setNaverCheckMessage("로그인이 필요합니다.");
+      return;
+    }
+
+    const response = await fetch("/api/naver/readiness?check=campaigns", {
+      headers: {
+        authorization: `Bearer ${token}`
+      }
+    });
+    const data = (await response.json().catch(() => ({}))) as NaverReadinessCheckResponse;
+    const readOnlyOk = Boolean(data.ok && data.readOnlyCheck?.ok);
+
+    setNaverCheckStatus(readOnlyOk ? "success" : "error");
+    setNaverCheckMessage(
+      readOnlyOk
+        ? "Naver 캠페인 read-only 연결이 정상입니다."
+        : data.error ?? data.readOnlyCheck?.error ?? "Naver read-only 점검에 실패했습니다."
+    );
+  }
+
   return (
     <main className="account-page admin-page">
       <header className="account-header">
@@ -235,11 +275,25 @@ function AdminUsersContent() {
           <ShieldCheck size={22} />
           <strong>관리자 전용</strong>
           <span>ADMIN_EMAILS 또는 Supabase app_metadata.role이 admin인 계정만 접근할 수 있습니다.</span>
+          {naverCheckStatus !== "idle" ? (
+            <em className={`admin-check-result ${naverCheckStatus}`}>{naverCheckMessage}</em>
+          ) : null}
         </div>
-        <button className="icon-button subtle" disabled={status === "loading"} type="button" onClick={loadUsers}>
-          <RefreshCw size={17} />
-          새로고침
-        </button>
+        <div className="admin-toolbar-actions">
+          <button
+            className="icon-button subtle"
+            disabled={naverCheckStatus === "loading"}
+            type="button"
+            onClick={runNaverReadinessCheck}
+          >
+            <Activity size={17} />
+            {naverCheckStatus === "loading" ? "점검 중" : "Naver 읽기 점검"}
+          </button>
+          <button className="icon-button subtle" disabled={status === "loading"} type="button" onClick={loadUsers}>
+            <RefreshCw size={17} />
+            새로고침
+          </button>
+        </div>
       </section>
 
       <section className="admin-summary-grid" aria-label="회원 요약">
