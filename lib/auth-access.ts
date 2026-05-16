@@ -96,7 +96,7 @@ export async function verifyUserAccess(
       userId: data.user.id,
       email: data.user.email ?? null,
       capabilities: getAuthCapabilities(role),
-      sessionTtlSeconds: 60 * 60
+      sessionTtlSeconds: getTokenTtlSeconds(token)
     }
   };
 }
@@ -167,4 +167,26 @@ function getBearerToken(request: Request): string | null {
 
   const token = header.slice("Bearer ".length).trim();
   return token.length > 0 ? token : null;
+}
+
+function getTokenTtlSeconds(token: string): number {
+  const fallbackTtlSeconds = 60 * 60;
+  const payloadPart = token.split(".")[1];
+
+  if (!payloadPart) {
+    return fallbackTtlSeconds;
+  }
+
+  try {
+    const normalizedPayload = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(Buffer.from(normalizedPayload, "base64").toString("utf8")) as { exp?: unknown };
+
+    if (typeof payload.exp !== "number") {
+      return fallbackTtlSeconds;
+    }
+
+    return Math.max(0, Math.floor(payload.exp - Date.now() / 1000));
+  } catch {
+    return fallbackTtlSeconds;
+  }
 }
