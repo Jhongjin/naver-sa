@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
 import { getConfiguredAdminEmails, getUserRole, verifyUserAccess, type AppUserRole } from "@/lib/auth-access";
-import { jsonNoStore } from "@/lib/http";
+import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 type WorkspaceMemberActivityRow = {
@@ -17,6 +17,10 @@ type PlanningRunActivityRow = {
   created_by: string | null;
   created_at: string;
 };
+
+export function POST() {
+  return methodNotAllowed(["GET", "PATCH"]);
+}
 
 export async function GET(request: Request) {
   const access = await verifyUserAccess(request, { requireAdmin: true });
