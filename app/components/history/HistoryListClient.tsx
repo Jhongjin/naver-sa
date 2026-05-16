@@ -199,6 +199,24 @@ function HistoryListContent() {
   );
   const hasActiveFilters =
     query.trim().length > 0 || productFilter !== "all" || draftFilter !== "all" || dateFilter !== "all";
+  const isSearchSettling = query.trim() !== serverQuery.trim();
+  const serverFilterSummary = useMemo(() => {
+    const filters: string[] = [];
+
+    if (serverQuery.trim()) {
+      filters.push(`검색 ${serverQuery.trim()}`);
+    }
+
+    if (productFilter !== "all") {
+      filters.push(productFilterLabel(productFilter));
+    }
+
+    if (dateFilter !== "all") {
+      filters.push(`최근 ${dateFilterLabel(dateFilter)}`);
+    }
+
+    return filters;
+  }, [dateFilter, productFilter, serverQuery]);
 
   const filteredRuns = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -404,6 +422,19 @@ function HistoryListContent() {
               {dateFilterLabel(filter)}
             </button>
           ))}
+        </div>
+        <div className="history-filter-status" aria-live="polite">
+          <div>
+            <span className="status-pill include">
+              {isSearchSettling ? "검색 반영 중" : serverFilterSummary.length > 0 ? "서버 필터 적용" : "서버 최신순"}
+            </span>
+            {draftFilter !== "all" ? <span className="status-pill neutral">화면 필터 {draftFilterLabel(draftFilter)}</span> : null}
+          </div>
+          <p>
+            {serverFilterSummary.length > 0
+              ? serverFilterSummary.join(" / ")
+              : "검색, 상품 유형, 기간 조건은 API 조회에 적용됩니다."}
+          </p>
         </div>
       </section>
 
