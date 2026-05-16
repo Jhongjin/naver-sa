@@ -202,7 +202,8 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
       ["승인", `${data.run.approvalSummary.approved}건`],
       ["보류", `${data.run.approvalSummary.held}건`],
       ["Payload", `${latestDraft?.payloads.length ?? 0}개`],
-      ["차단", `${latestDraft?.validation?.blockerCount ?? 0}건`]
+      ["차단", `${latestDraft?.validation?.blockerCount ?? 0}건`],
+      ["Audit", `${data.auditEvents.length}건`]
     ];
   }, [data, latestDraft]);
 

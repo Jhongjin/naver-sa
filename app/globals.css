@@ -4514,7 +4514,7 @@ td span {
 .history-detail-summary {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   padding: 0 28px 12px;
 }
 
