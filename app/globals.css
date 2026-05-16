@@ -5090,14 +5090,48 @@ td span {
   margin: 0;
 }
 
-.execution-rail-heading > span {
+.execution-rail-heading p:not(.eyebrow) {
+  color: rgba(249, 244, 234, 0.66);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 6px 0 0;
+}
+
+.execution-rail-next {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.rail-status-pill {
   background: rgba(255, 90, 61, 0.12);
   border: 1px solid rgba(255, 90, 61, 0.24);
   border-radius: 999px;
   color: #ffb09d;
+  display: inline-flex;
   font-size: 12px;
   font-weight: 900;
   padding: 8px 10px;
+}
+
+.rail-status-pill.success {
+  background: rgba(105, 209, 165, 0.12);
+  border-color: rgba(105, 209, 165, 0.24);
+  color: #a7f3cf;
+}
+
+.rail-status-pill.neutral {
+  background: rgba(249, 244, 234, 0.1);
+  border-color: rgba(249, 244, 234, 0.18);
+  color: #f9f4ea;
+}
+
+.rail-status-pill.danger {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.28);
+  color: #fecaca;
 }
 
 .rail-step-grid {
@@ -5595,5 +5629,9 @@ td span {
   .execution-rail-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .execution-rail-next {
+    justify-content: flex-start;
   }
 }

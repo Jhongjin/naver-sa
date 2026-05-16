@@ -387,6 +387,51 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     channelStatus: appliedChannel?.inspectStatus,
     productType
   });
+  const railPrimaryAction =
+    activeSaveDraftState.status === "success"
+      ? {
+          type: "link" as const,
+          href: `/history/${activeSaveDraftState.planningRunId}`,
+          label: "저장 이력 열기",
+          helper: "저장된 planning run과 payload 이력으로 이동합니다.",
+          icon: "history" as const,
+          disabled: false
+        }
+      : approvalSummary.approved === 0
+        ? {
+            type: "button" as const,
+            label: "차단 제외 승인",
+            helper: "검토 가능한 변경을 먼저 승인 큐에서 확정합니다.",
+            icon: "approval" as const,
+            disabled: false,
+            onClick: approveAllChanges
+          }
+        : !executionConnectionApplied
+          ? {
+              type: "button" as const,
+              label: accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔",
+              helper: isShoppingSearch ? "쇼핑몰 채널과 상품그룹 후보를 불러옵니다." : "사이트 비즈채널 후보를 불러옵니다.",
+              icon: "scan" as const,
+              disabled: !canScanAccount || accountSnapshotState.status === "loading",
+              onClick: loadAccountSnapshot
+            }
+          : !stageValidated
+            ? {
+                type: "button" as const,
+                label: activeStageDraftState.status === "loading" ? "검증 중" : "초안 검증",
+                helper: "승인과 연결 정보를 서버에서 다시 계산합니다.",
+                icon: "validate" as const,
+                disabled: !canValidateDraft || activeStageDraftState.status === "loading",
+                onClick: stageExecutionDraft
+              }
+            : {
+                type: "button" as const,
+                label: activeSaveDraftState.status === "loading" ? "저장 중" : stageHasBlockers ? "차단 이력 저장" : "이력 저장",
+                helper: "검증된 초안과 승인 상태를 Supabase 이력으로 남깁니다.",
+                icon: "save" as const,
+                disabled: !canSaveHistory || activeSaveDraftState.status === "loading",
+                onClick: saveDraftHistory
+              };
   const setupSteps = [
     {
       label: "입력",
@@ -949,8 +994,27 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             <div>
               <p className="eyebrow">Execution Rail</p>
               <h2>승인에서 이력 저장까지 한 번에 진행</h2>
+              <p>{railPrimaryAction.helper}</p>
             </div>
-            <span>{nextAction.status}</span>
+            <div className="execution-rail-next">
+              <span className={`rail-status-pill ${nextAction.tone}`}>{nextAction.status}</span>
+              {railPrimaryAction.type === "link" ? (
+                <Link className="icon-button primary compact" href={railPrimaryAction.href}>
+                  <FileText size={16} />
+                  {railPrimaryAction.label}
+                </Link>
+              ) : (
+                <button
+                  className="icon-button primary compact"
+                  disabled={railPrimaryAction.disabled}
+                  type="button"
+                  onClick={railPrimaryAction.onClick}
+                >
+                  <RailActionIcon type={railPrimaryAction.icon} />
+                  {railPrimaryAction.label}
+                </button>
+              )}
+            </div>
           </div>
           <div className="rail-step-grid">
             <article className={approvalSummary.approved > 0 ? "done" : "attention"}>
@@ -2221,6 +2285,22 @@ function approvalFilterLabel(filter: ApprovalFilter): string {
   };
 
   return labels[filter];
+}
+
+function RailActionIcon({ type }: { type: "approval" | "scan" | "validate" | "save" | "history" }) {
+  if (type === "approval") {
+    return <CheckCircle2 size={16} />;
+  }
+
+  if (type === "scan") {
+    return <Search size={16} />;
+  }
+
+  if (type === "validate") {
+    return <Rocket size={16} />;
+  }
+
+  return <FileText size={16} />;
 }
 
 type NextActionInput = {
