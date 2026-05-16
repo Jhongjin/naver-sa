@@ -75,6 +75,9 @@ type NaverReadinessCheckResponse = {
   };
 };
 
+type ActivityFilter = "all" | "ready" | "blocked" | "missingDraft";
+type ActivityLimit = 8 | 20;
+
 const emptyActivitySummary: ActivityResponse["summary"] = {
   total: 0,
   approved: 0,
@@ -103,6 +106,8 @@ function AdminUsersContent() {
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "member">("all");
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
+  const [activityLimit, setActivityLimit] = useState<ActivityLimit>(8);
   const summary = useMemo(
     () => ({
       total: users.length,
@@ -131,6 +136,23 @@ function AdminUsersContent() {
       return matchesRole && matchesQuery;
     });
   }, [query, roleFilter, users]);
+  const filteredActivities = useMemo(() => {
+    if (activityFilter === "ready") {
+      return activities.filter((activity) => activity.executionDraft?.status === "ready");
+    }
+
+    if (activityFilter === "blocked") {
+      return activities.filter(
+        (activity) => (activity.executionDraft?.blockerCount ?? activity.approvalSummary.blocked) > 0
+      );
+    }
+
+    if (activityFilter === "missingDraft") {
+      return activities.filter((activity) => !activity.executionDraft);
+    }
+
+    return activities;
+  }, [activities, activityFilter]);
 
   const loadUsers = useCallback(async () => {
     setStatus("loading");
@@ -150,7 +172,7 @@ function AdminUsersContent() {
         authorization: `Bearer ${token}`
       }
     });
-    const activityRequest = fetch("/api/admin/activity?limit=8", {
+    const activityRequest = fetch(`/api/admin/activity?limit=${activityLimit}`, {
       headers: {
         authorization: `Bearer ${token}`
       }
@@ -178,7 +200,7 @@ function AdminUsersContent() {
       setActivityStatus("error");
     }
     setStatus("idle");
-  }, [getAccessToken]);
+  }, [activityLimit, getAccessToken]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -341,10 +363,25 @@ function AdminUsersContent() {
             <h2>최근 저장 활동</h2>
             <p>최근 planning run과 execution draft 상태를 회원관리에서 바로 추적합니다.</p>
           </div>
-          <Link className="icon-button subtle" href="/history">
-            <Activity size={17} />
-            전체 이력
-          </Link>
+          <div className="admin-activity-actions">
+            <div className="segmented-control admin-activity-limit" aria-label="최근 활동 표시 개수">
+              {([8, 20] as const).map((limit) => (
+                <button
+                  aria-pressed={activityLimit === limit}
+                  className={activityLimit === limit ? "active" : ""}
+                  key={limit}
+                  type="button"
+                  onClick={() => setActivityLimit(limit)}
+                >
+                  {limit}개
+                </button>
+              ))}
+            </div>
+            <Link className="icon-button subtle" href="/history">
+              <Activity size={17} />
+              전체 이력
+            </Link>
+          </div>
         </div>
         <div className="admin-activity-summary" aria-label="최근 저장 활동 요약">
           <article>
@@ -363,6 +400,19 @@ function AdminUsersContent() {
             <span>차단</span>
             <strong>{activitySummary.blocked}건</strong>
           </article>
+        </div>
+        <div className="segmented-control admin-activity-filter" aria-label="최근 활동 상태 필터">
+          {(["all", "ready", "blocked", "missingDraft"] as const).map((filter) => (
+            <button
+              aria-pressed={activityFilter === filter}
+              className={activityFilter === filter ? "active" : ""}
+              key={filter}
+              type="button"
+              onClick={() => setActivityFilter(filter)}
+            >
+              {activityFilterLabel(filter)}
+            </button>
+          ))}
         </div>
         {activityStatus === "loading" ? (
           <div className="admin-activity-empty">
@@ -385,9 +435,16 @@ function AdminUsersContent() {
             <span>워크스페이스에서 이력 저장을 실행하면 최근 활동이 표시됩니다.</span>
           </div>
         ) : null}
-        {activities.length > 0 ? (
+        {activityStatus === "idle" && activities.length > 0 && filteredActivities.length === 0 ? (
+          <div className="admin-activity-empty">
+            <Search size={20} />
+            <strong>필터에 맞는 최근 활동이 없습니다</strong>
+            <span>상태 필터를 전체로 바꾸거나 표시 개수를 늘려 주세요.</span>
+          </div>
+        ) : null}
+        {filteredActivities.length > 0 ? (
           <div className="admin-activity-list">
-            {activities.map((activity) => (
+            {filteredActivities.map((activity) => (
               <Link className="admin-activity-item" href={`/history/${activity.id}`} key={activity.id}>
                 <div>
                   <span className="status-pill include">{productLabel(activity.productType)}</span>
@@ -547,6 +604,17 @@ function AdminUsersContent() {
 
 function roleFilterLabel(value: "all" | "admin" | "member") {
   return value === "all" ? "전체" : value === "admin" ? "관리자" : "멤버";
+}
+
+function activityFilterLabel(value: ActivityFilter) {
+  const labels = {
+    all: "전체",
+    ready: "준비",
+    blocked: "차단",
+    missingDraft: "초안없음"
+  };
+
+  return labels[value];
 }
 
 function roleSourceLabel(value: ManagedUser["roleSource"]) {

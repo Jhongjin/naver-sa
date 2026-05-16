@@ -4869,6 +4869,24 @@ td span {
   justify-content: space-between;
 }
 
+.admin-activity-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.admin-activity-limit {
+  grid-template-columns: repeat(2, minmax(54px, 1fr));
+}
+
+.admin-activity-filter {
+  grid-template-columns: repeat(4, minmax(78px, 1fr));
+  justify-self: start;
+  max-width: 460px;
+}
+
 .admin-activity-list {
   display: grid;
   gap: 10px;
@@ -5640,6 +5658,17 @@ td span {
 
   .admin-activity-heading {
     flex-direction: column;
+  }
+
+  .admin-activity-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .admin-activity-filter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: none;
+    width: 100%;
   }
 
   .workspace-panel-heading {
