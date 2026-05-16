@@ -61,17 +61,22 @@ select
   to_regclass('public.workspaces') as workspaces,
   to_regclass('public.planning_runs') as planning_runs,
   to_regclass('public.execution_drafts') as execution_drafts,
-  to_regclass('public.execution_payloads') as execution_payloads;
+  to_regclass('public.execution_payloads') as execution_payloads,
+  to_regclass('public.workspace_members') as workspace_members;
 ```
 
-Check `planning_runs.product_type`:
+Check required membership and decision columns:
 
 ```sql
-select column_name
+select table_name, column_name
 from information_schema.columns
 where table_schema = 'public'
-  and table_name = 'planning_runs'
-  and column_name = 'product_type';
+  and (
+    (table_name = 'planning_runs' and column_name in ('product_type', 'created_by_user_id'))
+    or (table_name = 'workspaces' and column_name = 'owner_user_id')
+    or (table_name = 'staged_changes' and column_name in ('decided_by', 'decision_note', 'decision_source'))
+  )
+order by table_name, column_name;
 ```
 
 Check that the old duplicate-blocking payload constraint is gone:
