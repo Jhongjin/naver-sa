@@ -201,3 +201,14 @@ Default:
 - limited controls
 
 The same backend should support both modes.
+
+## 9. Protected API Response Policy
+
+Protected routes that return user, workspace, approval, draft, payload, account snapshot, or administrator data must not be cached.
+
+Implementation rule:
+
+- use `jsonNoStore` from `lib/http.ts` for protected JSON responses
+- keep `Cache-Control: no-store` on both success and error responses
+- do not include API keys, tokens, admin secrets, or raw service role values in response bodies
+- public readiness endpoints may return only presence/configuration booleans, never secret values
