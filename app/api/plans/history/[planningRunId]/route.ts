@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { verifyUserAccess } from "@/lib/auth-access";
+import { jsonNoStore } from "@/lib/http";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 type PlanningRunRow = {
@@ -131,25 +131,25 @@ export async function GET(request: Request, context: RouteContext) {
   const access = await verifyUserAccess(request);
 
   if (!access.ok) {
-    return NextResponse.json(access, { status: access.status });
+    return jsonNoStore(access, { status: access.status });
   }
 
   const state = getSupabaseAdminState();
 
   if (!state.ready) {
-    return NextResponse.json({ ok: false, error: "Supabase admin environment is not configured." }, { status: 503 });
+    return jsonNoStore({ ok: false, error: "Supabase admin environment is not configured." }, { status: 503 });
   }
 
   const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
-    return NextResponse.json({ ok: false, error: "Supabase admin client is unavailable." }, { status: 503 });
+    return jsonNoStore({ ok: false, error: "Supabase admin client is unavailable." }, { status: 503 });
   }
 
   const { planningRunId } = await context.params;
 
   if (!isUuid(planningRunId)) {
-    return NextResponse.json({ ok: false, error: "Invalid planning run id." }, { status: 400 });
+    return jsonNoStore({ ok: false, error: "Invalid planning run id." }, { status: 400 });
   }
 
   const { data: run, error: runError } = await supabase
@@ -161,7 +161,7 @@ export async function GET(request: Request, context: RouteContext) {
     .single();
 
   if (runError || !run) {
-    return NextResponse.json({ ok: false, error: "Planning run was not found." }, { status: 404 });
+    return jsonNoStore({ ok: false, error: "Planning run was not found." }, { status: 404 });
   }
 
   const planningRun = run as PlanningRunRow;
@@ -175,7 +175,7 @@ export async function GET(request: Request, context: RouteContext) {
       : false;
 
   if (access.state.role !== "admin" && !ownsRun && !canReadWorkspace) {
-    return NextResponse.json({ ok: false, error: "Planning run was not found." }, { status: 404 });
+    return jsonNoStore({ ok: false, error: "Planning run was not found." }, { status: 404 });
   }
 
   let workspace: WorkspaceRow | null = null;
@@ -188,7 +188,7 @@ export async function GET(request: Request, context: RouteContext) {
       .maybeSingle();
 
     if (workspaceError) {
-      return NextResponse.json({ ok: false, error: sanitizeError(workspaceError.message) }, { status: 502 });
+      return jsonNoStore({ ok: false, error: sanitizeError(workspaceError.message) }, { status: 502 });
     }
 
     workspace = (workspaceData ?? null) as WorkspaceRow | null;
@@ -233,7 +233,7 @@ export async function GET(request: Request, context: RouteContext) {
     keywordsResult.error ?? adGroupsResult.error ?? changesResult.error ?? draftsResult.error ?? auditResult.error;
 
   if (lookupError) {
-    return NextResponse.json({ ok: false, error: sanitizeError(lookupError.message) }, { status: 502 });
+    return jsonNoStore({ ok: false, error: sanitizeError(lookupError.message) }, { status: 502 });
   }
 
   const drafts = (draftsResult.data ?? []) as ExecutionDraftRow[];
@@ -262,7 +262,7 @@ export async function GET(request: Request, context: RouteContext) {
         ];
 
   if (payloadsResult.error || resultsResult.error) {
-    return NextResponse.json(
+    return jsonNoStore(
       { ok: false, error: sanitizeError(payloadsResult.error?.message ?? resultsResult.error?.message) },
       { status: 502 }
     );
@@ -280,7 +280,7 @@ export async function GET(request: Request, context: RouteContext) {
 
   const changes = (changesResult.data ?? []) as StagedChangeRow[];
 
-  return NextResponse.json({
+  return jsonNoStore({
     ok: true,
     scope: access.state.role === "admin" ? "all" : "mine",
     run: {
