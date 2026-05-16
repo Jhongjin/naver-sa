@@ -23,6 +23,7 @@ import { useAuth } from "@/app/components/auth/AuthProvider";
 import {
   createPlannerCsv,
   generatePlannerPlan,
+  mardDefaultInput,
   type BenchmarkFeature,
   type ChangeRisk,
   type KeywordStatus,
@@ -179,9 +180,11 @@ type SaveDraftState =
     }
   | {
       status: "loading";
+      fingerprint: string;
     }
   | {
       status: "success";
+      fingerprint: string;
       message: string;
       planningRunId: string;
       executionDraftId?: string;
@@ -189,32 +192,61 @@ type SaveDraftState =
     }
   | {
       status: "error";
+      fingerprint: string;
       message: string;
     };
 
 type ApprovalFilter = "all" | "pending" | "approved" | "held" | "blocked";
 
+type WorkspaceDraftSnapshot = {
+  version: 1;
+  savedAt: string;
+  input: PlannerInput;
+  decisions: ApprovalDecisionMap;
+  executionContext: {
+    pcChannelId?: string;
+    mobileChannelId?: string;
+    shoppingChannelId?: string;
+    productGroupId?: string;
+  };
+};
+
+const WORKSPACE_DRAFT_STORAGE_PREFIX = "naver-sa:workspace-draft:v1";
+
 export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const { user, getAccessToken } = useAuth();
-  const [mode, setMode] = useState<PlannerMode>(initialInput.mode);
-  const [productType, setProductType] = useState<PlannerProductType>(initialInput.productType);
-  const [brandName, setBrandName] = useState(initialInput.brandName);
-  const [siteUrl, setSiteUrl] = useState(initialInput.siteUrl);
-  const [vertical, setVertical] = useState(initialInput.vertical);
-  const [monthlyBudget, setMonthlyBudget] = useState(initialInput.monthlyBudget);
-  const [maxBid, setMaxBid] = useState(initialInput.maxBid);
-  const [seedText, setSeedText] = useState(initialInput.seedKeywords.join("\n"));
-  const [approvalDecisions, setApprovalDecisions] = useState<ApprovalDecisionMap>({});
+  const initialDraftSnapshot = useMemo(() => readWorkspaceDraftSnapshot(user?.id), [user?.id]);
+  const [mode, setMode] = useState<PlannerMode>(initialDraftSnapshot?.input.mode ?? initialInput.mode);
+  const [productType, setProductType] = useState<PlannerProductType>(
+    initialDraftSnapshot?.input.productType ?? initialInput.productType
+  );
+  const [brandName, setBrandName] = useState(initialDraftSnapshot?.input.brandName ?? initialInput.brandName);
+  const [siteUrl, setSiteUrl] = useState(initialDraftSnapshot?.input.siteUrl ?? initialInput.siteUrl);
+  const [vertical, setVertical] = useState(initialDraftSnapshot?.input.vertical ?? initialInput.vertical);
+  const [monthlyBudget, setMonthlyBudget] = useState(initialDraftSnapshot?.input.monthlyBudget ?? initialInput.monthlyBudget);
+  const [maxBid, setMaxBid] = useState(initialDraftSnapshot?.input.maxBid ?? initialInput.maxBid);
+  const [seedText, setSeedText] = useState(
+    (initialDraftSnapshot?.input.seedKeywords ?? initialInput.seedKeywords).join("\n")
+  );
+  const [approvalDecisions, setApprovalDecisions] = useState<ApprovalDecisionMap>(
+    initialDraftSnapshot?.decisions ?? {}
+  );
   const [naverReadiness, setNaverReadiness] = useState<NaverReadiness | null>(null);
   const [stageDraftState, setStageDraftState] = useState<StageDraftState>({ status: "idle" });
   const [saveDraftState, setSaveDraftState] = useState<SaveDraftState>({ status: "idle" });
   const [accountSnapshotState, setAccountSnapshotState] = useState<AccountSnapshotState>({ status: "idle" });
   const [approvalFilter, setApprovalFilter] = useState<ApprovalFilter>("all");
   const [approvalSearch, setApprovalSearch] = useState("");
-  const [pcChannelId, setPcChannelId] = useState("");
-  const [mobileChannelId, setMobileChannelId] = useState("");
-  const [shoppingChannelId, setShoppingChannelId] = useState("");
-  const [productGroupId, setProductGroupId] = useState("");
+  const [pcChannelId, setPcChannelId] = useState(initialDraftSnapshot?.executionContext.pcChannelId ?? "");
+  const [mobileChannelId, setMobileChannelId] = useState(initialDraftSnapshot?.executionContext.mobileChannelId ?? "");
+  const [shoppingChannelId, setShoppingChannelId] = useState(
+    initialDraftSnapshot?.executionContext.shoppingChannelId ?? ""
+  );
+  const [productGroupId, setProductGroupId] = useState(initialDraftSnapshot?.executionContext.productGroupId ?? "");
+  const workspaceDraftStorageKey = useMemo(
+    () => `${WORKSPACE_DRAFT_STORAGE_PREFIX}:${user?.id ?? "anonymous"}`,
+    [user?.id]
+  );
 
   const seedKeywords = useMemo(
     () =>
@@ -266,6 +298,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     stageDraftState.status !== "idle" && stageDraftState.fingerprint !== draftFingerprint
       ? ({ status: "idle" } as const)
       : stageDraftState;
+  const activeSaveDraftState =
+    saveDraftState.status !== "idle" && saveDraftState.fingerprint !== draftFingerprint
+      ? ({ status: "idle" } as const)
+      : saveDraftState;
 
   const includedKeywords = plan.keywords.filter((keyword) => keyword.status === "include");
   const reviewKeywords = plan.keywords.filter((keyword) => keyword.status === "review");
@@ -295,6 +331,8 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         ]
       };
   const channelApplied = isShoppingSearch ? Boolean(shoppingChannelId) : Boolean(pcChannelId && mobileChannelId);
+  const productGroupApplied = isShoppingSearch ? Boolean(productGroupId) : true;
+  const executionConnectionApplied = channelApplied && productGroupApplied;
   const appliedChannel =
     accountSnapshotState.status === "success"
       ? accountSnapshotState.response.channels?.find((channel) =>
@@ -302,14 +340,19 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         )
       : undefined;
   const stageValidated = activeStageDraftState.status === "success";
+  const stageHasBlockers = stageValidated && activeStageDraftState.response.draft.validation.blockerCount > 0;
   const canRequestProtectedExecution =
-    stageValidated && activeStageDraftState.response.draft.validation.canExecuteTest && channelApplied;
+    stageValidated && activeStageDraftState.response.draft.validation.canExecuteTest && executionConnectionApplied;
   const canScanAccount = approvalSummary.approved > 0;
-  const canValidateDraft = approvalSummary.approved > 0 && channelApplied;
+  const canValidateDraft = approvalSummary.approved > 0 && executionConnectionApplied;
   const canSaveHistory = stageValidated;
   const modeLabel = mode === "agency" ? "대행사 모드" : "광고주 모드";
   const memberEmail = user?.email ?? "로그인 계정";
-  const channelStatusLabel = channelApplied ? "연결됨" : "미연결";
+  const channelStatusLabel = executionConnectionApplied
+    ? "연결됨"
+    : isShoppingSearch && channelApplied
+      ? "상품그룹 필요"
+      : "미연결";
   const blockerTone = executionDraft.validation.blockerCount > 0 ? "rose" : "green";
   const approvalTone = approvalSummary.pending > 0 ? "amber" : "green";
   const approvalProgress =
@@ -318,7 +361,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       : Math.round((approvalSummary.approved / plan.stagedChanges.length) * 100);
   const nextAction = getNextAction({
     approvedCount: approvalSummary.approved,
-    channelApplied,
+    channelApplied: executionConnectionApplied,
     stageValidated,
     canRequestProtectedExecution,
     blockerCount: executionDraft.validation.blockerCount,
@@ -343,8 +386,8 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     },
     {
       label: isShoppingSearch ? "쇼핑채널" : "비즈채널",
-      state: channelApplied ? "done" : "attention",
-      detail: channelApplied ? "적용됨" : "필요"
+      state: executionConnectionApplied ? "done" : "attention",
+      detail: executionConnectionApplied ? "적용됨" : isShoppingSearch && channelApplied ? "상품그룹 필요" : "필요"
     },
     {
       label: "검증",
@@ -384,8 +427,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     },
     {
       label: isShoppingSearch ? "쇼핑 연결" : "채널 연결",
-      detail: channelApplied ? "전송 대상 채널 적용됨" : "계정 스캔 후 채널을 적용하세요",
-      state: channelApplied ? "done" : "attention"
+      detail: executionConnectionApplied
+        ? "전송 대상 연결 적용됨"
+        : isShoppingSearch && channelApplied
+          ? "상품그룹 ID를 적용하세요"
+          : "계정 스캔 후 채널을 적용하세요",
+      state: executionConnectionApplied ? "done" : "attention"
     },
     {
       label: "검증 차단",
@@ -401,6 +448,22 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       state: stageValidated ? "done" : "pending"
     }
   ] as const;
+
+  useEffect(() => {
+    if (!user?.id || typeof window === "undefined") {
+      return;
+    }
+
+    const snapshot: WorkspaceDraftSnapshot = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      input,
+      decisions: approvalDecisions,
+      executionContext
+    };
+
+    window.localStorage.setItem(workspaceDraftStorageKey, JSON.stringify(snapshot));
+  }, [approvalDecisions, executionContext, input, user?.id, workspaceDraftStorageKey]);
 
   useEffect(() => {
     let active = true;
@@ -486,12 +549,40 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
   function approveAllChanges() {
     setApprovalDecisions(
-      Object.fromEntries(plan.stagedChanges.map((change) => [change.id, "approved" satisfies ApprovalDecision]))
+      Object.fromEntries(
+        plan.stagedChanges.map((change) => [
+          change.id,
+          change.risk === "blocked" ? ("held" satisfies ApprovalDecision) : ("approved" satisfies ApprovalDecision)
+        ])
+      )
     );
   }
 
   function resetDecisions() {
     setApprovalDecisions({});
+  }
+
+  function resetWorkspaceDraft() {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(workspaceDraftStorageKey);
+    }
+
+    setMode(initialInput.mode);
+    setProductType(initialInput.productType);
+    setBrandName(initialInput.brandName);
+    setSiteUrl(initialInput.siteUrl);
+    setVertical(initialInput.vertical);
+    setMonthlyBudget(initialInput.monthlyBudget);
+    setMaxBid(initialInput.maxBid);
+    setSeedText(initialInput.seedKeywords.join("\n"));
+    setApprovalDecisions({});
+    setPcChannelId("");
+    setMobileChannelId("");
+    setShoppingChannelId("");
+    setProductGroupId("");
+    setStageDraftState({ status: "idle" });
+    setSaveDraftState({ status: "idle" });
+    setAccountSnapshotState({ status: "idle" });
   }
 
   async function authHeaders(): Promise<Record<string, string>> {
@@ -539,7 +630,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   }
 
   async function saveDraftHistory() {
-    setSaveDraftState({ status: "loading" });
+    setSaveDraftState({ status: "loading", fingerprint: draftFingerprint });
 
     try {
       const response = await fetch("/api/plans/store-draft", {
@@ -571,6 +662,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
       setSaveDraftState({
         status: "success",
+        fingerprint: draftFingerprint,
         message: "승인 상태와 전송 초안 이력을 저장했습니다.",
         planningRunId: data.planningRunId,
         executionDraftId: data.executionDraftId,
@@ -579,6 +671,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     } catch (error) {
       setSaveDraftState({
         status: "error",
+        fingerprint: draftFingerprint,
         message: error instanceof Error ? error.message : "저장에 실패했습니다."
       });
     }
@@ -690,6 +783,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <span>{plan.input.vertical}</span>
               <span>{modeLabel}</span>
               <span>{memberEmail}</span>
+              <span>임시저장 활성</span>
             </div>
           </div>
           <div className="topbar-actions">
@@ -700,6 +794,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             <button className="icon-button subtle" type="button" onClick={downloadCsv}>
               <Download size={17} />
               {keywordLabel} CSV
+            </button>
+            <button className="icon-button subtle" type="button" onClick={resetWorkspaceDraft}>
+              <PauseCircle size={17} />
+              임시저장 초기화
             </button>
             <Link className="icon-button primary" href="/mypage">
               <ShieldCheck size={17} />
@@ -718,8 +816,16 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
           <StatusTile
             label={isShoppingSearch ? "쇼핑채널" : "비즈채널"}
             value={channelStatusLabel}
-            caption={channelApplied ? (isShoppingSearch ? "쇼핑몰 채널 적용" : "PC/모바일 적용") : "계정 스캔 필요"}
-            tone={channelApplied ? "green" : "amber"}
+            caption={
+              executionConnectionApplied
+                ? isShoppingSearch
+                  ? "쇼핑몰/상품그룹 적용"
+                  : "PC/모바일 적용"
+                : isShoppingSearch && channelApplied
+                  ? "상품그룹 적용 필요"
+                  : "계정 스캔 필요"
+            }
+            tone={executionConnectionApplied ? "green" : "amber"}
           />
           <StatusTile
             label="차단"
@@ -751,15 +857,19 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <p>{approvalSummary.approved}건 승인, {approvalSummary.pending}건 대기</p>
               <button className="icon-button subtle" type="button" onClick={approveAllChanges}>
                 <CheckCircle2 size={17} />
-                전체 승인
+                차단 제외 승인
               </button>
             </article>
-            <article className={channelApplied ? "done" : "attention"}>
+            <article className={executionConnectionApplied ? "done" : "attention"}>
               <span>02</span>
               <strong>계정 스캔</strong>
               <p>
-                {channelApplied
-                  ? "채널이 적용되었습니다"
+                {executionConnectionApplied
+                  ? isShoppingSearch
+                    ? "쇼핑몰 채널과 상품그룹이 적용되었습니다"
+                    : "채널이 적용되었습니다"
+                  : isShoppingSearch && channelApplied
+                    ? "상품그룹을 조회하고 적용합니다"
                   : canScanAccount
                     ? "Naver 채널을 조회하고 적용합니다"
                     : "먼저 승인할 항목을 선택하세요"}
@@ -792,18 +902,24 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 {activeStageDraftState.status === "loading" ? "검증 중" : "초안 검증"}
               </button>
             </article>
-            <article className={saveDraftState.status === "success" ? "done" : "pending"}>
+            <article className={activeSaveDraftState.status === "success" ? "done" : "pending"}>
               <span>04</span>
               <strong>이력 저장</strong>
-              <p>{canSaveHistory ? "승인 상태와 전송 초안을 Supabase에 남깁니다" : "초안 검증 후 저장할 수 있습니다"}</p>
+              <p>
+                {canSaveHistory
+                  ? stageHasBlockers
+                    ? "차단된 검증 결과까지 이력으로 남깁니다"
+                    : "승인 상태와 전송 초안을 Supabase에 남깁니다"
+                  : "초안 검증 후 저장할 수 있습니다"}
+              </p>
               <button
                 className="icon-button primary"
-                disabled={!canSaveHistory || saveDraftState.status === "loading"}
+                disabled={!canSaveHistory || activeSaveDraftState.status === "loading"}
                 type="button"
                 onClick={saveDraftHistory}
               >
                 <FileText size={17} />
-                {saveDraftState.status === "loading" ? "저장 중" : "이력 저장"}
+                {activeSaveDraftState.status === "loading" ? "저장 중" : stageHasBlockers ? "차단 이력 저장" : "이력 저장"}
               </button>
             </article>
           </div>
@@ -816,7 +932,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               onApplyProductGroup={applyProductGroup}
             />
             <StageDraftNotice state={activeStageDraftState} />
-            <SaveDraftNotice state={saveDraftState} />
+            <SaveDraftNotice state={activeSaveDraftState} />
           </div>
         </section>
 
@@ -929,7 +1045,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <div className="inline-actions">
                 <button className="icon-button subtle" type="button" onClick={approveAllChanges}>
                   <CheckCircle2 size={17} />
-                  전체 승인
+                  차단 제외 승인
                 </button>
                 <button className="icon-button subtle" type="button" onClick={resetDecisions}>
                   <PauseCircle size={17} />
@@ -1714,6 +1830,117 @@ function StatusTile({ label, value, caption, tone }: { label: string; value: str
       <em>{caption}</em>
     </article>
   );
+}
+
+function readWorkspaceDraftSnapshot(userId: string | undefined): WorkspaceDraftSnapshot | null {
+  if (!userId || typeof window === "undefined") {
+    return null;
+  }
+
+  return parseWorkspaceDraftSnapshot(window.localStorage.getItem(`${WORKSPACE_DRAFT_STORAGE_PREFIX}:${userId}`));
+}
+
+function parseWorkspaceDraftSnapshot(value: string | null): WorkspaceDraftSnapshot | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+
+    if (!isRecord(parsed) || parsed.version !== 1 || typeof parsed.savedAt !== "string") {
+      return null;
+    }
+
+    const input = parseWorkspaceInput(parsed.input);
+
+    if (!input) {
+      return null;
+    }
+
+    return {
+      version: 1,
+      savedAt: parsed.savedAt,
+      input,
+      decisions: parseApprovalDecisions(parsed.decisions),
+      executionContext: parseExecutionContext(parsed.executionContext)
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parseWorkspaceInput(value: unknown): PlannerInput | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const productType = value.productType === "shoppingSearch" || value.productType === "powerlink" ? value.productType : null;
+  const mode = value.mode === "agency" || value.mode === "advertiser" ? value.mode : null;
+  const monthlyBudget = finiteNumber(value.monthlyBudget);
+  const maxBid = finiteNumber(value.maxBid);
+
+  if (!productType || !mode || monthlyBudget === null || maxBid === null) {
+    return null;
+  }
+
+  return {
+    brandName: stringOrDefault(value.brandName, mardDefaultInput.brandName),
+    siteUrl: stringOrDefault(value.siteUrl, mardDefaultInput.siteUrl),
+    vertical: stringOrDefault(value.vertical, mardDefaultInput.vertical),
+    monthlyBudget,
+    maxBid,
+    mode,
+    productType,
+    seedKeywords: Array.isArray(value.seedKeywords)
+      ? value.seedKeywords.filter((item): item is string => typeof item === "string")
+      : mardDefaultInput.seedKeywords
+  };
+}
+
+function parseApprovalDecisions(value: unknown): ApprovalDecisionMap {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter((entry): entry is [string, ApprovalDecision] => {
+      return entry[1] === "approved" || entry[1] === "held" || entry[1] === "pending";
+    })
+  );
+}
+
+function parseExecutionContext(value: unknown): WorkspaceDraftSnapshot["executionContext"] {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return {
+    pcChannelId: stringOrUndefined(value.pcChannelId),
+    mobileChannelId: stringOrUndefined(value.mobileChannelId),
+    shoppingChannelId: stringOrUndefined(value.shoppingChannelId),
+    productGroupId: stringOrUndefined(value.productGroupId)
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function finiteNumber(value: unknown): number | null {
+  if (typeof value !== "number") {
+    return null;
+  }
+
+  return Number.isFinite(value) ? value : null;
+}
+
+function stringOrDefault(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function stringOrUndefined(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function FeatureCard({ feature }: { feature: BenchmarkFeature }) {

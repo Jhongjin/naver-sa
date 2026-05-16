@@ -60,6 +60,7 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
       monthly_budget: plan.input.monthlyBudget,
       max_bid: plan.input.maxBid,
       mode: plan.input.mode,
+      product_type: plan.input.productType,
       seed_keywords: plan.input.seedKeywords,
       forecast: plan.forecast,
       assumptions: plan.assumptions,
