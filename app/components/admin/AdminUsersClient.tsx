@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FileClock, Network, RefreshCw, Search, ShieldCheck, UserCheck, UserCog, Users } from "lucide-react";
+import { Activity, AlertTriangle, FileClock, Network, RefreshCw, Search, ShieldCheck, UserCheck, UserCog, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
@@ -29,6 +29,41 @@ type UsersResponse = {
   total: number;
 };
 
+type AdminActivityItem = {
+  id: string;
+  workspaceName: string | null;
+  brandName: string;
+  vertical: string;
+  mode: "agency" | "advertiser";
+  productType: "powerlink" | "shoppingSearch";
+  createdBy: string | null;
+  createdAt: string;
+  approvalSummary: {
+    approved: number;
+    held: number;
+    pending: number;
+    blocked: number;
+  };
+  executionDraft: {
+    status: "blocked" | "ready" | "executed" | "failed";
+    approvedChangeCount: number;
+    blockerCount: number;
+    warningCount: number;
+  } | null;
+};
+
+type ActivityResponse = {
+  ok: true;
+  activities: AdminActivityItem[];
+  summary: {
+    total: number;
+    approved: number;
+    held: number;
+    blocked: number;
+    readyDrafts: number;
+  };
+};
+
 export function AdminUsersClient() {
   return (
     <AuthGate>
@@ -40,7 +75,9 @@ export function AdminUsersClient() {
 function AdminUsersContent() {
   const { getAccessToken } = useAuth();
   const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [activities, setActivities] = useState<AdminActivityItem[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [activityStatus, setActivityStatus] = useState<"idle" | "loading" | "error">("loading");
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "member">("all");
@@ -73,29 +110,47 @@ function AdminUsersContent() {
 
   const loadUsers = useCallback(async () => {
     setStatus("loading");
+    setActivityStatus("loading");
     setMessage("");
     const token = await getAccessToken();
 
     if (!token) {
       setStatus("error");
+      setActivityStatus("error");
       setMessage("로그인이 필요합니다.");
       return;
     }
 
-    const response = await fetch("/api/admin/users", {
+    const usersRequest = fetch("/api/admin/users", {
       headers: {
         authorization: `Bearer ${token}`
       }
     });
-    const data = (await response.json()) as UsersResponse | { ok?: false; error?: string };
+    const activityRequest = fetch("/api/admin/activity?limit=8", {
+      headers: {
+        authorization: `Bearer ${token}`
+      }
+    });
+    const [response, activityResponse] = await Promise.all([usersRequest, activityRequest]);
+    const [data, activityData] = (await Promise.all([
+      response.json(),
+      activityResponse.json()
+    ])) as [UsersResponse | { ok?: false; error?: string }, ActivityResponse | { ok?: false; error?: string }];
 
     if (!response.ok || data.ok !== true) {
       setStatus("error");
+      setActivityStatus("error");
       setMessage("error" in data && data.error ? data.error : "관리자 권한이 필요하거나 사용자 목록을 불러오지 못했습니다.");
       return;
     }
 
     setUsers(data.users);
+    if (activityResponse.ok && activityData.ok === true) {
+      setActivities(activityData.activities);
+      setActivityStatus("idle");
+    } else {
+      setActivityStatus("error");
+    }
     setStatus("idle");
   }, [getAccessToken]);
 
@@ -103,6 +158,7 @@ function AdminUsersContent() {
     const timer = window.setTimeout(() => {
       loadUsers().catch(() => {
         setStatus("error");
+        setActivityStatus("error");
         setMessage("사용자 목록을 불러오지 못했습니다.");
       });
     }, 0);
@@ -198,6 +254,75 @@ function AdminUsersContent() {
           <span>저장 이력</span>
           <strong>{summary.planningRuns}건</strong>
         </article>
+      </section>
+
+      <section className="account-panel admin-activity-panel">
+        <div className="admin-activity-heading">
+          <div>
+            <p className="eyebrow">Recent Operations</p>
+            <h2>최근 저장 활동</h2>
+            <p>최근 planning run과 execution draft 상태를 회원관리에서 바로 추적합니다.</p>
+          </div>
+          <Link className="icon-button subtle" href="/workspace">
+            <Activity size={17} />
+            작업 화면
+          </Link>
+        </div>
+        {activityStatus === "loading" ? (
+          <div className="admin-activity-empty">
+            <span className="skeleton-line wide" />
+            <span className="skeleton-line" />
+            <span className="skeleton-line short" />
+          </div>
+        ) : null}
+        {activityStatus === "error" ? (
+          <div className="admin-activity-empty">
+            <AlertTriangle size={20} />
+            <strong>최근 활동을 불러오지 못했습니다</strong>
+            <span>Supabase readiness 또는 관리자 세션을 확인해 주세요.</span>
+          </div>
+        ) : null}
+        {activityStatus === "idle" && activities.length === 0 ? (
+          <div className="admin-activity-empty">
+            <FileClock size={20} />
+            <strong>아직 저장 활동이 없습니다</strong>
+            <span>워크스페이스에서 이력 저장을 실행하면 최근 활동이 표시됩니다.</span>
+          </div>
+        ) : null}
+        {activities.length > 0 ? (
+          <div className="admin-activity-list">
+            {activities.map((activity) => (
+              <Link className="admin-activity-item" href={`/history/${activity.id}`} key={activity.id}>
+                <div>
+                  <span className="status-pill include">{productLabel(activity.productType)}</span>
+                  <strong>{activity.brandName}</strong>
+                  <p>
+                    {activity.workspaceName ?? activity.vertical} / {activity.createdBy ?? "unknown"} /{" "}
+                    {formatDateTime(activity.createdAt)}
+                  </p>
+                </div>
+                <dl>
+                  <div>
+                    <dt>승인</dt>
+                    <dd>{activity.approvalSummary.approved}건</dd>
+                  </div>
+                  <div>
+                    <dt>보류</dt>
+                    <dd>{activity.approvalSummary.held}건</dd>
+                  </div>
+                  <div>
+                    <dt>초안</dt>
+                    <dd>{activity.executionDraft ? draftStatusLabel(activity.executionDraft.status) : "없음"}</dd>
+                  </div>
+                  <div>
+                    <dt>차단</dt>
+                    <dd>{activity.executionDraft?.blockerCount ?? activity.approvalSummary.blocked}건</dd>
+                  </div>
+                </dl>
+              </Link>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <section className="account-panel admin-filter-panel" aria-label="회원 검색과 필터">
@@ -338,10 +463,34 @@ function roleSourceLabel(value: ManagedUser["roleSource"]) {
   return labels[value];
 }
 
+function productLabel(productType: "powerlink" | "shoppingSearch") {
+  return productType === "shoppingSearch" ? "쇼핑검색" : "파워링크";
+}
+
+function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {
+  const labels = {
+    blocked: "차단",
+    ready: "준비",
+    executed: "실행",
+    failed: "실패"
+  };
+
+  return labels[status];
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit"
+  }).format(new Date(value));
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
   }).format(new Date(value));
 }
