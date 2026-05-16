@@ -55,6 +55,10 @@ type AdminActivityItem = {
 type ActivityResponse = {
   ok: true;
   activities: AdminActivityItem[];
+  limit: number;
+  filters: {
+    limit: number;
+  };
   summary: {
     total: number;
     approved: number;

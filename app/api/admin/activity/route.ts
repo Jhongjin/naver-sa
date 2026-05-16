@@ -92,6 +92,10 @@ export async function GET(request: Request) {
         held: 0,
         blocked: 0,
         readyDrafts: 0
+      },
+      limit,
+      filters: {
+        limit
       }
     });
   }
@@ -165,7 +169,11 @@ export async function GET(request: Request) {
   return jsonNoStore({
     ok: true,
     activities,
-    summary: summarizeActivities(activities)
+    summary: summarizeActivities(activities),
+    limit,
+    filters: {
+      limit
+    }
   });
 }
 
