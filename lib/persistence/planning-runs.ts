@@ -205,21 +205,30 @@ async function saveExecutionDraft(input: {
   const executionDraftId = executionDraft.id as string;
 
   if (draft.payloads.length > 0) {
-    const { error: payloadError } = await supabase.from("execution_payloads").upsert(
-      draft.payloads.map((payload) => ({
-        execution_draft_id: executionDraftId,
-        payload_key: payload.id,
-        idempotency_key: payload.idempotencyKey,
-        method: payload.method,
-        uri: payload.uri,
-        entity_type: payload.entityType,
-        target: payload.target,
-        params: payload.params ?? {},
-        body: payload.body,
-        safety: payload.safety
-      })),
-      { onConflict: "execution_draft_id,payload_key" }
-    );
+    const payloadRows = draft.payloads.map((payload) => ({
+      execution_draft_id: executionDraftId,
+      payload_key: payload.id,
+      idempotency_key: payload.idempotencyKey,
+      method: payload.method,
+      uri: payload.uri,
+      entity_type: payload.entityType,
+      target: payload.target,
+      params: payload.params ?? {},
+      body: payload.body,
+      safety: payload.safety
+    }));
+    let { error: payloadError } = await supabase
+      .from("execution_payloads")
+      .upsert(payloadRows, { onConflict: "execution_draft_id,payload_key" });
+
+    if (payloadError && isPayloadIdempotencyConstraintError(payloadError)) {
+      // Older applied DBs made idempotency_key globally unique; retry against that key until the relaxing migration lands.
+      const compatibilityResult = await supabase
+        .from("execution_payloads")
+        .upsert(payloadRows, { onConflict: "idempotency_key" });
+
+      payloadError = compatibilityResult.error;
+    }
 
     if (payloadError) {
       return {
@@ -253,4 +262,9 @@ async function saveExecutionDraft(input: {
 
 function sanitizeSupabaseError(message: string | undefined): string {
   return message?.slice(0, 300) || "Supabase persistence failed.";
+}
+
+function isPayloadIdempotencyConstraintError(error: { code?: string; message?: string; details?: string | null }): boolean {
+  const text = [error.message, error.details].filter(Boolean).join(" ");
+  return error.code === "23505" && text.includes("execution_payloads_idempotency_key_key");
 }
