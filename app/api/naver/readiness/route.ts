@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getNaverConfigState, listNaverCampaigns } from "@/lib/naver-search-ad";
+import { verifyUserAccess } from "@/lib/auth-access";
 
 export async function GET(request: Request) {
   const state = getNaverConfigState();
@@ -14,6 +15,12 @@ export async function GET(request: Request) {
       readOnlyEndpoints: ["/ncc/campaigns", "/ncc/adgroups", "/ncc/keywords", "/stats"],
       writeExecution: "blocked in MVP"
     });
+  }
+
+  const access = await verifyUserAccess(request, { requireAdmin: true });
+
+  if (!access.ok) {
+    return NextResponse.json(access, { status: access.status });
   }
 
   if (!state.ready) {
@@ -33,6 +40,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     ok: result.ok,
     state,
+    authAccess: access.state,
     externalRequest: true,
     readOnlyCheck: result
   });

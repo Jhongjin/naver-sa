@@ -133,7 +133,7 @@ function stringValueOrUndefined(value: unknown): string | undefined {
 
 function numberValue(value: unknown, fallback: number): number {
   if (typeof value === "number") {
-    return value;
+    return Number.isFinite(value) ? value : fallback;
   }
 
   if (typeof value === "string") {

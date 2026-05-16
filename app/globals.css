@@ -1879,6 +1879,26 @@ td span {
   font-weight: 600;
 }
 
+.snapshot-warning-list {
+  background: rgba(180, 83, 9, 0.08);
+  border: 1px solid rgba(180, 83, 9, 0.2);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+}
+
+.snapshot-warning-list strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.snapshot-warning-list span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .channel-list {
   display: grid;
   gap: 8px;
@@ -4229,6 +4249,19 @@ td span {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.1);
   color: rgba(249, 244, 234, 0.78);
+}
+
+.execution-rail .snapshot-warning-list {
+  background: rgba(255, 176, 90, 0.1);
+  border-color: rgba(255, 176, 90, 0.24);
+}
+
+.execution-rail .snapshot-warning-list strong {
+  color: #fffaf0;
+}
+
+.execution-rail .snapshot-warning-list span {
+  color: rgba(249, 244, 234, 0.7);
 }
 
 .execution-rail .channel-item,

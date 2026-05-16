@@ -35,23 +35,27 @@ export async function GET(request: Request) {
     listNaverProductGroups()
   ]);
 
-  const ok = channelsResult.ok && campaignsResult.ok && productGroupsResult.ok;
+  const allOk = channelsResult.ok && campaignsResult.ok && productGroupsResult.ok;
+  const hasAnyData = channelsResult.ok || campaignsResult.ok || productGroupsResult.ok;
+  const errors = {
+    channels: channelsResult.ok ? null : channelsResult.error,
+    campaigns: campaignsResult.ok ? null : campaignsResult.error,
+    productGroups: productGroupsResult.ok ? null : productGroupsResult.error
+  };
 
   return NextResponse.json(
     {
-      ok,
+      ok: hasAnyData,
+      partial: hasAnyData && !allOk,
       externalRequest: true,
       authAccess: access.state,
       channels: channelsResult.ok ? channelsResult.data.map(normalizeChannel) : [],
       campaigns: campaignsResult.ok ? campaignsResult.data : [],
       productGroups: productGroupsResult.ok ? productGroupsResult.data.map(normalizeProductGroup) : [],
-      errors: {
-        channels: channelsResult.ok ? null : channelsResult.error,
-        campaigns: campaignsResult.ok ? null : campaignsResult.error,
-        productGroups: productGroupsResult.ok ? null : productGroupsResult.error
-      }
+      errors,
+      error: hasAnyData ? null : summarizeSnapshotErrors(errors)
     },
-    { status: ok ? 200 : 502 }
+    { status: hasAnyData ? 200 : 502 }
   );
 }
 
@@ -80,4 +84,14 @@ function normalizeProductGroup(productGroup: NaverProductGroupSummary) {
     productCount: productGroup.attrJson?.productNvmids?.length ?? null,
     excludeCount: productGroup.attrJson?.excludeNvmids?.length ?? null
   };
+}
+
+function summarizeSnapshotErrors(errors: Record<string, string | null>): string {
+  const failedScopes = Object.entries(errors)
+    .filter(([, message]) => Boolean(message))
+    .map(([scope]) => scope);
+
+  return failedScopes.length > 0
+    ? `Naver account snapshot failed for: ${failedScopes.join(", ")}.`
+    : "Naver account snapshot failed.";
 }

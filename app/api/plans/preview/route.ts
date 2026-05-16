@@ -56,7 +56,7 @@ function stringValue(value: unknown, fallback: string): string {
 
 function numberValue(value: unknown, fallback: number): number {
   if (typeof value === "number") {
-    return value;
+    return Number.isFinite(value) ? value : fallback;
   }
 
   if (typeof value === "string") {

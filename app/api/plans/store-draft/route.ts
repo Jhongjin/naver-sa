@@ -36,9 +36,21 @@ export async function POST(request: Request) {
   const input = coercePlannerInput(isRecord(body.input) ? body.input : {});
   const decisions = coerceDecisions(body.decisions);
   const executionContext = coerceExecutionContext(body.executionContext);
+  const stagedDraftKey = stringValueOrUndefined(body.stagedDraftKey);
   const createdBy = access.user.email ?? access.user.id;
   const plan = generatePlannerPlan(input);
   const executionDraft = createNaverExecutionDraft(plan, decisions, executionContext);
+
+  if (stagedDraftKey && stagedDraftKey !== executionDraft.draftKey) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Validated draft key does not match the current save request. Run draft validation again before saving."
+      },
+      { status: 409 }
+    );
+  }
+
   const result = await savePlanningRun({ plan, decisions, executionDraft, createdBy });
 
   return NextResponse.json(
@@ -120,7 +132,7 @@ function stringValueOrUndefined(value: unknown): string | undefined {
 
 function numberValue(value: unknown, fallback: number): number {
   if (typeof value === "number") {
-    return value;
+    return Number.isFinite(value) ? value : fallback;
   }
 
   if (typeof value === "string") {

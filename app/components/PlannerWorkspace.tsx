@@ -78,6 +78,7 @@ type StageDraftResponse = {
   };
   draft: {
     draftId: string;
+    draftKey: string;
     approvedChangeCount: number;
     payloads: Array<{
       id: string;
@@ -108,8 +109,14 @@ type StageDraftResponse = {
 type AccountSnapshotResponse = {
   ok: boolean;
   externalRequest?: boolean;
+  partial?: boolean;
   error?: string;
   code?: string;
+  errors?: {
+    channels?: string | null;
+    campaigns?: string | null;
+    productGroups?: string | null;
+  };
   channels?: Array<{
     id: string;
     name: string;
@@ -610,7 +617,9 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         body: JSON.stringify({
           input,
           decisions: approvalDecisions,
-          executionContext
+          executionContext,
+          stagedDraftKey:
+            activeStageDraftState.status === "success" ? activeStageDraftState.response.draft.draftKey : undefined
         })
       });
       const data = (await response.json()) as StageDraftResponse | { ok?: boolean; error?: string };
@@ -1725,6 +1734,9 @@ function AccountSnapshotNotice({
 
   const isShoppingSearch = productType === "shoppingSearch";
   const productGroups = (state.response.productGroups ?? []).filter((productGroup) => productGroup.id);
+  const snapshotWarnings = Object.entries(state.response.errors ?? {}).filter((entry): entry is [string, string] =>
+    Boolean(entry[1])
+  );
   const eligibleChannels = (state.response.channels ?? []).filter((channel) => {
     if (!channel.id) {
       return false;
@@ -1747,6 +1759,16 @@ function AccountSnapshotNotice({
         {isShoppingSearch ? <span>상품그룹 {productGroups.length}개</span> : null}
         <span>캠페인 {state.response.campaigns?.length ?? 0}개</span>
       </div>
+      {state.response.partial && snapshotWarnings.length > 0 ? (
+        <div className="snapshot-warning-list">
+          <strong>일부 항목은 조회하지 못했습니다</strong>
+          {snapshotWarnings.map(([scope, message]) => (
+            <span key={scope}>
+              {snapshotScopeLabel(scope)}: {message}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div className="channel-list">
         {eligibleChannels.length === 0 ? (
           <span>
@@ -1991,6 +2013,16 @@ function severityClass(severity: OptimizationSeverity): string {
 
 function severityLabel(severity: OptimizationSeverity): string {
   return severity === "high" ? "높음" : severity === "medium" ? "중간" : "낮음";
+}
+
+function snapshotScopeLabel(scope: string): string {
+  const labels: Record<string, string> = {
+    channels: "비즈채널",
+    campaigns: "캠페인",
+    productGroups: "상품그룹"
+  };
+
+  return labels[scope] ?? scope;
 }
 
 function decisionLabel(decision: ApprovalDecision): string {
