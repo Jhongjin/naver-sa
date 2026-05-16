@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
 import { getConfiguredAdminEmails, getUserRole, verifyUserAccess, type AppUserRole } from "@/lib/auth-access";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
@@ -31,7 +30,7 @@ export async function GET(request: Request) {
 
   const admin = getAdminClientOrResponse();
 
-  if (admin instanceof NextResponse) {
+  if (admin instanceof Response) {
     return admin;
   }
 
@@ -83,7 +82,7 @@ export async function PATCH(request: Request) {
 
   const admin = getAdminClientOrResponse();
 
-  if (admin instanceof NextResponse) {
+  if (admin instanceof Response) {
     return admin;
   }
 
