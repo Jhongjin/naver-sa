@@ -256,7 +256,8 @@ function MyPageContent() {
           <p className="eyebrow">Session</p>
           <h2>로그인 세션으로 보호 API를 호출합니다</h2>
           <p>
-            운영자 코드 대신 Supabase Auth access token을 사용합니다. 토큰 값은 화면에 표시하지 않고 요청 헤더에만 포함합니다.
+            Supabase Auth access token으로 계정 스캔, 초안 검증, 이력 저장 권한을 확인합니다. 토큰 값은 화면에
+            표시하지 않고 요청 헤더에만 포함합니다.
           </p>
           {error ? <p className="auth-message error">{error}</p> : null}
         </div>

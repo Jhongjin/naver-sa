@@ -20,7 +20,7 @@ const flowSteps = [
     label: "01",
     eyebrow: "Auth gate",
     title: "회원가입과 권한",
-    body: "운영자 코드를 걷어내고 Supabase Auth 세션과 관리자 권한으로 워크스페이스 접근을 보호합니다."
+    body: "Supabase Auth 세션과 관리자 권한으로 워크스페이스 접근을 보호합니다."
   },
   {
     label: "02",

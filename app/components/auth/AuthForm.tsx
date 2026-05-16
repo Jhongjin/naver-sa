@@ -112,9 +112,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           <div className="auth-copy">
             <p className="eyebrow">Account Access</p>
             <h1>{isSignup ? "팀 계정을 만들고 승인 흐름을 시작하세요" : "회원 계정으로 워크스페이스에 접속하세요"}</h1>
-            <p>
-              운영자 코드 입력을 걷어내고, 로그인 세션과 권한으로 계정 스캔, 초안 검증, 이력 저장 접근을 나눕니다.
-            </p>
+              <p>로그인 세션과 권한으로 계정 스캔, 초안 검증, 이력 저장 접근을 나눕니다.</p>
           </div>
           <div className="auth-flow-list" aria-label="계정 접근 흐름">
             {authSteps.map((step) => (
