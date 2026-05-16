@@ -467,6 +467,28 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       state: stageValidated ? "done" : "pending"
     }
   ] as const;
+  const executionFlowSteps = [
+    {
+      label: "승인",
+      detail: approvalSummary.approved > 0 ? `${approvalSummary.approved}건 승인` : "승인 필요",
+      state: approvalSummary.approved > 0 ? "done" : "attention"
+    },
+    {
+      label: "스캔/연결",
+      detail: executionConnectionApplied ? channelStatusLabel : "채널 적용 필요",
+      state: executionConnectionApplied ? "done" : "attention"
+    },
+    {
+      label: "초안 검증",
+      detail: stageValidated ? "서버 검증 완료" : canValidateDraft ? "검증 가능" : "검증 대기",
+      state: stageValidated ? "done" : canValidateDraft ? "attention" : "pending"
+    },
+    {
+      label: "이력 저장",
+      detail: activeSaveDraftState.status === "success" ? "저장 완료" : canSaveHistory ? "저장 가능" : "검증 후 가능",
+      state: activeSaveDraftState.status === "success" ? "done" : canSaveHistory ? "attention" : "pending"
+    }
+  ] as const;
 
   useEffect(() => {
     if (!user?.id || typeof window === "undefined") {
@@ -1248,6 +1270,15 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                   JSON
                 </button>
               </div>
+              <div className="execution-flow-guide" aria-label="전송 준비 진행 순서">
+                {executionFlowSteps.map((step, index) => (
+                  <div className={step.state} key={step.label}>
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <strong>{step.label}</strong>
+                    <em>{step.detail}</em>
+                  </div>
+                ))}
+              </div>
               <div className="execution-controls">
                 <label className="field">
                   <span>캠페인 ID</span>
@@ -1770,6 +1801,9 @@ function SaveDraftNotice({ state }: { state: SaveDraftState }) {
       <strong>{state.message}</strong>
       <span>planning run: {state.planningRunId}</span>
       {state.executionDraftId ? <span>execution draft: {state.executionDraftId}</span> : null}
+      <Link className="inline-history-link" href={`/history/${state.planningRunId}`}>
+        저장 이력 열기
+      </Link>
       {state.warnings.length > 0 ? (
         <div className="blocker-list">
           {state.warnings.map((warning) => (
