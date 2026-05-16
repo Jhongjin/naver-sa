@@ -88,6 +88,7 @@ function HistoryListContent() {
   const [draftFilter, setDraftFilter] = useState<DraftFilter>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [nextOffset, setNextOffset] = useState<number | null>(null);
+  const [filtersReady, setFiltersReady] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -95,12 +96,21 @@ function HistoryListContent() {
     }
 
     const timer = window.setTimeout(() => {
-      const initialQuery = new URLSearchParams(window.location.search).get("q")?.trim();
+      const params = new URLSearchParams(window.location.search);
+      const initialQuery = params.get("q")?.trim();
+      const initialProductFilter = coerceProductFilter(params.get("productType"));
+      const initialDraftFilter = coerceDraftFilter(params.get("draft"));
+      const initialDateFilter = coerceDateFilter(params.get("days"));
 
       if (initialQuery) {
         setQuery(initialQuery);
         setServerQuery(initialQuery);
       }
+
+      setProductFilter(initialProductFilter);
+      setDraftFilter(initialDraftFilter);
+      setDateFilter(initialDateFilter);
+      setFiltersReady(true);
     }, 0);
 
     return () => {
@@ -187,6 +197,10 @@ function HistoryListContent() {
   }
 
   useEffect(() => {
+    if (!filtersReady) {
+      return;
+    }
+
     const timer = window.setTimeout(() => {
       loadHistory().catch(() => {
         setStatus("error");
@@ -197,9 +211,13 @@ function HistoryListContent() {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [loadHistory]);
+  }, [filtersReady, loadHistory]);
 
   useEffect(() => {
+    if (!filtersReady) {
+      return;
+    }
+
     const timer = window.setTimeout(() => {
       setServerQuery(query.trim());
     }, 350);
@@ -207,7 +225,29 @@ function HistoryListContent() {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [query]);
+  }, [filtersReady, query]);
+
+  useEffect(() => {
+    if (!filtersReady || typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const trimmedQuery = query.trim();
+
+    setUrlParam(params, "q", trimmedQuery);
+    setUrlParam(params, "productType", productFilter === "all" ? "" : productFilter);
+    setUrlParam(params, "days", dateFilter === "all" ? "" : dateFilter);
+    setUrlParam(params, "draft", draftFilter === "all" ? "" : draftFilter);
+
+    const queryString = params.toString();
+    const nextUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+
+    if (nextUrl !== currentUrl) {
+      window.history.replaceState(null, "", nextUrl);
+    }
+  }, [dateFilter, draftFilter, filtersReady, productFilter, query]);
 
   const summary = useMemo(
     () => ({
@@ -592,6 +632,10 @@ function productFilterLabel(value: ProductFilter) {
   return labels[value];
 }
 
+function coerceProductFilter(value: string | null): ProductFilter {
+  return value === "powerlink" || value === "shoppingSearch" ? value : "all";
+}
+
 function draftFilterLabel(value: DraftFilter) {
   const labels = {
     all: "전체",
@@ -605,6 +649,12 @@ function draftFilterLabel(value: DraftFilter) {
   return labels[value];
 }
 
+function coerceDraftFilter(value: string | null): DraftFilter {
+  return value === "ready" || value === "blocked" || value === "failed" || value === "executed" || value === "none"
+    ? value
+    : "all";
+}
+
 function dateFilterLabel(value: DateFilter) {
   const labels = {
     all: "전체",
@@ -613,6 +663,18 @@ function dateFilterLabel(value: DateFilter) {
   };
 
   return labels[value];
+}
+
+function coerceDateFilter(value: string | null): DateFilter {
+  return value === "7" || value === "30" ? value : "all";
+}
+
+function setUrlParam(params: URLSearchParams, key: string, value: string) {
+  if (value) {
+    params.set(key, value);
+  } else {
+    params.delete(key);
+  }
 }
 
 function isWithinDateFilter(value: string, filter: DateFilter) {
