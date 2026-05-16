@@ -2153,15 +2153,15 @@ td span {
   }
 
   .approval-core {
-    order: 1;
-  }
-
-  .inspector-stack {
     order: 2;
   }
 
-  .input-column {
+  .inspector-stack {
     order: 3;
+  }
+
+  .input-column {
+    order: 1;
   }
 }
 
@@ -2757,6 +2757,15 @@ td span {
   color: #f8fafc;
 }
 
+.role-actions button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.mobile-label {
+  display: none;
+}
+
 .admin-empty {
   padding: 24px;
 }
@@ -2885,6 +2894,26 @@ td span {
   .admin-user-row {
     align-items: start;
     grid-template-columns: 1fr;
+  }
+
+  .mobile-label {
+    color: #64748b;
+    display: block;
+    font-size: 11px;
+    font-weight: 900;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+}
+
+@media (max-width: 720px) {
+  .channel-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .channel-item .icon-button {
+    width: 100%;
   }
 }
 

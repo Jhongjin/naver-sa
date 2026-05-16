@@ -162,19 +162,32 @@ function AdminUsersContent() {
                 <span>{user.email}</span>
               </div>
             </div>
-            <span>{user.companyName ?? "미등록"}</span>
-            <span>{formatDate(user.createdAt)}</span>
-            <span>{user.lastSignInAt ? formatDate(user.lastSignInAt) : "없음"}</span>
+            <span>
+              <span className="mobile-label">회사</span>
+              {user.companyName ?? "미등록"}
+            </span>
+            <span>
+              <span className="mobile-label">가입일</span>
+              {formatDate(user.createdAt)}
+            </span>
+            <span>
+              <span className="mobile-label">마지막 로그인</span>
+              {user.lastSignInAt ? formatDate(user.lastSignInAt) : "없음"}
+            </span>
             <div className="role-actions">
               <button
+                aria-pressed={user.role === "member"}
                 className={user.role === "member" ? "selected" : ""}
+                disabled={status === "loading"}
                 type="button"
                 onClick={() => updateRole(user.id, "member")}
               >
                 멤버
               </button>
               <button
+                aria-pressed={user.role === "admin"}
                 className={user.role === "admin" ? "selected" : ""}
+                disabled={status === "loading"}
                 type="button"
                 onClick={() => updateRole(user.id, "admin")}
               >

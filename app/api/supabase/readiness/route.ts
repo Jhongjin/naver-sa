@@ -30,6 +30,11 @@ export async function GET() {
       ok: false,
       state,
       connectivity,
+      auth: {
+        checked: false,
+        adminApiReachable: false,
+        error: "Skipped because the Supabase admin environment is not configured."
+      },
       tables: [],
       columns: [],
       note: "Supabase admin environment is not configured."
@@ -43,6 +48,11 @@ export async function GET() {
       ok: false,
       state,
       connectivity,
+      auth: {
+        checked: false,
+        adminApiReachable: false,
+        error: "Skipped because the Supabase admin client is unavailable."
+      },
       tables: [],
       columns: [],
       note: "Supabase admin client is unavailable."
@@ -82,14 +92,41 @@ export async function GET() {
         error: "Skipped because the Supabase REST endpoint is not reachable.",
         errorCode: "CONNECTIVITY_UNREACHABLE"
       }));
+  const auth = connectivity.reachable
+    ? await checkAuthAdminReadiness(supabase)
+    : {
+        checked: false,
+        adminApiReachable: false,
+        error: "Skipped because the Supabase REST endpoint is not reachable.",
+        userCountSample: null
+      };
 
   return NextResponse.json({
-    ok: connectivity.reachable && tables.every((table) => table.present) && columns.every((column) => column.present),
+    ok:
+      connectivity.reachable &&
+      auth.adminApiReachable &&
+      tables.every((table) => table.present) &&
+      columns.every((column) => column.present),
     state,
     connectivity,
+    auth,
     tables,
     columns
   });
+}
+
+async function checkAuthAdminReadiness(supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>) {
+  const { data, error } = await supabase.auth.admin.listUsers({
+    page: 1,
+    perPage: 1
+  });
+
+  return {
+    checked: true,
+    adminApiReachable: !error,
+    error: error ? sanitizeSupabaseError(error.message) : null,
+    userCountSample: error ? null : data.users.length
+  };
 }
 
 async function checkColumnPresence(

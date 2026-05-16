@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     listNaverProductGroups()
   ]);
 
-  const ok = channelsResult.ok && campaignsResult.ok;
+  const ok = channelsResult.ok && campaignsResult.ok && productGroupsResult.ok;
 
   return NextResponse.json(
     {

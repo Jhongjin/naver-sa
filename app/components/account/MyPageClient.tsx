@@ -100,7 +100,7 @@ function MyPageContent() {
         </Link>
         <nav aria-label="계정 메뉴">
           <Link href="/workspace">워크스페이스</Link>
-          <Link href="/admin/users">회원관리</Link>
+          {sessionSummary?.role === "admin" ? <Link href="/admin/users">회원관리</Link> : null}
         </nav>
       </header>
 

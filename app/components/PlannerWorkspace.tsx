@@ -304,6 +304,9 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const stageValidated = activeStageDraftState.status === "success";
   const canRequestProtectedExecution =
     stageValidated && activeStageDraftState.response.draft.validation.canExecuteTest && channelApplied;
+  const canScanAccount = approvalSummary.approved > 0;
+  const canValidateDraft = approvalSummary.approved > 0 && channelApplied;
+  const canSaveHistory = stageValidated;
   const modeLabel = mode === "agency" ? "대행사 모드" : "광고주 모드";
   const memberEmail = user?.email ?? "로그인 계정";
   const channelStatusLabel = channelApplied ? "연결됨" : "미연결";
@@ -754,10 +757,16 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             <article className={channelApplied ? "done" : "attention"}>
               <span>02</span>
               <strong>계정 스캔</strong>
-              <p>{channelApplied ? "채널이 적용되었습니다" : "Naver 채널을 조회하고 적용합니다"}</p>
+              <p>
+                {channelApplied
+                  ? "채널이 적용되었습니다"
+                  : canScanAccount
+                    ? "Naver 채널을 조회하고 적용합니다"
+                    : "먼저 승인할 항목을 선택하세요"}
+              </p>
               <button
                 className="icon-button subtle"
-                disabled={accountSnapshotState.status === "loading"}
+                disabled={!canScanAccount || accountSnapshotState.status === "loading"}
                 type="button"
                 onClick={loadAccountSnapshot}
               >
@@ -768,10 +777,14 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             <article className={stageValidated ? "done" : "attention"}>
               <span>03</span>
               <strong>초안 검증</strong>
-              <p>{executionDraft.validation.blockerCount}건 차단, {executionDraft.payloads.length}개 payload</p>
+              <p>
+                {canValidateDraft
+                  ? `${executionDraft.validation.blockerCount}건 차단, ${executionDraft.payloads.length}개 payload`
+                  : "승인과 채널 적용 후 검증할 수 있습니다"}
+              </p>
               <button
                 className="icon-button subtle"
-                disabled={activeStageDraftState.status === "loading"}
+                disabled={!canValidateDraft || activeStageDraftState.status === "loading"}
                 type="button"
                 onClick={stageExecutionDraft}
               >
@@ -782,10 +795,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             <article className={saveDraftState.status === "success" ? "done" : "pending"}>
               <span>04</span>
               <strong>이력 저장</strong>
-              <p>승인 상태와 전송 초안을 Supabase에 남깁니다</p>
+              <p>{canSaveHistory ? "승인 상태와 전송 초안을 Supabase에 남깁니다" : "초안 검증 후 저장할 수 있습니다"}</p>
               <button
                 className="icon-button primary"
-                disabled={saveDraftState.status === "loading"}
+                disabled={!canSaveHistory || saveDraftState.status === "loading"}
                 type="button"
                 onClick={saveDraftHistory}
               >

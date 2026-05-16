@@ -1,5 +1,7 @@
 # Risk Closure Pass
 
+> Superseded on 2026-05-16: browser-facing protected workflows now use Supabase Auth sessions instead of `OPERATOR_ACCESS_CODE`. This note remains historical implementation context only.
+
 Date: 2026-05-15
 
 ## Scope

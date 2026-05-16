@@ -40,7 +40,20 @@ Do not commit real secret values. Use `.env.local` for local development and Ver
 |---|---|---|
 | `CRON_SECRET` | Server only | Protects scheduled sync endpoints. |
 | `ENCRYPTION_KEY` | Server only | Used for encrypting stored external credentials. |
-| `ADMIN_EMAILS` | Server only | Optional comma-separated admin allowlist for 회원관리. User sessions still come from Supabase Auth. |
+| `ADMIN_EMAILS` | Server only | Recommended comma-separated admin allowlist for first 회원관리 bootstrap. User sessions still come from Supabase Auth. Alternatively set `app_metadata.role = admin` directly in Supabase. |
+
+### Supabase Auth Setup
+
+For membership-based access, configure Supabase Auth before inviting operators:
+
+1. Enable the Email provider in Supabase Authentication.
+2. Set the Supabase Site URL to `NEXT_PUBLIC_APP_URL`.
+3. Add redirect URLs for the production domain, preview domain, `/login`, `/signup`, `/workspace`, and `/mypage`.
+4. Decide whether email confirmation is required. If it is required, confirm SMTP/email delivery before launch.
+5. Set `ADMIN_EMAILS` in Vercel for the first administrator, or manually set the first admin user metadata to `app_metadata.role = admin` in Supabase.
+6. Verify `/api/auth/session` returns `401 AUTH_TOKEN_REQUIRED` without a token and succeeds after browser login.
+
+Browser access uses Supabase Auth sessions. App data writes still go through server routes using the service role key, so public table RLS policies are intentionally not used for direct browser writes in the MVP.
 
 ## Should Naver API Keys Be Registered In Both Vercel And Supabase?
 

@@ -14,21 +14,25 @@ const requiredVariables = [
   "ENCRYPTION_KEY"
 ];
 
-const optionalVariables = ["ADMIN_EMAILS"];
+const recommendedVariables = ["ADMIN_EMAILS"];
 
 export function GET() {
   const variables = requiredVariables.map((name) => ({
     name,
     present: Boolean(process.env[name])
   }));
-  const optional = optionalVariables.map((name) => ({
+  const recommended = recommendedVariables.map((name) => ({
     name,
     present: Boolean(process.env[name])
   }));
+  const warnings = recommended
+    .filter((variable) => !variable.present)
+    .map((variable) => `${variable.name} is recommended for first admin bootstrap.`);
 
   return NextResponse.json({
     ok: variables.every((variable) => variable.present),
     variables,
-    optional
+    recommended,
+    warnings
   });
 }

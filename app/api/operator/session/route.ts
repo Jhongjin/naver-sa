@@ -1,28 +1,9 @@
 import { NextResponse } from "next/server";
-import { verifyUserAccess } from "@/lib/auth-access";
 
-export async function POST(request: Request) {
-  const access = await verifyUserAccess(request);
-
-  if (!access.ok) {
-    return NextResponse.json(access, { status: access.status });
-  }
-
+export function POST() {
   return NextResponse.json({
-    ok: true,
-    role: access.state.role,
-    mode: access.state.mode,
-    userId: access.state.userId,
-    email: access.state.email,
-    capabilities: access.state.capabilities,
-    session: {
-      expiresInSeconds: access.state.sessionTtlSeconds,
-      workspaceScope: "authenticated"
-    },
-    guardrails: {
-      liveCampaignActivation: "blocked",
-      productionDeletion: "blocked",
-      externalWriteExecution: "test-route-only"
-    }
-  });
+    ok: false,
+    error: "This legacy operator endpoint has moved to /api/auth/session.",
+    code: "OPERATOR_ENDPOINT_DEPRECATED"
+  }, { status: 410 });
 }

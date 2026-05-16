@@ -94,8 +94,7 @@ function getAdminClientOrResponse() {
     return NextResponse.json(
       {
         ok: false,
-        error: "Supabase admin environment is not configured.",
-        missing: state.missing
+        error: "Supabase admin environment is not configured."
       },
       { status: 503 }
     );

@@ -63,7 +63,6 @@ export function LandingPage() {
         <nav aria-label="제품 메뉴">
           <Link href="/workspace">워크스페이스</Link>
           <Link href="/mypage">마이페이지</Link>
-          <Link href="/admin/users">회원관리</Link>
         </nav>
         <div className="landing-nav-actions">
           <Link className="icon-button subtle" href="/login">

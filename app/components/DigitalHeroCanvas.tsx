@@ -30,6 +30,7 @@ export function DigitalHeroCanvas() {
     let width = 0;
     let height = 0;
     let nodes: NodePoint[] = [];
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const resize = () => {
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
@@ -75,16 +76,18 @@ export function DigitalHeroCanvas() {
         context.stroke();
       }
 
-      for (const node of nodes) {
-        node.x += node.vx;
-        node.y += node.vy;
+      if (!reduceMotion) {
+        for (const node of nodes) {
+          node.x += node.vx;
+          node.y += node.vy;
 
-        if (node.x < 0 || node.x > width) {
-          node.vx *= -1;
-        }
+          if (node.x < 0 || node.x > width) {
+            node.vx *= -1;
+          }
 
-        if (node.y < 0 || node.y > height) {
-          node.vy *= -1;
+          if (node.y < 0 || node.y > height) {
+            node.vy *= -1;
+          }
         }
       }
 
@@ -115,7 +118,9 @@ export function DigitalHeroCanvas() {
       context.font = "12px ui-monospace, SFMono-Regular, Consolas, monospace";
       context.fillText("AUTH.SEQUENCE / APPROVAL.RAIL / NAVER.SA", 32, height - 32);
 
-      animationFrame = window.requestAnimationFrame(draw);
+      if (!reduceMotion) {
+        animationFrame = window.requestAnimationFrame(draw);
+      }
     };
 
     resize();
