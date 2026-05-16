@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
 import {
   createNaverExecutionDraft,
   type NaverExecutionPayload
 } from "@/lib/execution-draft";
+import { jsonNoStore } from "@/lib/http";
 import { requestNaverSearchAd } from "@/lib/naver-search-ad";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 import { generatePlannerPlan } from "@/lib/planner";
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   const authResult = verifyAdminSecret(request);
 
   if (!authResult.ok) {
-    return NextResponse.json(authResult, { status: authResult.status });
+    return jsonNoStore(authResult, { status: authResult.status });
   }
 
   const body = await readJsonRecord(request);
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   const draft = createNaverExecutionDraft(plan, decisions, executionContext);
 
   if (!shouldExecute) {
-    return NextResponse.json({
+    return jsonNoStore({
       ok: true,
       dryRun: true,
       draft
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
   }
 
   if (confirmation !== "TEST_EXECUTION_ONLY") {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         ok: false,
         error: "Missing confirmation phrase TEST_EXECUTION_ONLY."
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
   }
 
   if (draft.payloads.length === 0) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         ok: false,
         error: "No approved payloads to execute."
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
   }
 
   if (!draft.validation.canExecuteTest) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         ok: false,
         error: "Execution draft has unresolved validation blockers.",
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
     history
   };
 
-  return NextResponse.json(response, { status: response.ok ? 200 : 502 });
+  return jsonNoStore(response, { status: response.ok ? 200 : 502 });
 }
 
 async function persistExecutionResults(input: {

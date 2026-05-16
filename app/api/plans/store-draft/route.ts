@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { createNaverExecutionDraft } from "@/lib/execution-draft";
 import { verifyUserAccess } from "@/lib/auth-access";
+import { jsonNoStore } from "@/lib/http";
 import { generatePlannerPlan } from "@/lib/planner";
 import {
   coerceDecisionNotes,
@@ -17,13 +17,13 @@ export async function POST(request: Request) {
   const access = await verifyUserAccess(request);
 
   if (!access.ok) {
-    return NextResponse.json(access, { status: access.status });
+    return jsonNoStore(access, { status: access.status });
   }
 
   const state = getSupabaseAdminState();
 
   if (!state.ready) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         ok: false,
         error: "Supabase admin environment is not configured.",
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   const executionDraft = createNaverExecutionDraft(plan, decisions, executionContext);
 
   if (stagedDraftKey && stagedDraftKey !== executionDraft.draftKey) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         ok: false,
         error: "Validated draft key does not match the current save request. Run draft validation again before saving."
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
 
   const result = await savePlanningRun({ plan, decisions, decisionNotes, executionDraft, createdBy, createdByUserId });
 
-  return NextResponse.json(
+  return jsonNoStore(
     {
       ...result,
       draft: {

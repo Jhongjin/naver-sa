@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import {
   getNaverConfigState,
   listNaverBusinessChannels,
@@ -8,18 +7,19 @@ import {
   type NaverProductGroupSummary
 } from "@/lib/naver-search-ad";
 import { verifyUserAccess } from "@/lib/auth-access";
+import { jsonNoStore } from "@/lib/http";
 
 export async function GET(request: Request) {
   const access = await verifyUserAccess(request);
 
   if (!access.ok) {
-    return NextResponse.json(access, { status: access.status });
+    return jsonNoStore(access, { status: access.status });
   }
 
   const naverState = getNaverConfigState();
 
   if (!naverState.ready) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         ok: false,
         naver: naverState,
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
     productGroups: productGroupsResult.ok ? null : productGroupsResult.error
   };
 
-  return NextResponse.json(
+  return jsonNoStore(
     {
       ok: hasAnyData,
       partial: hasAnyData && !allOk,

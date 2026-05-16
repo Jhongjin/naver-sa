@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { createNaverExecutionDraft } from "@/lib/execution-draft";
+import { jsonNoStore } from "@/lib/http";
 import { getNaverConfigState } from "@/lib/naver-search-ad";
 import { verifyUserAccess } from "@/lib/auth-access";
 import { generatePlannerPlan } from "@/lib/planner";
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   const access = await verifyUserAccess(request);
 
   if (!access.ok) {
-    return NextResponse.json(access, { status: access.status });
+    return jsonNoStore(access, { status: access.status });
   }
 
   const body = await readJsonRecord(request);
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   const naverState = getNaverConfigState();
   const approvalSummary = summarizeApprovals(plan.stagedChanges, decisions);
 
-  return NextResponse.json({
+  return jsonNoStore({
     ok: true,
     dryRun: true,
     externalRequest: false,
