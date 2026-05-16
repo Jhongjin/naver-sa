@@ -11,6 +11,7 @@ import {
   FileClock,
   LogOut,
   Network,
+  RefreshCw,
   ShieldCheck,
   UsersRound
 } from "lucide-react";
@@ -108,6 +109,7 @@ function MyPageContent() {
   const [workspaceMemberships, setWorkspaceMemberships] = useState<WorkspaceMembership[]>([]);
   const [workspaceStatus, setWorkspaceStatus] = useState<"idle" | "loading" | "error">("loading");
   const [error, setError] = useState("");
+  const [refreshNonce, setRefreshNonce] = useState(0);
   const displayName =
     typeof user?.user_metadata?.display_name === "string" && user.user_metadata.display_name
       ? user.user_metadata.display_name
@@ -121,6 +123,9 @@ function MyPageContent() {
     let active = true;
 
     async function loadSession() {
+      setError("");
+      setHistoryStatus("loading");
+      setWorkspaceStatus("loading");
       const token = await getAccessToken();
 
       if (!token) {
@@ -166,6 +171,8 @@ function MyPageContent() {
 
       if (!response.ok || data.ok !== true) {
         setError("세션 정보를 불러오지 못했습니다.");
+        setHistoryStatus("error");
+        setWorkspaceStatus("error");
         return;
       }
 
@@ -197,7 +204,11 @@ function MyPageContent() {
     return () => {
       active = false;
     };
-  }, [getAccessToken]);
+  }, [getAccessToken, refreshNonce]);
+
+  function refreshMyPage() {
+    setRefreshNonce((current) => current + 1);
+  }
 
   async function handleSignOut() {
     await signOut();
@@ -265,6 +276,10 @@ function MyPageContent() {
           <Link className="icon-button primary" href="/workspace">
             워크스페이스 열기
           </Link>
+          <button className="icon-button subtle" type="button" onClick={refreshMyPage}>
+            <RefreshCw size={17} />
+            새로고침
+          </button>
           <button className="icon-button subtle" type="button" onClick={handleSignOut}>
             <LogOut size={17} />
             로그아웃
@@ -296,6 +311,10 @@ function MyPageContent() {
             <DatabaseZap size={20} />
             <strong>워크스페이스 멤버십을 불러오지 못했습니다</strong>
             <span>최근 SQL 적용 상태나 Supabase readiness를 확인해 주세요.</span>
+            <button className="icon-button subtle compact" type="button" onClick={refreshMyPage}>
+              <RefreshCw size={17} />
+              다시 시도
+            </button>
           </div>
         ) : null}
         {workspaceStatus === "idle" && workspaceMemberships.length === 0 ? (
@@ -364,6 +383,10 @@ function MyPageContent() {
             <DatabaseZap size={20} />
             <strong>저장 이력을 불러오지 못했습니다</strong>
             <span>잠시 후 새로고침하거나 Supabase readiness를 확인해 주세요.</span>
+            <button className="icon-button subtle compact" type="button" onClick={refreshMyPage}>
+              <RefreshCw size={17} />
+              다시 시도
+            </button>
           </div>
         ) : null}
         {historyStatus === "idle" && historyRuns.length === 0 ? (
