@@ -125,9 +125,9 @@ Positioning difference:
 
 Current MVP implementation status:
 
-- Implemented: setup planner, keyword/search-query expansion/classification, ad group draft, bid/budget guardrails, approval queue, CSV/Markdown export, dry-run optimization recommendations, Naver execution payload preview, protected test execution route, Naver API readiness layer, Shopping Search product-group scan, Supabase planning/audit schema.
-- Partial: real performance sync and live bidding automation.
-- Planned: Naver account sync, performance-based bidding recommendations, authenticated audit UI, PDF/share-link reports, execution audit persistence.
+- Implemented: membership auth, admin user management, setup planner, keyword/search-query expansion/classification, ad group draft, bid/budget guardrails, approval queue, CSV/Excel/Markdown/PDF-ready report exports, dry-run optimization recommendations, Naver execution payload preview, protected test execution route, Naver API readiness layer, admin read-only Naver campaign check, Shopping Search product-group scan, Supabase planning/audit/execution history schema, searchable saved history browser, execution draft detail with payload inspection, and no-store protected API response policy.
+- Partial: real performance sync, live bidding automation, and multi-account role separation beyond the current workspace membership model.
+- Planned: scheduled Naver account sync, performance-based bidding recommendations, share-link reports, deeper execution audit analytics, and production live-mode approval workflow.
 
 ## UX Direction
 
