@@ -4853,7 +4853,7 @@ td span {
 }
 
 .admin-filter-panel {
-  grid-template-columns: minmax(280px, 1fr) auto;
+  grid-template-columns: minmax(280px, 1fr) auto auto;
   margin-top: 8px;
 }
 
@@ -5019,6 +5019,10 @@ td span {
 
 .admin-role-filter {
   grid-template-columns: repeat(3, minmax(72px, 1fr));
+}
+
+.admin-status-filter {
+  grid-template-columns: repeat(4, minmax(82px, 1fr));
 }
 
 .admin-message {

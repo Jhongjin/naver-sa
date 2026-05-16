@@ -77,6 +77,7 @@ type NaverReadinessCheckResponse = {
 
 type ActivityFilter = "all" | "ready" | "blocked" | "missingDraft";
 type ActivityLimit = 8 | 20;
+type UserStatusFilter = "all" | "unconfirmed" | "neverSignedIn" | "noWorkspace";
 
 const emptyActivitySummary: ActivityResponse["summary"] = {
   total: 0,
@@ -106,6 +107,7 @@ function AdminUsersContent() {
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "member">("all");
+  const [userStatusFilter, setUserStatusFilter] = useState<UserStatusFilter>("all");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
   const [activityLimit, setActivityLimit] = useState<ActivityLimit>(8);
   const summary = useMemo(
@@ -125,6 +127,11 @@ function AdminUsersContent() {
 
     return users.filter((user) => {
       const matchesRole = roleFilter === "all" || user.role === roleFilter;
+      const matchesStatus =
+        userStatusFilter === "all" ||
+        (userStatusFilter === "unconfirmed" && !user.emailConfirmed) ||
+        (userStatusFilter === "neverSignedIn" && !user.lastSignInAt) ||
+        (userStatusFilter === "noWorkspace" && user.workspaceCount === 0);
       const matchesQuery =
         !needle ||
         [user.email, user.displayName, user.companyName, user.role]
@@ -133,9 +140,9 @@ function AdminUsersContent() {
           .toLowerCase()
           .includes(needle);
 
-      return matchesRole && matchesQuery;
+      return matchesRole && matchesStatus && matchesQuery;
     });
-  }, [query, roleFilter, users]);
+  }, [query, roleFilter, userStatusFilter, users]);
   const filteredActivities = useMemo(() => {
     if (activityFilter === "ready") {
       return activities.filter((activity) => activity.executionDraft?.status === "ready");
@@ -501,6 +508,19 @@ function AdminUsersContent() {
             </button>
           ))}
         </div>
+        <div className="segmented-control admin-status-filter" aria-label="계정 상태 필터">
+          {(["all", "unconfirmed", "neverSignedIn", "noWorkspace"] as const).map((filter) => (
+            <button
+              aria-pressed={userStatusFilter === filter}
+              className={userStatusFilter === filter ? "active" : ""}
+              key={filter}
+              type="button"
+              onClick={() => setUserStatusFilter(filter)}
+            >
+              {userStatusFilterLabel(filter)}
+            </button>
+          ))}
+        </div>
       </section>
 
       {message ? <p className="auth-message error admin-message">{message}</p> : null}
@@ -604,6 +624,17 @@ function AdminUsersContent() {
 
 function roleFilterLabel(value: "all" | "admin" | "member") {
   return value === "all" ? "전체" : value === "admin" ? "관리자" : "멤버";
+}
+
+function userStatusFilterLabel(value: UserStatusFilter) {
+  const labels = {
+    all: "전체 상태",
+    unconfirmed: "메일 미확인",
+    neverSignedIn: "로그인 전",
+    noWorkspace: "WS 없음"
+  };
+
+  return labels[value];
 }
 
 function activityFilterLabel(value: ActivityFilter) {
