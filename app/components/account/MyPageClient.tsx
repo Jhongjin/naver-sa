@@ -15,6 +15,9 @@ type SessionSummary = {
   capabilities: {
     canReadAccountInventory: boolean;
     canSaveDraftHistory: boolean;
+    canCreateTestEntities: boolean;
+    canActivateLiveCampaigns: boolean;
+    canDeleteProductionData: boolean;
     canManageUsers: boolean;
   };
   guardrails: {
@@ -166,27 +169,21 @@ function MyPageContent() {
         <article>
           <ShieldCheck size={22} />
           <strong>권한</strong>
-          <span>{sessionSummary?.role === "admin" ? "관리자" : "멤버"}</span>
+          <span>{sessionSummary ? (sessionSummary.role === "admin" ? "관리자" : "멤버") : "확인 중"}</span>
         </article>
         <article>
           <BadgeCheck size={22} />
           <strong>허용 작업</strong>
           <span>
             {sessionSummary
-              ? [
-                  sessionSummary.capabilities.canReadAccountInventory ? "계정 스캔" : null,
-                  sessionSummary.capabilities.canSaveDraftHistory ? "이력 저장" : null,
-                  sessionSummary.capabilities.canManageUsers ? "회원관리" : null
-                ]
-                  .filter(Boolean)
-                  .join(", ")
+              ? capabilityLabels(sessionSummary.capabilities).join(", ") || "허용 작업 없음"
               : "확인 중"}
           </span>
         </article>
         <article>
           <Clock3 size={22} />
           <strong>안전 정책</strong>
-          <span>라이브 활성화와 삭제는 차단</span>
+          <span>{sessionSummary ? guardrailLabel(sessionSummary.guardrails) : "확인 중"}</span>
         </article>
       </section>
 
@@ -281,6 +278,26 @@ function MyPageContent() {
       </section>
     </main>
   );
+}
+
+function capabilityLabels(capabilities: SessionSummary["capabilities"]) {
+  return [
+    capabilities.canReadAccountInventory ? "계정 스캔" : null,
+    capabilities.canSaveDraftHistory ? "이력 저장" : null,
+    capabilities.canCreateTestEntities ? "테스트 생성" : null,
+    capabilities.canManageUsers ? "회원관리" : null
+  ].filter((label): label is string => Boolean(label));
+}
+
+function guardrailLabel(guardrails: SessionSummary["guardrails"]) {
+  const liveBlocked = guardrails.liveCampaignActivation === "blocked";
+  const deleteBlocked = guardrails.productionDeletion === "blocked";
+
+  if (liveBlocked && deleteBlocked) {
+    return "라이브 활성화와 삭제는 차단";
+  }
+
+  return `live ${guardrails.liveCampaignActivation} / delete ${guardrails.productionDeletion}`;
 }
 
 function productLabel(productType: "powerlink" | "shoppingSearch") {
