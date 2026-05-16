@@ -58,6 +58,7 @@ type HistoryResponse = {
 
 type ProductFilter = "all" | "powerlink" | "shoppingSearch";
 type DraftFilter = "all" | "ready" | "blocked" | "failed" | "executed" | "none";
+type DateFilter = "all" | "7" | "30";
 
 const numberFormatter = new Intl.NumberFormat("ko-KR");
 
@@ -78,6 +79,7 @@ function HistoryListContent() {
   const [query, setQuery] = useState("");
   const [productFilter, setProductFilter] = useState<ProductFilter>("all");
   const [draftFilter, setDraftFilter] = useState<DraftFilter>("all");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [nextOffset, setNextOffset] = useState<number | null>(null);
 
   const fetchHistory = useCallback(async (offset: number) => {
@@ -172,6 +174,7 @@ function HistoryListContent() {
       const matchesProduct = productFilter === "all" || run.productType === productFilter;
       const draftStatus = run.executionDraft?.status ?? "none";
       const matchesDraft = draftFilter === "all" || draftFilter === draftStatus;
+      const matchesDate = isWithinDateFilter(run.createdAt, dateFilter);
       const matchesQuery =
         !needle ||
         [
@@ -189,9 +192,9 @@ function HistoryListContent() {
           .toLowerCase()
           .includes(needle);
 
-      return matchesProduct && matchesDraft && matchesQuery;
+      return matchesProduct && matchesDraft && matchesDate && matchesQuery;
     });
-  }, [draftFilter, productFilter, query, runs]);
+  }, [dateFilter, draftFilter, productFilter, query, runs]);
 
   function downloadFilteredCsv() {
     if (filteredRuns.length === 0) {
@@ -349,6 +352,19 @@ function HistoryListContent() {
             </button>
           ))}
         </div>
+        <div className="segmented-control history-filter-control date-filter-control" aria-label="기간 필터">
+          {(["all", "7", "30"] as const).map((filter) => (
+            <button
+              aria-pressed={dateFilter === filter}
+              className={dateFilter === filter ? "active" : ""}
+              key={filter}
+              type="button"
+              onClick={() => setDateFilter(filter)}
+            >
+              {dateFilterLabel(filter)}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="account-panel history-browser-panel">
@@ -480,6 +496,33 @@ function draftFilterLabel(value: DraftFilter) {
   };
 
   return labels[value];
+}
+
+function dateFilterLabel(value: DateFilter) {
+  const labels = {
+    all: "전체",
+    "7": "7일",
+    "30": "30일"
+  };
+
+  return labels[value];
+}
+
+function isWithinDateFilter(value: string, filter: DateFilter) {
+  if (filter === "all") {
+    return true;
+  }
+
+  const date = new Date(value).getTime();
+
+  if (!Number.isFinite(date)) {
+    return false;
+  }
+
+  const days = Number(filter);
+  const threshold = Date.now() - days * 24 * 60 * 60 * 1000;
+
+  return date >= threshold;
 }
 
 function productLabel(productType: "powerlink" | "shoppingSearch") {

@@ -4091,7 +4091,7 @@ td span {
 }
 
 .history-browser-filter {
-  grid-template-columns: minmax(280px, 1fr) auto auto;
+  grid-template-columns: minmax(280px, 1fr) auto auto auto;
   margin-left: auto;
   margin-right: auto;
   max-width: 1160px;
@@ -4114,6 +4114,11 @@ td span {
 .draft-filter-control {
   grid-template-columns: repeat(3, minmax(68px, 1fr));
   min-width: 324px;
+}
+
+.date-filter-control {
+  grid-template-columns: repeat(3, minmax(58px, 1fr));
+  min-width: 190px;
 }
 
 .history-browser-panel {
@@ -5439,7 +5444,8 @@ td span {
   }
 
   .product-filter-control,
-  .draft-filter-control {
+  .draft-filter-control,
+  .date-filter-control {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     min-width: 0;
     width: 100%;
