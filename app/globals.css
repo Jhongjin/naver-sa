@@ -5076,6 +5076,12 @@ td span {
   gap: 12px;
 }
 
+.admin-user-identity {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
 .admin-user-row strong {
   align-items: center;
   color: #0f172a;
@@ -5086,6 +5092,21 @@ td span {
 
 .admin-user-row span {
   font-size: 13px;
+}
+
+.admin-user-inline-link {
+  align-items: center;
+  color: #0f766e;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 900;
+  gap: 5px;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.admin-user-inline-link:hover {
+  color: #0f3f3a;
 }
 
 .admin-activity-cell strong,

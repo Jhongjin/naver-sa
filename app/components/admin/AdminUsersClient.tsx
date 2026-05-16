@@ -552,12 +552,18 @@ function AdminUsersContent() {
           <article className={`admin-user-row ${user.isCurrentUser ? "current-user" : ""}`} key={user.id}>
             <div>
               <UserCog size={18} />
-              <div>
+              <div className="admin-user-identity">
                 <strong>
                   {user.displayName ?? user.email ?? "이메일 없음"}
                   {user.isCurrentUser ? <span className="current-user-badge">현재 계정</span> : null}
                 </strong>
                 <span>{user.email}</span>
+                {user.planningRunCount > 0 ? (
+                  <Link className="admin-user-inline-link" href={`/history?q=${encodeURIComponent(historySearchKey(user))}`}>
+                    <FileClock size={13} />
+                    이력 보기
+                  </Link>
+                ) : null}
               </div>
             </div>
             <span>
@@ -662,4 +668,8 @@ function roleSourceLabel(value: ManagedUser["roleSource"]) {
   };
 
   return labels[value];
+}
+
+function historySearchKey(user: ManagedUser) {
+  return user.email ?? user.displayName ?? user.id;
 }
