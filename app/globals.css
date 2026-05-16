@@ -5282,8 +5282,21 @@ td span {
   border-color: rgba(105, 209, 165, 0.26);
 }
 
+.rail-step-grid article.done::before {
+  background: rgba(105, 209, 165, 0.62);
+}
+
 .rail-step-grid article.attention {
   border-color: rgba(255, 176, 90, 0.28);
+}
+
+.rail-step-grid article.attention::before {
+  background: rgba(255, 176, 90, 0.58);
+}
+
+.rail-step-grid article.pending {
+  border-color: rgba(249, 244, 234, 0.08);
+  opacity: 0.76;
 }
 
 .rail-step-grid article > span {

@@ -1081,7 +1081,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 차단 제외 승인
               </button>
             </article>
-            <article className={executionConnectionApplied ? "done" : "attention"}>
+            <article className={executionConnectionApplied ? "done" : canScanAccount ? "attention" : "pending"}>
               <span>02</span>
               <strong>계정 스캔</strong>
               <p>
@@ -1105,7 +1105,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
               </button>
             </article>
-            <article className={stageValidated ? "done" : "attention"}>
+            <article className={stageValidated ? "done" : canValidateDraft ? "attention" : "pending"}>
               <span>03</span>
               <strong>초안 검증</strong>
               <p>
@@ -1123,7 +1123,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 {activeStageDraftState.status === "loading" ? "검증 중" : "초안 검증"}
               </button>
             </article>
-            <article className={activeSaveDraftState.status === "success" ? "done" : "pending"}>
+            <article className={activeSaveDraftState.status === "success" ? "done" : canSaveHistory ? "attention" : "pending"}>
               <span>04</span>
               <strong>이력 저장</strong>
               <p>
