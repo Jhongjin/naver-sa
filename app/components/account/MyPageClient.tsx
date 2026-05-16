@@ -81,6 +81,7 @@ type WorkspaceMembership = {
   createdAt: string;
   updatedAt: string;
   planningRunCount: number;
+  latestRunId: string | null;
   latestRunAt: string | null;
 };
 
@@ -325,6 +326,12 @@ function MyPageContent() {
                     <dd>{workspaceOwnerLabel(workspace.ownerUserId, user?.id, workspace.membershipSource)}</dd>
                   </div>
                 </dl>
+                {workspace.latestRunId ? (
+                  <Link className="workspace-membership-link" href={`/history/${workspace.latestRunId}`}>
+                    최근 이력 열기
+                    <ArrowRight size={14} />
+                  </Link>
+                ) : null}
               </article>
             ))}
           </div>

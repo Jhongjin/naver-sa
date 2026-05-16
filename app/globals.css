@@ -4087,7 +4087,7 @@ td span {
   border-radius: 16px;
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.82fr);
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.82fr) auto;
   padding: 16px;
 }
 
@@ -4143,6 +4143,21 @@ td span {
 
 .workspace-empty {
   min-height: 116px;
+}
+
+.workspace-membership-link {
+  align-items: center;
+  color: #0f766e;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 900;
+  gap: 4px;
+  justify-self: end;
+  text-decoration: none;
+}
+
+.workspace-membership-link:hover {
+  text-decoration: underline;
 }
 
 .history-detail-page {
@@ -5212,6 +5227,10 @@ td span {
 
   .workspace-membership-item dl {
     grid-template-columns: 1fr;
+  }
+
+  .workspace-membership-link {
+    justify-self: start;
   }
 
   .admin-activity-item dl {

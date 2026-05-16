@@ -21,6 +21,7 @@ type WorkspaceRow = {
 };
 
 type PlanningRunWorkspaceRow = {
+  id: string;
   workspace_id: string | null;
   created_at: string;
 };
@@ -53,10 +54,10 @@ export async function GET(request: Request) {
   const [legacyRunsByUserResult, legacyRunsByEmailResult] = await Promise.all([
     supabase
       .from("planning_runs")
-      .select("workspace_id, created_at")
+      .select("id, workspace_id, created_at")
       .eq("created_by_user_id", access.state.userId),
     access.state.email
-      ? supabase.from("planning_runs").select("workspace_id, created_at").eq("created_by", access.state.email)
+      ? supabase.from("planning_runs").select("id, workspace_id, created_at").eq("created_by", access.state.email)
       : { data: [], error: null }
   ]);
 
@@ -92,7 +93,7 @@ export async function GET(request: Request) {
       .from("workspaces")
       .select("id, name, mode, owner_user_id, created_at, updated_at")
       .in("id", workspaceIds),
-    supabase.from("planning_runs").select("workspace_id, created_at").in("workspace_id", workspaceIds)
+    supabase.from("planning_runs").select("id, workspace_id, created_at").in("workspace_id", workspaceIds)
   ]);
 
   if (workspacesResult.error || planningRunsResult.error) {
@@ -120,6 +121,7 @@ export async function GET(request: Request) {
       const legacySummary = legacyLatestRunByWorkspace.get(workspaceId);
       const runSummary = runSummaryByWorkspace.get(workspace.id) ?? {
         planningRunCount: 0,
+        latestRunId: null,
         latestRunAt: null
       };
       const membershipSource: WorkspaceMembershipSource = membership ? "membership" : "history";
@@ -136,6 +138,7 @@ export async function GET(request: Request) {
         createdAt: workspace.created_at,
         updatedAt: workspace.updated_at,
         planningRunCount: runSummary.planningRunCount,
+        latestRunId: runSummary.latestRunId,
         latestRunAt: runSummary.latestRunAt
       };
     })
@@ -155,7 +158,7 @@ export async function GET(request: Request) {
 }
 
 function summarizePlanningRuns(rows: PlanningRunWorkspaceRow[]) {
-  const summary = new Map<string, { planningRunCount: number; latestRunAt: string | null }>();
+  const summary = new Map<string, { planningRunCount: number; latestRunId: string | null; latestRunAt: string | null }>();
 
   for (const run of rows) {
     if (!run.workspace_id) {
@@ -164,12 +167,14 @@ function summarizePlanningRuns(rows: PlanningRunWorkspaceRow[]) {
 
     const current = summary.get(run.workspace_id) ?? {
       planningRunCount: 0,
+      latestRunId: null,
       latestRunAt: null
     };
     const isLatest = !current.latestRunAt || new Date(run.created_at).getTime() > new Date(current.latestRunAt).getTime();
 
     summary.set(run.workspace_id, {
       planningRunCount: current.planningRunCount + 1,
+      latestRunId: isLatest ? run.id : current.latestRunId,
       latestRunAt: isLatest ? run.created_at : current.latestRunAt
     });
   }
