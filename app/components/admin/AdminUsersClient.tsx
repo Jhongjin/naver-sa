@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MailCheck, RefreshCw, Search, ShieldCheck, UserCheck, UserCog, Users } from "lucide-react";
+import { FileClock, Network, RefreshCw, Search, ShieldCheck, UserCheck, UserCog, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
@@ -17,6 +17,10 @@ type ManagedUser = {
   lastSignInAt: string | null;
   displayName: string | null;
   companyName: string | null;
+  workspaceCount: number;
+  ownedWorkspaceCount: number;
+  planningRunCount: number;
+  latestPlanningRunAt: string | null;
 };
 
 type UsersResponse = {
@@ -45,7 +49,8 @@ function AdminUsersContent() {
       total: users.length,
       admins: users.filter((user) => user.role === "admin").length,
       members: users.filter((user) => user.role === "member").length,
-      confirmed: users.filter((user) => user.emailConfirmed).length
+      workspaceLinks: users.reduce((total, user) => total + user.workspaceCount, 0),
+      planningRuns: users.reduce((total, user) => total + user.planningRunCount, 0)
     }),
     [users]
   );
@@ -152,7 +157,7 @@ function AdminUsersContent() {
       <section className="account-hero">
         <p className="eyebrow">User Management</p>
         <h1>회원관리</h1>
-        <p>가입 계정, 최근 로그인, 관리자 권한을 한 화면에서 확인합니다.</p>
+        <p>가입 계정, 최근 로그인, 관리자 권한과 워크스페이스 연결 상태를 한 화면에서 확인합니다.</p>
       </section>
 
       <section className="account-panel admin-toolbar">
@@ -184,9 +189,14 @@ function AdminUsersContent() {
           <strong>{summary.members}명</strong>
         </article>
         <article>
-          <MailCheck size={18} />
-          <span>이메일 확인</span>
-          <strong>{summary.confirmed}명</strong>
+          <Network size={18} />
+          <span>워크스페이스 연결</span>
+          <strong>{summary.workspaceLinks}건</strong>
+        </article>
+        <article>
+          <FileClock size={18} />
+          <span>저장 이력</span>
+          <strong>{summary.planningRuns}건</strong>
         </article>
       </section>
 
@@ -222,6 +232,7 @@ function AdminUsersContent() {
           <span>계정</span>
           <span>회사</span>
           <span>상태</span>
+          <span>운영</span>
           <span>가입일</span>
           <span>마지막 로그인</span>
           <span>권한</span>
@@ -254,6 +265,15 @@ function AdminUsersContent() {
               <span className={`status-pill ${user.emailConfirmed ? "include" : "review"}`}>
                 {user.emailConfirmed ? "인증됨" : "메일 미확인"}
               </span>
+            </span>
+            <span className="admin-activity-cell">
+              <span className="mobile-label">운영</span>
+              <strong>{user.workspaceCount} WS</strong>
+              <small>
+                {user.planningRunCount} saved
+                {user.latestPlanningRunAt ? ` / ${formatDate(user.latestPlanningRunAt)}` : ""}
+              </small>
+              {user.ownedWorkspaceCount > 0 ? <small>owner {user.ownedWorkspaceCount}</small> : null}
             </span>
             <span>
               <span className="mobile-label">가입일</span>

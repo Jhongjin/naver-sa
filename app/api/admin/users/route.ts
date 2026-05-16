@@ -3,6 +3,19 @@ import type { User } from "@supabase/supabase-js";
 import { getConfiguredAdminEmails, getUserRole, verifyUserAccess, type AppUserRole } from "@/lib/auth-access";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
+type WorkspaceMemberActivityRow = {
+  workspace_id: string;
+  user_id: string;
+  role: "owner" | "admin" | "member" | "viewer";
+};
+
+type PlanningRunActivityRow = {
+  id: string;
+  created_by_user_id: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
 export async function GET(request: Request) {
   const access = await verifyUserAccess(request, { requireAdmin: true });
 
@@ -25,6 +38,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: sanitizeAdminError(error.message) }, { status: 502 });
   }
 
+  const activity = await getUserActivitySummary(admin, data.users);
+
+  if (!activity.ok) {
+    return NextResponse.json({ ok: false, error: activity.error }, { status: 502 });
+  }
+
   const users = data.users.map((user) => ({
     id: user.id,
     email: user.email ?? null,
@@ -35,7 +54,11 @@ export async function GET(request: Request) {
     createdAt: user.created_at,
     lastSignInAt: user.last_sign_in_at ?? null,
     displayName: stringMetadata(user.user_metadata?.display_name),
-    companyName: stringMetadata(user.user_metadata?.company_name)
+    companyName: stringMetadata(user.user_metadata?.company_name),
+    workspaceCount: activity.byUser.get(user.id)?.workspaceCount ?? 0,
+    ownedWorkspaceCount: activity.byUser.get(user.id)?.ownedWorkspaceCount ?? 0,
+    planningRunCount: activity.byUser.get(user.id)?.planningRunCount ?? 0,
+    latestPlanningRunAt: activity.byUser.get(user.id)?.latestPlanningRunAt ?? null
   }));
 
   return NextResponse.json({
@@ -156,6 +179,145 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
   } catch {
     return {};
   }
+}
+
+async function getUserActivitySummary(
+  admin: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  users: User[]
+): Promise<
+  | {
+      ok: true;
+      byUser: Map<
+        string,
+        {
+          workspaceCount: number;
+          ownedWorkspaceCount: number;
+          planningRunCount: number;
+          latestPlanningRunAt: string | null;
+        }
+      >;
+    }
+  | { ok: false; error: string }
+> {
+  const userIds = users.map((user) => user.id);
+  const emails = users.map((user) => user.email?.toLowerCase()).filter((email): email is string => Boolean(email));
+
+  const [membershipsResult, runsByUserResult, legacyRunsResult] = await Promise.all([
+    userIds.length > 0
+      ? admin.from("workspace_members").select("workspace_id, user_id, role").in("user_id", userIds)
+      : { data: [], error: null },
+    userIds.length > 0
+      ? admin.from("planning_runs").select("id, created_by_user_id, created_by, created_at").in("created_by_user_id", userIds)
+      : { data: [], error: null },
+    emails.length > 0
+      ? admin.from("planning_runs").select("id, created_by_user_id, created_by, created_at").in("created_by", emails)
+      : { data: [], error: null }
+  ]);
+
+  const lookupError = membershipsResult.error ?? runsByUserResult.error ?? legacyRunsResult.error;
+
+  if (lookupError) {
+    return {
+      ok: false,
+      error: sanitizeAdminError(lookupError.message)
+    };
+  }
+
+  const byUser = new Map<
+    string,
+    {
+      workspaceCount: number;
+      ownedWorkspaceCount: number;
+      planningRunCount: number;
+      latestPlanningRunAt: string | null;
+    }
+  >();
+  const seenWorkspacesByUser = new Map<string, Set<string>>();
+  const seenRunsByUser = new Map<string, Set<string>>();
+  const userIdsByEmail = new Map<string, string[]>();
+
+  for (const user of users) {
+    byUser.set(user.id, {
+      workspaceCount: 0,
+      ownedWorkspaceCount: 0,
+      planningRunCount: 0,
+      latestPlanningRunAt: null
+    });
+
+    const email = user.email?.toLowerCase();
+
+    if (email) {
+      userIdsByEmail.set(email, [...(userIdsByEmail.get(email) ?? []), user.id]);
+    }
+  }
+
+  for (const membership of (membershipsResult.data ?? []) as WorkspaceMemberActivityRow[]) {
+    const summary = byUser.get(membership.user_id);
+
+    if (!summary) {
+      continue;
+    }
+
+    const seenWorkspaces = seenWorkspacesByUser.get(membership.user_id) ?? new Set<string>();
+
+    if (!seenWorkspaces.has(membership.workspace_id)) {
+      seenWorkspaces.add(membership.workspace_id);
+      summary.workspaceCount += 1;
+    }
+
+    if (membership.role === "owner") {
+      summary.ownedWorkspaceCount += 1;
+    }
+
+    seenWorkspacesByUser.set(membership.user_id, seenWorkspaces);
+  }
+
+  for (const run of (runsByUserResult.data ?? []) as PlanningRunActivityRow[]) {
+    if (run.created_by_user_id) {
+      addRunActivity(byUser, seenRunsByUser, run.created_by_user_id, run);
+    }
+  }
+
+  for (const run of (legacyRunsResult.data ?? []) as PlanningRunActivityRow[]) {
+    const matchedUserIds = run.created_by ? userIdsByEmail.get(run.created_by.toLowerCase()) ?? [] : [];
+
+    for (const userId of matchedUserIds) {
+      addRunActivity(byUser, seenRunsByUser, userId, run);
+    }
+  }
+
+  return {
+    ok: true,
+    byUser
+  };
+}
+
+function addRunActivity(
+  byUser: Map<string, { workspaceCount: number; ownedWorkspaceCount: number; planningRunCount: number; latestPlanningRunAt: string | null }>,
+  seenRunsByUser: Map<string, Set<string>>,
+  userId: string,
+  run: PlanningRunActivityRow
+) {
+  const summary = byUser.get(userId);
+
+  if (!summary) {
+    return;
+  }
+
+  const seenRuns = seenRunsByUser.get(userId) ?? new Set<string>();
+
+  if (seenRuns.has(run.id)) {
+    return;
+  }
+
+  seenRuns.add(run.id);
+  summary.planningRunCount += 1;
+
+  if (!summary.latestPlanningRunAt || new Date(run.created_at).getTime() > new Date(summary.latestPlanningRunAt).getTime()) {
+    summary.latestPlanningRunAt = run.created_at;
+  }
+
+  seenRunsByUser.set(userId, seenRuns);
 }
 
 function stringMetadata(value: unknown): string | null {
