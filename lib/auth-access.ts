@@ -18,6 +18,7 @@ export type AuthAccessState = {
   role: AppUserRole;
   userId: string;
   email: string | null;
+  emailConfirmed: boolean;
   capabilities: AuthCapabilities;
   sessionTtlSeconds: number;
 };
@@ -95,6 +96,7 @@ export async function verifyUserAccess(
       role,
       userId: data.user.id,
       email: data.user.email ?? null,
+      emailConfirmed: Boolean(data.user.email_confirmed_at),
       capabilities: getAuthCapabilities(role),
       sessionTtlSeconds: getTokenTtlSeconds(token)
     }

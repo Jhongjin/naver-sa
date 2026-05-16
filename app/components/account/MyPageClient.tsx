@@ -10,6 +10,7 @@ import {
   DatabaseZap,
   FileClock,
   LogOut,
+  MailCheck,
   Network,
   RefreshCw,
   ShieldCheck,
@@ -26,6 +27,7 @@ type SessionSummary = {
   role: "member" | "admin";
   mode: "supabase-auth";
   email: string | null;
+  emailConfirmed: boolean;
   userId: string;
   capabilities: {
     canReadAccountInventory: boolean;
@@ -252,6 +254,11 @@ function MyPageContent() {
           <ShieldCheck size={22} />
           <strong>권한</strong>
           <span>{sessionSummary ? (sessionSummary.role === "admin" ? "관리자" : "멤버") : "확인 중"}</span>
+        </article>
+        <article>
+          <MailCheck size={22} />
+          <strong>이메일</strong>
+          <span>{sessionSummary ? (sessionSummary.emailConfirmed ? "확인됨" : "확인 필요") : "확인 중"}</span>
         </article>
         <article>
           <BadgeCheck size={22} />
