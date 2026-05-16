@@ -64,6 +64,14 @@ type ActivityResponse = {
   };
 };
 
+const emptyActivitySummary: ActivityResponse["summary"] = {
+  total: 0,
+  approved: 0,
+  held: 0,
+  blocked: 0,
+  readyDrafts: 0
+};
+
 export function AdminUsersClient() {
   return (
     <AuthGate>
@@ -76,6 +84,7 @@ function AdminUsersContent() {
   const { getAccessToken } = useAuth();
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [activities, setActivities] = useState<AdminActivityItem[]>([]);
+  const [activitySummary, setActivitySummary] = useState<ActivityResponse["summary"]>(emptyActivitySummary);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [activityStatus, setActivityStatus] = useState<"idle" | "loading" | "error">("loading");
   const [message, setMessage] = useState("");
@@ -147,8 +156,10 @@ function AdminUsersContent() {
     setUsers(data.users);
     if (activityResponse.ok && activityData.ok === true) {
       setActivities(activityData.activities);
+      setActivitySummary(activityData.summary);
       setActivityStatus("idle");
     } else {
+      setActivitySummary(emptyActivitySummary);
       setActivityStatus("error");
     }
     setStatus("idle");
@@ -268,6 +279,24 @@ function AdminUsersContent() {
             <Activity size={17} />
             전체 이력
           </Link>
+        </div>
+        <div className="admin-activity-summary" aria-label="최근 저장 활동 요약">
+          <article>
+            <span>최근 이력</span>
+            <strong>{activitySummary.total}건</strong>
+          </article>
+          <article>
+            <span>승인</span>
+            <strong>{activitySummary.approved}건</strong>
+          </article>
+          <article>
+            <span>Ready draft</span>
+            <strong>{activitySummary.readyDrafts}건</strong>
+          </article>
+          <article>
+            <span>차단</span>
+            <strong>{activitySummary.blocked}건</strong>
+          </article>
         </div>
         {activityStatus === "loading" ? (
           <div className="admin-activity-empty">
