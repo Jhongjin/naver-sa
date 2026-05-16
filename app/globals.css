@@ -2417,6 +2417,79 @@ td span {
   z-index: 1;
 }
 
+.hero-motion-layer {
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+}
+
+.hero-motion-dot {
+  background: var(--landing-green);
+  border-radius: 999px;
+  box-shadow:
+    rgba(116, 217, 170, 0.5) 0 0 18px,
+    rgba(116, 217, 170, 0.16) 0 0 44px;
+  height: var(--dot-size);
+  left: 0;
+  opacity: 0.58;
+  position: absolute;
+  top: 0;
+  width: var(--dot-size);
+  will-change: opacity, transform;
+}
+
+.hero-motion-dot::after {
+  background: currentColor;
+  border-radius: inherit;
+  content: "";
+  inset: -11px;
+  opacity: 0.16;
+  position: absolute;
+}
+
+.hero-motion-dot.green {
+  color: var(--landing-green);
+}
+
+.hero-motion-dot.orange {
+  background: var(--landing-accent);
+  box-shadow:
+    rgba(255, 91, 57, 0.56) 0 0 18px,
+    rgba(255, 91, 57, 0.17) 0 0 46px;
+  color: var(--landing-accent);
+}
+
+.hero-motion-vector {
+  animation: hero-vector-sweep 4.8s linear infinite;
+  background: linear-gradient(90deg, transparent, rgba(116, 217, 170, 0.6), rgba(255, 91, 57, 0.48), transparent);
+  height: 1px;
+  left: 8%;
+  opacity: 0;
+  position: absolute;
+  top: 34%;
+  transform: rotate(-18deg) translateX(-36vw);
+  width: min(36vw, 420px);
+  will-change: opacity, transform;
+}
+
+.hero-motion-vector.two {
+  --vector-rotate: 16deg;
+  animation-delay: -1.8s;
+  left: 54%;
+  top: 26%;
+  transform: rotate(16deg) translateX(-30vw);
+}
+
+.hero-motion-vector.three {
+  --vector-rotate: -9deg;
+  animation-delay: -3.2s;
+  left: 46%;
+  top: 72%;
+  transform: rotate(-9deg) translateX(-32vw);
+}
+
 .landing-hero-shell {
   align-items: center;
   display: grid;
@@ -2612,7 +2685,8 @@ td span {
 }
 
 .orbit-ring,
-.orbit-node {
+.orbit-node,
+.orbit-comet {
   border-radius: 999px;
   position: absolute;
 }
@@ -2650,8 +2724,60 @@ td span {
   width: 8px;
 }
 
-.orbit-node {
+.orbit-comet {
+  animation: orbit-comet-spin 3.6s linear infinite;
+  inset: 2%;
+  z-index: 2;
+}
+
+.orbit-comet::before {
+  background: var(--landing-accent);
+  border-radius: 999px;
+  box-shadow:
+    rgba(255, 91, 57, 0.7) 0 0 18px,
+    rgba(255, 91, 57, 0.32) 0 0 42px;
+  content: "";
+  height: 10px;
+  left: 50%;
+  position: absolute;
+  top: -5px;
+  width: 10px;
+}
+
+.orbit-comet::after {
+  background: linear-gradient(90deg, rgba(255, 91, 57, 0.5), transparent);
+  content: "";
+  height: 1px;
+  left: calc(50% - 82px);
+  opacity: 0.58;
+  position: absolute;
+  top: 0;
+  transform: rotate(8deg);
+  width: 82px;
+}
+
+.orbit-comet.beta {
+  animation-direction: reverse;
   animation-duration: 4.8s;
+  inset: 24%;
+}
+
+.orbit-comet.beta::before {
+  background: var(--landing-green);
+  box-shadow:
+    rgba(116, 217, 170, 0.72) 0 0 18px,
+    rgba(116, 217, 170, 0.3) 0 0 42px;
+  height: 8px;
+  top: -4px;
+  width: 8px;
+}
+
+.orbit-comet.beta::after {
+  background: linear-gradient(90deg, rgba(116, 217, 170, 0.52), transparent);
+}
+
+.orbit-node {
+  animation-duration: 2.9s;
   animation-iteration-count: infinite;
   animation-timing-function: var(--motion-ease);
   background: var(--landing-green);
@@ -2709,14 +2835,14 @@ td span {
 }
 
 .payload-window span::after {
-  animation: payload-dot-pulse 2.8s var(--motion-ease) infinite;
+  animation: payload-dot-pulse 1.8s var(--motion-ease) infinite;
   background: rgba(116, 217, 170, 0.8);
   border-radius: 999px;
   box-shadow: rgba(116, 217, 170, 0.45) 0 0 14px;
   content: "";
-  height: 6px;
+  height: 8px;
   transform-origin: center;
-  width: 6px;
+  width: 8px;
 }
 
 .payload-window span:nth-child(2)::after {
@@ -3066,6 +3192,29 @@ td span {
   }
 }
 
+@keyframes hero-vector-sweep {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--vector-rotate, -18deg)) translateX(-36vw);
+  }
+
+  18%,
+  72% {
+    opacity: 0.72;
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(var(--vector-rotate, -18deg)) translateX(112vw);
+  }
+}
+
+@keyframes orbit-comet-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @keyframes orbit-node-one {
   0%,
   100% {
@@ -3073,11 +3222,11 @@ td span {
   }
 
   45% {
-    transform: translate3d(28px, -16px, 0) scale(1.32);
+    transform: translate3d(44px, -28px, 0) scale(1.52);
   }
 
   72% {
-    transform: translate3d(12px, 18px, 0) scale(0.92);
+    transform: translate3d(18px, 34px, 0) scale(0.88);
   }
 }
 
@@ -3088,11 +3237,11 @@ td span {
   }
 
   42% {
-    transform: translate3d(-24px, 22px, 0) scale(0.9);
+    transform: translate3d(-42px, 34px, 0) scale(0.9);
   }
 
   76% {
-    transform: translate3d(-8px, -18px, 0) scale(1.36);
+    transform: translate3d(-18px, -34px, 0) scale(1.52);
   }
 }
 
@@ -3103,11 +3252,11 @@ td span {
   }
 
   38% {
-    transform: translate3d(18px, 20px, 0) scale(1.24);
+    transform: translate3d(34px, 42px, 0) scale(1.42);
   }
 
   70% {
-    transform: translate3d(-20px, -10px, 0) scale(0.94);
+    transform: translate3d(-38px, -18px, 0) scale(0.9);
   }
 }
 

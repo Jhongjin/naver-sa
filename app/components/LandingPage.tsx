@@ -12,6 +12,7 @@ import {
   Users
 } from "lucide-react";
 import { DigitalHeroCanvas } from "@/app/components/DigitalHeroCanvas";
+import { HeroMotionLayer } from "@/app/components/HeroMotionLayer";
 
 const flowSteps = [
   {
@@ -128,6 +129,7 @@ export function LandingPage() {
       <section className="landing-hero">
         <DigitalHeroCanvas />
         <div className="hero-noise" aria-hidden="true" />
+        <HeroMotionLayer />
         <div className="landing-hero-shell">
           <div className="landing-hero-content">
             <p className="eyebrow">SA autopilot / membership control</p>
@@ -174,6 +176,8 @@ export function LandingPage() {
                 <span className="orbit-ring outer" />
                 <span className="orbit-ring middle" />
                 <span className="orbit-ring inner" />
+                <span className="orbit-comet alpha" />
+                <span className="orbit-comet beta" />
                 <span className="orbit-node one" />
                 <span className="orbit-node two" />
                 <span className="orbit-node three" />
