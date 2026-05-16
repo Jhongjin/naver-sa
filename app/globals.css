@@ -2033,6 +2033,18 @@ td span {
   gap: 6px;
 }
 
+.snapshot-action-stack {
+  align-items: stretch;
+  display: grid;
+  gap: 6px;
+  justify-items: stretch;
+  min-width: 104px;
+}
+
+.snapshot-action-stack > .icon-button {
+  justify-content: center;
+}
+
 .channel-action-group .icon-button {
   min-height: 34px;
   padding: 7px 9px;
@@ -5371,6 +5383,10 @@ td span {
   .channel-item {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .snapshot-action-stack {
+    width: 100%;
   }
 
   .channel-action-group {

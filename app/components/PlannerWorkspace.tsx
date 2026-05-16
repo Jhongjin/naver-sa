@@ -1933,6 +1933,20 @@ function AccountSnapshotNotice({
   onApplyCampaign: (campaignId: string) => void;
   onApplyProductGroup: (productGroupId: string, businessChannelId: string) => void;
 }) {
+  const [copiedValue, setCopiedValue] = useState<string | null>(null);
+
+  async function copySnapshotId(value: string) {
+    if (!value || typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(value);
+    setCopiedValue(value);
+    window.setTimeout(() => {
+      setCopiedValue((current) => (current === value ? null : current));
+    }, 1500);
+  }
+
   if (state.status === "idle") {
     return null;
   }
@@ -2010,23 +2024,28 @@ function AccountSnapshotNotice({
                 </span>
                 <em>{channel.site ?? channel.mobileSite ?? "URL 미확인"}</em>
               </div>
-              <button className="icon-button subtle" type="button" onClick={() => onApplyChannel(channel.id)}>
-                {isShoppingSearch ? "적용" : "둘 다"}
-              </button>
-              {!isShoppingSearch ? (
-                <div className="channel-action-group">
-                  <button className="icon-button subtle" type="button" onClick={() => onApplyChannel(channel.id, "pc")}>
-                    PC
-                  </button>
-                  <button
-                    className="icon-button subtle"
-                    type="button"
-                    onClick={() => onApplyChannel(channel.id, "mobile")}
-                  >
-                    모바일
-                  </button>
-                </div>
-              ) : null}
+              <div className="snapshot-action-stack">
+                <button className="icon-button subtle" type="button" onClick={() => onApplyChannel(channel.id)}>
+                  {isShoppingSearch ? "적용" : "둘 다"}
+                </button>
+                <button className="icon-button subtle" type="button" onClick={() => copySnapshotId(channel.id)}>
+                  {copiedValue === channel.id ? "복사됨" : "ID 복사"}
+                </button>
+                {!isShoppingSearch ? (
+                  <div className="channel-action-group">
+                    <button className="icon-button subtle" type="button" onClick={() => onApplyChannel(channel.id, "pc")}>
+                      PC
+                    </button>
+                    <button
+                      className="icon-button subtle"
+                      type="button"
+                      onClick={() => onApplyChannel(channel.id, "mobile")}
+                    >
+                      모바일
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           ))
         )}
@@ -2042,13 +2061,20 @@ function AccountSnapshotNotice({
                 <span>{campaign.userLock ? "OFF/잠금 상태" : "상태 확인 필요"}</span>
                 <em>{campaign.nccCampaignId}</em>
               </div>
-              <button
-                className="icon-button subtle"
-                type="button"
-                onClick={() => onApplyCampaign(campaign.nccCampaignId ?? "")}
-              >
-                캠페인 적용
-              </button>
+              <div className="snapshot-action-stack">
+                <button
+                  className="icon-button subtle"
+                  type="button"
+                  onClick={() => onApplyCampaign(campaign.nccCampaignId ?? "")}
+                >
+                  캠페인 적용
+                </button>
+                {campaign.nccCampaignId ? (
+                  <button className="icon-button subtle" type="button" onClick={() => copySnapshotId(campaign.nccCampaignId ?? "")}>
+                    {copiedValue === campaign.nccCampaignId ? "복사됨" : "ID 복사"}
+                  </button>
+                ) : null}
+              </div>
             </div>
           ))
         )}
@@ -2069,13 +2095,18 @@ function AccountSnapshotNotice({
                     상품 {productGroup.productCount ?? "-"}개 / 연결 광고그룹 {productGroup.numberOfAdgroups}개
                   </em>
                 </div>
-                <button
-                  className="icon-button subtle"
-                  type="button"
-                  onClick={() => onApplyProductGroup(productGroup.id, productGroup.businessChannelId)}
-                >
-                  적용
-                </button>
+                <div className="snapshot-action-stack">
+                  <button
+                    className="icon-button subtle"
+                    type="button"
+                    onClick={() => onApplyProductGroup(productGroup.id, productGroup.businessChannelId)}
+                  >
+                    적용
+                  </button>
+                  <button className="icon-button subtle" type="button" onClick={() => copySnapshotId(productGroup.id)}>
+                    {copiedValue === productGroup.id ? "복사됨" : "ID 복사"}
+                  </button>
+                </div>
               </div>
             ))
           )}
