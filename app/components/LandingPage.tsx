@@ -12,7 +12,6 @@ import {
   Users
 } from "lucide-react";
 import { DigitalHeroCanvas } from "@/app/components/DigitalHeroCanvas";
-import { HeroMeteorLayer } from "@/app/components/HeroMeteorLayer";
 import { HeroMotionLayer } from "@/app/components/HeroMotionLayer";
 import { HeroRadarOrbit } from "@/app/components/HeroRadarOrbit";
 
@@ -132,7 +131,6 @@ export function LandingPage() {
         <DigitalHeroCanvas />
         <div className="hero-noise" aria-hidden="true" />
         <HeroMotionLayer />
-        <HeroMeteorLayer />
         <div className="landing-hero-shell">
           <div className="landing-hero-content">
             <p className="eyebrow">SA autopilot / membership control</p>
