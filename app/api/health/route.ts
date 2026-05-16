@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { jsonNoStore } from "@/lib/http";
 
 const requiredVariables = [
   "NEXT_PUBLIC_APP_URL",
@@ -33,7 +33,7 @@ export function GET() {
         `${variable.name} is optional after an app_metadata admin exists; configure it only if no admin can access member management.`
     );
 
-  return NextResponse.json({
+  return jsonNoStore({
     ok: variables.every((variable) => variable.present),
     variables,
     recommended,

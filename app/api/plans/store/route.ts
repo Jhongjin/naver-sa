@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { generatePlannerPlan } from "@/lib/planner";
 import { createNaverExecutionDraft } from "@/lib/execution-draft";
+import { jsonNoStore } from "@/lib/http";
 import {
   coerceDecisionNotes,
   coerceDecisions,
@@ -16,13 +16,13 @@ export async function POST(request: Request) {
   const authResult = verifyAdminSecret(request);
 
   if (!authResult.ok) {
-    return NextResponse.json(authResult, { status: authResult.status });
+    return jsonNoStore(authResult, { status: authResult.status });
   }
 
   const state = getSupabaseAdminState();
 
   if (!state.ready) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         ok: false,
         error: "Supabase admin environment is not configured.",
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   const executionDraft = createNaverExecutionDraft(plan, decisions, executionContext);
   const result = await savePlanningRun({ plan, decisions, decisionNotes, executionDraft, createdBy, createdByUserId });
 
-  return NextResponse.json(result, { status: result.ok ? 201 : 500 });
+  return jsonNoStore(result, { status: result.ok ? 201 : 500 });
 }
 
 function verifyAdminSecret(request: Request): { ok: true } | { ok: false; status: number; error: string } {

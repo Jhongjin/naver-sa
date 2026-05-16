@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { getNaverConfigState, listNaverCampaigns, type NaverConfigState } from "@/lib/naver-search-ad";
 import { verifyUserAccess } from "@/lib/auth-access";
+import { jsonNoStore } from "@/lib/http";
 
 export async function GET(request: Request) {
   const state = getNaverConfigState();
@@ -8,17 +8,17 @@ export async function GET(request: Request) {
   const shouldCheckCampaigns = url.searchParams.get("check") === "campaigns";
 
   if (!shouldCheckCampaigns) {
-    return NextResponse.json(toPublicReadiness(state));
+    return jsonNoStore(toPublicReadiness(state));
   }
 
   const access = await verifyUserAccess(request, { requireAdmin: true });
 
   if (!access.ok) {
-    return NextResponse.json(access, { status: access.status });
+    return jsonNoStore(access, { status: access.status });
   }
 
   if (!state.ready) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         ok: false,
         state,
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
   const result = await listNaverCampaigns(1);
 
-  return NextResponse.json({
+  return jsonNoStore({
     ok: result.ok,
     state,
     authAccess: access.state,

@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { verifyUserAccess } from "@/lib/auth-access";
+import { jsonNoStore } from "@/lib/http";
 import { getSupabaseAdminClient, getSupabaseAdminState, type SupabaseUrlState } from "@/lib/supabase-admin";
 
 const requiredTables = [
@@ -77,7 +77,7 @@ export async function GET(request: Request) {
     const access = await verifyUserAccess(request, { requireAdmin: true });
 
     if (!access.ok) {
-      return NextResponse.json(
+      return jsonNoStore(
         {
           ok: false,
           error: access.error,
@@ -91,10 +91,10 @@ export async function GET(request: Request) {
   const report = await collectSupabaseReadiness();
 
   if (wantsDetail) {
-    return NextResponse.json(report);
+    return jsonNoStore(report);
   }
 
-  return NextResponse.json(toPublicReadiness(report));
+  return jsonNoStore(toPublicReadiness(report));
 }
 
 async function collectSupabaseReadiness(): Promise<SupabaseReadinessReport> {
