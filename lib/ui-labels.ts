@@ -21,3 +21,14 @@ export function draftStatusClass(status: ExecutionDraftStatus | undefined) {
 
   return "neutral";
 }
+
+export function draftStatusLabel(status: ExecutionDraftStatus) {
+  const labels = {
+    blocked: "차단",
+    ready: "준비",
+    executed: "실행",
+    failed: "실패"
+  };
+
+  return labels[status];
+}

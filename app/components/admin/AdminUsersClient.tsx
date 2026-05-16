@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
 import { formatKoreanDate, formatKoreanDateTime } from "@/lib/formatters";
-import { productTypeLabel } from "@/lib/ui-labels";
+import { draftStatusLabel, productTypeLabel } from "@/lib/ui-labels";
 
 type ManagedUser = {
   id: string;
@@ -662,15 +662,4 @@ function roleSourceLabel(value: ManagedUser["roleSource"]) {
   };
 
   return labels[value];
-}
-
-function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {
-  const labels = {
-    blocked: "차단",
-    ready: "준비",
-    executed: "실행",
-    failed: "실패"
-  };
-
-  return labels[status];
 }

@@ -17,7 +17,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
 import { formatKoreanDateTime, formatKoreanNumber, formatWon } from "@/lib/formatters";
-import { plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
+import { draftStatusClass, draftStatusLabel, plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
 
 type HistoryDetailResponse = {
   ok: true;
@@ -343,7 +343,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
               {latestDraft ? (
                 <>
                   <div className="history-draft-meta">
-                    <span className={`status-pill ${latestDraft.status === "ready" ? "include" : "review"}`}>
+                    <span className={`status-pill ${draftStatusClass(latestDraft.status)}`}>
                       {draftStatusLabel(latestDraft.status)}
                     </span>
                     <code>{latestDraft.draftKey}</code>
@@ -588,17 +588,6 @@ function ownerContextLabel(ownerUserId: string | null, creatorUserId: string | n
   }
 
   return ownerUserId === creatorUserId ? "소유자 저장" : "멤버 저장";
-}
-
-function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {
-  const labels = {
-    blocked: "차단",
-    ready: "준비",
-    executed: "실행",
-    failed: "실패"
-  };
-
-  return labels[status];
 }
 
 function decisionLabel(decision: string) {

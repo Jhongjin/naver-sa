@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
 import { formatCompactWon, formatKoreanDateTime, formatKoreanNumber } from "@/lib/formatters";
-import { draftStatusClass, plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
+import { draftStatusClass, draftStatusLabel, plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
 
 type HistoryRun = {
   id: string;
@@ -692,17 +692,6 @@ function isWithinDateFilter(value: string, filter: DateFilter) {
   const threshold = Date.now() - days * 24 * 60 * 60 * 1000;
 
   return date >= threshold;
-}
-
-function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {
-  const labels = {
-    blocked: "차단",
-    ready: "Ready",
-    executed: "실행",
-    failed: "실패"
-  };
-
-  return labels[status];
 }
 
 function escapeCsvCell(value: string) {

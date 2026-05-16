@@ -19,7 +19,7 @@ import { useEffect, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
 import { formatKoreanDateTime } from "@/lib/formatters";
-import { draftStatusClass, plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
+import { draftStatusClass, draftStatusLabel, plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
 
 type SessionSummary = {
   ok: true;
@@ -511,15 +511,4 @@ function workspaceOwnerLabel(ownerUserId: string | null, currentUserId: string |
   }
 
   return source === "history" ? "이력 기반" : "멤버";
-}
-
-function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {
-  const labels = {
-    blocked: "차단",
-    ready: "준비",
-    executed: "실행",
-    failed: "실패"
-  };
-
-  return labels[status];
 }
