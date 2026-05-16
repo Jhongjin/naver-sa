@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getUserRole, verifyUserAccess, type AppUserRole } from "@/lib/auth-access";
+import type { User } from "@supabase/supabase-js";
+import { getConfiguredAdminEmails, getUserRole, verifyUserAccess, type AppUserRole } from "@/lib/auth-access";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 export async function GET(request: Request) {
@@ -28,6 +29,9 @@ export async function GET(request: Request) {
     id: user.id,
     email: user.email ?? null,
     role: getUserRole(user),
+    roleSource: getRoleSource(user),
+    emailConfirmed: Boolean(user.email_confirmed_at),
+    isCurrentUser: user.id === access.user.id,
     createdAt: user.created_at,
     lastSignInAt: user.last_sign_in_at ?? null,
     displayName: stringMetadata(user.user_metadata?.display_name),
@@ -66,6 +70,42 @@ export async function PATCH(request: Request) {
 
   if (getError || !existing.user) {
     return NextResponse.json({ ok: false, error: "User was not found." }, { status: 404 });
+  }
+
+  if (existing.user.id === access.user.id && role === "member") {
+    return NextResponse.json({ ok: false, error: "You cannot demote your own administrator account." }, { status: 400 });
+  }
+
+  if (role === "member" && getRoleSource(existing.user) === "adminEmails") {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "This user is still listed in ADMIN_EMAILS. Remove that environment allowlist entry before demotion."
+      },
+      { status: 400 }
+    );
+  }
+
+  if (role === "member" && getUserRole(existing.user) === "admin") {
+    const { data: usersData, error: usersError } = await admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 100
+    });
+
+    if (usersError) {
+      return NextResponse.json({ ok: false, error: sanitizeAdminError(usersError.message) }, { status: 502 });
+    }
+
+    const remainingAdminCount = usersData.users.filter((user) => {
+      return user.id !== existing.user.id && getUserRole(user) === "admin";
+    }).length;
+
+    if (remainingAdminCount === 0) {
+      return NextResponse.json(
+        { ok: false, error: "At least one administrator account must remain active." },
+        { status: 400 }
+      );
+    }
   }
 
   const nextMetadata = {
@@ -120,6 +160,20 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
 
 function stringMetadata(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function getRoleSource(user: User): "appMetadata" | "adminEmails" | "default" {
+  if (user.app_metadata?.role === "admin") {
+    return "appMetadata";
+  }
+
+  const email = user.email?.toLowerCase();
+
+  if (email && getConfiguredAdminEmails().has(email)) {
+    return "adminEmails";
+  }
+
+  return "default";
 }
 
 function sanitizeAdminError(message: string): string {

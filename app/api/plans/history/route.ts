@@ -1,0 +1,208 @@
+import { NextResponse } from "next/server";
+import { verifyUserAccess } from "@/lib/auth-access";
+import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
+
+type PlanningRunRow = {
+  id: string;
+  brand_name: string;
+  site_url: string;
+  vertical: string;
+  monthly_budget: number;
+  max_bid: number;
+  mode: "agency" | "advertiser";
+  product_type: "powerlink" | "shoppingSearch";
+  forecast: {
+    expectedClicks?: number;
+    avgCpc?: number;
+    adGroupCount?: number;
+  } | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+type ExecutionDraftRow = {
+  id: string;
+  planning_run_id: string;
+  draft_id: string;
+  draft_key: string;
+  approved_change_count: number;
+  status: "blocked" | "ready" | "executed" | "failed";
+  validation: {
+    blockerCount?: number;
+    warningCount?: number;
+  } | null;
+  created_at: string;
+};
+
+type StagedChangeRow = {
+  planning_run_id: string;
+  decision: string;
+  risk: string;
+};
+
+export async function GET(request: Request) {
+  const access = await verifyUserAccess(request);
+
+  if (!access.ok) {
+    return NextResponse.json(access, { status: access.status });
+  }
+
+  const state = getSupabaseAdminState();
+
+  if (!state.ready) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Supabase admin environment is not configured."
+      },
+      { status: 503 }
+    );
+  }
+
+  const supabase = getSupabaseAdminClient();
+
+  if (!supabase) {
+    return NextResponse.json({ ok: false, error: "Supabase admin client is unavailable." }, { status: 503 });
+  }
+
+  const url = new URL(request.url);
+  const limit = clampLimit(url.searchParams.get("limit"));
+  let runsQuery = supabase
+    .from("planning_runs")
+    .select(
+      "id, brand_name, site_url, vertical, monthly_budget, max_bid, mode, product_type, forecast, created_by, created_at"
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (access.state.role !== "admin") {
+    const creators = [access.state.email, access.state.userId].filter((value): value is string => Boolean(value));
+    runsQuery = runsQuery.in("created_by", creators.length > 0 ? creators : [""]);
+  }
+
+  const { data: runs, error: runsError } = await runsQuery;
+
+  if (runsError) {
+    return NextResponse.json({ ok: false, error: sanitizeError(runsError.message) }, { status: 502 });
+  }
+
+  const planningRuns = (runs ?? []) as PlanningRunRow[];
+  const runIds = planningRuns.map((run) => run.id);
+
+  if (runIds.length === 0) {
+    return NextResponse.json({
+      ok: true,
+      runs: [],
+      total: 0,
+      scope: access.state.role === "admin" ? "all" : "mine"
+    });
+  }
+
+  const [draftsResult, changesResult] = await Promise.all([
+    supabase
+      .from("execution_drafts")
+      .select("id, planning_run_id, draft_id, draft_key, approved_change_count, status, validation, created_at")
+      .in("planning_run_id", runIds)
+      .order("created_at", { ascending: false }),
+    supabase.from("staged_changes").select("planning_run_id, decision, risk").in("planning_run_id", runIds)
+  ]);
+
+  if (draftsResult.error || changesResult.error) {
+    return NextResponse.json(
+      { ok: false, error: sanitizeError(draftsResult.error?.message ?? changesResult.error?.message) },
+      { status: 502 }
+    );
+  }
+
+  const latestDraftByRun = new Map<string, ExecutionDraftRow>();
+
+  for (const draft of (draftsResult.data ?? []) as ExecutionDraftRow[]) {
+    if (!latestDraftByRun.has(draft.planning_run_id)) {
+      latestDraftByRun.set(draft.planning_run_id, draft);
+    }
+  }
+
+  const approvalSummaryByRun = new Map<string, { approved: number; held: number; pending: number; blocked: number }>();
+
+  for (const change of (changesResult.data ?? []) as StagedChangeRow[]) {
+    const summary = approvalSummaryByRun.get(change.planning_run_id) ?? {
+      approved: 0,
+      held: 0,
+      pending: 0,
+      blocked: 0
+    };
+
+    if (change.decision === "approved") {
+      summary.approved += 1;
+    } else if (change.decision === "held") {
+      summary.held += 1;
+    } else {
+      summary.pending += 1;
+    }
+
+    if (change.risk === "blocked") {
+      summary.blocked += 1;
+    }
+
+    approvalSummaryByRun.set(change.planning_run_id, summary);
+  }
+
+  const history = planningRuns.map((run) => {
+    const draft = latestDraftByRun.get(run.id);
+
+    return {
+      id: run.id,
+      brandName: run.brand_name,
+      siteUrl: run.site_url,
+      vertical: run.vertical,
+      mode: run.mode,
+      productType: run.product_type,
+      monthlyBudget: run.monthly_budget,
+      maxBid: run.max_bid,
+      expectedClicks: run.forecast?.expectedClicks ?? null,
+      avgCpc: run.forecast?.avgCpc ?? null,
+      adGroupCount: run.forecast?.adGroupCount ?? null,
+      createdBy: run.created_by,
+      createdAt: run.created_at,
+      approvalSummary: approvalSummaryByRun.get(run.id) ?? {
+        approved: 0,
+        held: 0,
+        pending: 0,
+        blocked: 0
+      },
+      executionDraft: draft
+        ? {
+            id: draft.id,
+            draftId: draft.draft_id,
+            draftKey: draft.draft_key,
+            status: draft.status,
+            approvedChangeCount: draft.approved_change_count,
+            blockerCount: draft.validation?.blockerCount ?? 0,
+            warningCount: draft.validation?.warningCount ?? 0,
+            createdAt: draft.created_at
+          }
+        : null
+    };
+  });
+
+  return NextResponse.json({
+    ok: true,
+    runs: history,
+    total: history.length,
+    scope: access.state.role === "admin" ? "all" : "mine"
+  });
+}
+
+function clampLimit(value: string | null): number {
+  const parsed = Number(value ?? 8);
+
+  if (!Number.isFinite(parsed)) {
+    return 8;
+  }
+
+  return Math.min(Math.max(Math.trunc(parsed), 1), 25);
+}
+
+function sanitizeError(message: string | undefined): string {
+  return message?.slice(0, 220) ?? "History lookup failed.";
+}

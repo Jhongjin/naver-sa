@@ -3737,6 +3737,7 @@ td span {
 .account-hero,
 .account-grid,
 .account-panel,
+.admin-summary-grid,
 .admin-table-panel {
   margin-left: auto;
   margin-right: auto;
@@ -3790,8 +3791,156 @@ td span {
   padding: 28px;
 }
 
+.history-panel {
+  align-items: stretch;
+  grid-template-columns: 1fr;
+}
+
+.history-panel-heading {
+  align-items: start;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+}
+
+.history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.history-item {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(420px, 1fr);
+  padding: 16px;
+}
+
+.history-item strong,
+.history-item p {
+  display: block;
+}
+
+.history-item strong {
+  color: #0f172a;
+  margin-top: 8px;
+}
+
+.history-item p {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+
+.history-item dl {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+}
+
+.history-item dl div {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.history-item dt,
+.history-item dd {
+  margin: 0;
+}
+
+.history-item dt {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.history-item dd {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 900;
+  margin-top: 6px;
+}
+
+.history-empty {
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  padding: 22px;
+}
+
+.history-empty strong,
+.history-empty span {
+  display: block;
+}
+
+.history-empty strong {
+  color: #0f172a;
+  margin-top: 8px;
+}
+
+.history-empty span {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+
 .admin-toolbar {
   grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.admin-summary-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0 28px 12px;
+}
+
+.admin-summary-grid article {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  display: grid;
+  gap: 7px 12px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  padding: 18px;
+}
+
+.admin-summary-grid svg {
+  color: #0f766e;
+  grid-row: 1 / span 2;
+}
+
+.admin-summary-grid span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-summary-grid strong {
+  color: #0f172a;
+  font-size: 22px;
+}
+
+.admin-filter-panel {
+  grid-template-columns: minmax(280px, 1fr) auto;
+  margin-top: 8px;
+}
+
+.admin-filter-panel .search-field {
+  min-height: 42px;
+}
+
+.admin-role-filter {
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
 }
 
 .admin-message {
@@ -3811,7 +3960,7 @@ td span {
   align-items: center;
   display: grid;
   gap: 16px;
-  grid-template-columns: 1.4fr 0.8fr 0.7fr 0.8fr 0.9fr;
+  grid-template-columns: 1.35fr 0.8fr 0.72fr 0.72fr 0.82fr 1.05fr;
   padding: 16px 20px;
 }
 
@@ -3828,6 +3977,12 @@ td span {
   color: #475569;
 }
 
+.admin-user-row.current-user {
+  background:
+    linear-gradient(90deg, rgba(15, 118, 110, 0.07), transparent 42%),
+    #ffffff;
+}
+
 .admin-user-row > div:first-child {
   align-items: center;
   display: flex;
@@ -3835,21 +3990,47 @@ td span {
 }
 
 .admin-user-row strong {
+  align-items: center;
   color: #0f172a;
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .admin-user-row span {
   font-size: 13px;
 }
 
+.current-user-badge {
+  background: #ccfbf1;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 999px;
+  color: #0f766e;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 4px 7px;
+}
+
 .role-actions {
   background: #f8fafc;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 999px;
+  border-radius: 14px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  grid-template-columns: minmax(92px, auto) 1fr 1fr;
   padding: 4px;
+}
+
+.role-source {
+  align-items: center;
+  color: #64748b;
+  display: inline-flex;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 900;
+  justify-content: center;
+  padding: 0 8px;
+  text-transform: uppercase;
 }
 
 .role-actions button {
@@ -3878,6 +4059,21 @@ td span {
 
 .admin-empty {
   padding: 24px;
+}
+
+.admin-empty strong,
+.admin-empty span {
+  display: block;
+}
+
+.admin-empty strong {
+  color: #0f172a;
+}
+
+.admin-empty span {
+  color: #64748b;
+  font-size: 13px;
+  margin-top: 6px;
 }
 
 .execution-rail {
@@ -4072,8 +4268,14 @@ td span {
   .page-plan-grid,
   .guardrail-band,
   .account-grid,
+  .admin-summary-grid,
   .rail-step-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-filter-panel,
+  .history-item {
+    grid-template-columns: 1fr;
   }
 
   .flow-lanes article,
@@ -4107,6 +4309,10 @@ td span {
   .admin-user-row {
     align-items: start;
     grid-template-columns: 1fr;
+  }
+
+  .role-actions {
+    max-width: 360px;
   }
 
   .mobile-label {
@@ -4232,6 +4438,7 @@ td span {
   .account-hero,
   .account-grid,
   .account-panel,
+  .admin-summary-grid,
   .admin-table-panel {
     padding-left: 16px;
     padding-right: 16px;
@@ -4245,8 +4452,28 @@ td span {
   .page-plan-grid,
   .guardrail-band,
   .account-grid,
+  .admin-summary-grid,
   .rail-step-grid {
     grid-template-columns: 1fr;
+  }
+
+  .history-panel-heading {
+    flex-direction: column;
+  }
+
+  .history-item dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .role-actions {
+    grid-template-columns: 1fr 1fr;
+    max-width: none;
+  }
+
+  .role-source {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    padding: 6px 8px;
   }
 
   .auth-page,
