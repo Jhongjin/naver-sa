@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { verifyUserAccess } from "@/lib/auth-access";
 import { getSupabaseAdminClient, getSupabaseAdminState, type SupabaseUrlState } from "@/lib/supabase-admin";
 
 const requiredTables = [
@@ -21,42 +22,98 @@ const requiredColumns = [
   }
 ];
 
-export async function GET() {
+type TableReadiness = {
+  name: string;
+  present: boolean;
+  rowCount: number | null;
+  error: string | null;
+  errorCode: string | null;
+};
+
+type ColumnReadiness = {
+  table: string;
+  column: string;
+  present: boolean;
+  error: string | null;
+  errorCode: string | null;
+};
+
+type SupabaseReadinessReport = {
+  ok: boolean;
+  state: ReturnType<typeof getSupabaseAdminState>;
+  connectivity: Awaited<ReturnType<typeof checkSupabaseConnectivity>>;
+  auth: Awaited<ReturnType<typeof checkAuthAdminReadiness>>;
+  tables: TableReadiness[];
+  columns: ColumnReadiness[];
+  note?: string;
+};
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const wantsDetail = ["1", "true", "full"].includes(url.searchParams.get("detail")?.toLowerCase() ?? "");
+
+  if (wantsDetail) {
+    const access = await verifyUserAccess(request, { requireAdmin: true });
+
+    if (!access.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: access.error,
+          code: access.code
+        },
+        { status: access.status }
+      );
+    }
+  }
+
+  const report = await collectSupabaseReadiness();
+
+  if (wantsDetail) {
+    return NextResponse.json(report);
+  }
+
+  return NextResponse.json(toPublicReadiness(report));
+}
+
+async function collectSupabaseReadiness(): Promise<SupabaseReadinessReport> {
   const state = getSupabaseAdminState();
   const connectivity = await checkSupabaseConnectivity(state.url);
 
   if (!state.ready) {
-    return NextResponse.json({
+    return {
       ok: false,
       state,
       connectivity,
       auth: {
         checked: false,
         adminApiReachable: false,
-        error: "Skipped because the Supabase admin environment is not configured."
+        error: "Skipped because the Supabase admin environment is not configured.",
+        userCountSample: null
       },
       tables: [],
       columns: [],
       note: "Supabase admin environment is not configured."
-    });
+    };
   }
 
   const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
-    return NextResponse.json({
+    return {
       ok: false,
       state,
       connectivity,
       auth: {
         checked: false,
         adminApiReachable: false,
-        error: "Skipped because the Supabase admin client is unavailable."
+        error: "Skipped because the Supabase admin client is unavailable.",
+        userCountSample: null
       },
       tables: [],
       columns: [],
       note: "Supabase admin client is unavailable."
-    });
+    };
   }
 
   const tables = connectivity.reachable
@@ -101,7 +158,7 @@ export async function GET() {
         userCountSample: null
       };
 
-  return NextResponse.json({
+  return {
     ok:
       connectivity.reachable &&
       auth.adminApiReachable &&
@@ -112,7 +169,39 @@ export async function GET() {
     auth,
     tables,
     columns
-  });
+  };
+}
+
+function toPublicReadiness(report: SupabaseReadinessReport) {
+  const presentTableCount = report.tables.filter((table) => table.present).length;
+  const presentColumnCount = report.columns.filter((column) => column.present).length;
+
+  return {
+    ok: report.ok,
+    ready: report.ok,
+    environment: {
+      configured: report.state.ready,
+      urlPresent: report.state.url.present,
+      urlValid: report.state.url.valid
+    },
+    connectivity: {
+      checked: report.connectivity.checked,
+      reachable: report.connectivity.reachable,
+      status: report.connectivity.status
+    },
+    auth: {
+      checked: report.auth.checked,
+      adminApiReachable: report.auth.adminApiReachable
+    },
+    schema: {
+      requiredTableCount: requiredTables.length,
+      presentTableCount,
+      requiredColumnCount: requiredColumns.length,
+      presentColumnCount
+    },
+    detail: "Append ?detail=1 with an admin session to inspect table-level diagnostics.",
+    note: report.note ?? null
+  };
 }
 
 async function checkAuthAdminReadiness(supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>) {
