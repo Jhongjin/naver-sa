@@ -340,6 +340,14 @@ async function saveExecutionDraft(input: {
       payloadError = compatibilityResult.error;
     }
 
+    if (payloadError && isPayloadIdempotencyConstraintError(payloadError)) {
+      const alreadySaved = await areExecutionPayloadsAlreadySaved(supabase, payloadRows);
+
+      if (alreadySaved) {
+        payloadError = null;
+      }
+    }
+
     if (payloadError) {
       return {
         ok: false,
@@ -376,5 +384,29 @@ function sanitizeSupabaseError(message: string | undefined): string {
 
 function isPayloadIdempotencyConstraintError(error: { code?: string; message?: string; details?: string | null }): boolean {
   const text = [error.message, error.details].filter(Boolean).join(" ");
-  return error.code === "23505" && text.includes("execution_payloads_idempotency_key_key");
+  return error.code === "23505" && text.includes("execution_payloads") && text.includes("idempotency");
+}
+
+async function areExecutionPayloadsAlreadySaved(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  payloadRows: Array<{ idempotency_key: string }>
+): Promise<boolean> {
+  const idempotencyKeys = [...new Set(payloadRows.map((row) => row.idempotency_key).filter(Boolean))];
+
+  if (idempotencyKeys.length === 0) {
+    return true;
+  }
+
+  const { data, error } = await supabase
+    .from("execution_payloads")
+    .select("idempotency_key")
+    .in("idempotency_key", idempotencyKeys);
+
+  if (error) {
+    return false;
+  }
+
+  const savedKeys = new Set((data ?? []).map((row) => row.idempotency_key));
+
+  return idempotencyKeys.every((key) => savedKeys.has(key));
 }
