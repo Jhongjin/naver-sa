@@ -38,26 +38,24 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
   const decisionNotes = input.decisionNotes ?? {};
   const warnings: string[] = [];
   const ownershipSupport = await getWorkspaceOwnershipSupport(supabase);
-  const workspaceInsert = {
+  const workspaceResult = await getOrCreateWorkspace({
+    supabase,
     name: `${plan.input.brandName} Workspace`,
     mode: plan.input.mode,
-    ...(ownershipSupport.workspaceOwner && input.createdByUserId ? { owner_user_id: input.createdByUserId } : {})
-  };
-  const { data: workspace, error: workspaceError } = await supabase
-    .from("workspaces")
-    .insert(workspaceInsert)
-    .select("id")
-    .single();
+    ownerUserId: input.createdByUserId,
+    ownershipSupport
+  });
 
-  if (workspaceError || !workspace) {
+  if (!workspaceResult.ok) {
     return {
       ok: false,
-      error: sanitizeSupabaseError(workspaceError?.message)
+      error: workspaceResult.error
     };
   }
 
+  const workspaceId = workspaceResult.workspaceId;
   const planningRunInsert = {
-    workspace_id: workspace.id,
+    workspace_id: workspaceId,
     brand_name: plan.input.brandName,
     site_url: plan.input.siteUrl,
     vertical: plan.input.vertical,
@@ -151,7 +149,7 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
 
     return [
       {
-        workspace_id: workspace.id,
+        workspace_id: workspaceId,
         planning_run_id: planningRunId,
         event_type: `staged_change.${decision}`,
         actor: input.createdBy,
@@ -180,7 +178,7 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
     supabase.from("planning_ad_groups").insert(adGroupRows),
     supabase.from("staged_changes").insert(stagedChangeRows),
     supabase.from("audit_events").insert({
-      workspace_id: workspace.id,
+      workspace_id: workspaceId,
       planning_run_id: planningRunId,
       event_type: "planning_run.created",
       actor: input.createdBy,
@@ -215,7 +213,7 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
   if (ownershipSupport.workspaceMembers && input.createdByUserId) {
     const { error: memberError } = await supabase.from("workspace_members").upsert(
       {
-        workspace_id: workspace.id,
+        workspace_id: workspaceId,
         user_id: input.createdByUserId,
         email: input.createdBy ?? null,
         role: "owner"
@@ -233,7 +231,7 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
   if (input.executionDraft) {
     const draftResult = await saveExecutionDraft({
       supabase,
-      workspaceId: workspace.id as string,
+      workspaceId,
       planningRunId,
       draft: input.executionDraft,
       actor: input.createdBy
@@ -265,6 +263,67 @@ async function getWorkspaceOwnershipSupport(supabase: NonNullable<ReturnType<typ
     workspaceOwner: !workspaceResult.error,
     planningRunUser: !runResult.error,
     workspaceMembers: !memberResult.error
+  };
+}
+
+async function getOrCreateWorkspace(input: {
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>;
+  name: string;
+  mode: PlannerPlan["input"]["mode"];
+  ownerUserId?: string;
+  ownershipSupport: Awaited<ReturnType<typeof getWorkspaceOwnershipSupport>>;
+}): Promise<{ ok: true; workspaceId: string } | { ok: false; error: string }> {
+  const { supabase, name, mode, ownerUserId, ownershipSupport } = input;
+
+  if (ownershipSupport.workspaceOwner && ownerUserId) {
+    const { data: existingWorkspace, error: lookupError } = await supabase
+      .from("workspaces")
+      .select("id")
+      .eq("owner_user_id", ownerUserId)
+      .eq("name", name)
+      .eq("mode", mode)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lookupError) {
+      return {
+        ok: false,
+        error: sanitizeSupabaseError(lookupError.message)
+      };
+    }
+
+    if (existingWorkspace?.id) {
+      await supabase.from("workspaces").update({ updated_at: new Date().toISOString() }).eq("id", existingWorkspace.id);
+
+      return {
+        ok: true,
+        workspaceId: existingWorkspace.id as string
+      };
+    }
+  }
+
+  const workspaceInsert = {
+    name,
+    mode,
+    ...(ownershipSupport.workspaceOwner && ownerUserId ? { owner_user_id: ownerUserId } : {})
+  };
+  const { data: workspace, error: workspaceError } = await supabase
+    .from("workspaces")
+    .insert(workspaceInsert)
+    .select("id")
+    .single();
+
+  if (workspaceError || !workspace) {
+    return {
+      ok: false,
+      error: sanitizeSupabaseError(workspaceError?.message)
+    };
+  }
+
+  return {
+    ok: true,
+    workspaceId: workspace.id as string
   };
 }
 
