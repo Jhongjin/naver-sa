@@ -75,6 +75,8 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const limit = clampLimit(url.searchParams.get("limit"));
   const offset = clampOffset(url.searchParams.get("offset"));
+  const productType = coerceProductType(url.searchParams.get("productType"));
+  const createdSince = coerceCreatedSince(url.searchParams.get("days"));
   const readableWorkspaceIds =
     access.state.role === "admin" ? [] : await getReadableWorkspaceIds(supabase, access.state.userId);
   let runsQuery = supabase
@@ -85,6 +87,14 @@ export async function GET(request: Request) {
     )
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
+
+  if (productType) {
+    runsQuery = runsQuery.eq("product_type", productType);
+  }
+
+  if (createdSince) {
+    runsQuery = runsQuery.gte("created_at", createdSince);
+  }
 
   if (access.state.role !== "admin") {
     const creators = [access.state.email, access.state.userId].filter((value): value is string => Boolean(value));
@@ -260,6 +270,20 @@ function clampOffset(value: string | null): number {
   }
 
   return Math.min(Math.max(Math.trunc(parsed), 0), 1000);
+}
+
+function coerceProductType(value: string | null): "powerlink" | "shoppingSearch" | null {
+  return value === "powerlink" || value === "shoppingSearch" ? value : null;
+}
+
+function coerceCreatedSince(value: string | null): string | null {
+  const parsed = Number(value);
+
+  if (parsed !== 7 && parsed !== 30) {
+    return null;
+  }
+
+  return new Date(Date.now() - parsed * 24 * 60 * 60 * 1000).toISOString();
 }
 
 async function getReadableWorkspaceIds(

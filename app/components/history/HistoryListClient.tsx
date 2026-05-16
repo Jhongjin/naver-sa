@@ -90,7 +90,20 @@ function HistoryListContent() {
       throw new Error("로그인이 필요합니다.");
     }
 
-    const response = await fetch(`/api/plans/history?limit=25&offset=${offset}`, {
+    const params = new URLSearchParams({
+      limit: "25",
+      offset: String(offset)
+    });
+
+    if (productFilter !== "all") {
+      params.set("productType", productFilter);
+    }
+
+    if (dateFilter !== "all") {
+      params.set("days", dateFilter);
+    }
+
+    const response = await fetch(`/api/plans/history?${params.toString()}`, {
       headers: {
         authorization: `Bearer ${token}`
       }
@@ -102,7 +115,7 @@ function HistoryListContent() {
     }
 
     return data;
-  }, [getAccessToken]);
+  }, [dateFilter, getAccessToken, productFilter]);
 
   const loadHistory = useCallback(async () => {
     setStatus("loading");
