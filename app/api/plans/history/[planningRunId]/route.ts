@@ -188,7 +188,7 @@ export async function GET(request: Request, context: RouteContext) {
       .order("created_at", { ascending: false }),
     supabase
       .from("audit_events")
-      .select("id, event_type, actor, entity_type, entity_id, reason, created_at")
+      .select("id, event_type, actor, entity_type, entity_id, before_value, after_value, reason, created_at")
       .eq("planning_run_id", planningRun.id)
       .order("created_at", { ascending: false })
       .limit(20)

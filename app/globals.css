@@ -4148,7 +4148,8 @@ td span {
 .history-payload-list,
 .history-change-list,
 .history-keyword-list,
-.history-audit-list {
+.history-audit-list,
+.history-approval-timeline {
   display: grid;
   gap: 10px;
 }
@@ -4156,7 +4157,8 @@ td span {
 .history-payload-item,
 .history-change-list div,
 .history-keyword-list div,
-.history-audit-list div {
+.history-audit-list div,
+.history-approval-timeline div {
   background: #f8fafc;
   border: 1px solid rgba(15, 23, 42, 0.07);
   border-radius: 14px;
@@ -4173,7 +4175,8 @@ td span {
 .history-payload-item strong,
 .history-change-list strong,
 .history-keyword-list strong,
-.history-audit-list strong {
+.history-audit-list strong,
+.history-approval-timeline > strong {
   color: #0f172a;
   display: block;
 }
@@ -4185,6 +4188,9 @@ td span {
 .history-keyword-list em,
 .history-audit-list span,
 .history-audit-list em,
+.history-audit-list small,
+.history-approval-timeline p,
+.history-approval-timeline em,
 .history-payload-list > span,
 .history-audit-list > span {
   color: #64748b;
@@ -4193,6 +4199,21 @@ td span {
   font-style: normal;
   line-height: 1.45;
   margin: 4px 0 0;
+}
+
+.history-approval-timeline {
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  margin-top: 4px;
+  padding-top: 14px;
+}
+
+.history-approval-timeline div {
+  display: grid;
+  gap: 5px;
+}
+
+.history-approval-timeline .status-pill {
+  justify-self: start;
 }
 
 .history-detail-empty-inline {

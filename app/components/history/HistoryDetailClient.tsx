@@ -67,6 +67,7 @@ type HistoryDetailResponse = {
     risk: string;
     details: string;
     decision: string;
+    decidedAt: string | null;
   }>;
   executionDrafts: Array<{
     id: string;
@@ -108,6 +109,8 @@ type HistoryDetailResponse = {
     actor: string | null;
     entity_type: string | null;
     entity_id: string | null;
+    before_value: Record<string, unknown> | null;
+    after_value: Record<string, unknown> | null;
     reason: string | null;
     created_at: string;
   }>;
@@ -171,6 +174,10 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
   }, [getAccessToken, planningRunId]);
 
   const latestDraft = data?.executionDrafts[0];
+  const approvalAuditEvents = useMemo(
+    () => data?.auditEvents.filter((event) => event.event_type.startsWith("staged_change.")) ?? [],
+    [data]
+  );
   const summaryItems = useMemo(() => {
     if (!data) {
       return [];
@@ -353,10 +360,30 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                         {decisionLabel(change.decision)}
                       </span>
                       <strong>{change.target}</strong>
-                      <p>{change.entityType} / {change.action} / {riskLabel(change.risk)}</p>
+                      <p>
+                        {change.entityType} / {change.action} / {riskLabel(change.risk)}
+                        {change.decidedAt ? ` / ${formatDateTime(change.decidedAt)}` : ""}
+                      </p>
                     </div>
                   ))}
                 </div>
+                {approvalAuditEvents.length > 0 ? (
+                  <div className="history-approval-timeline" aria-label="승인 결정 로그">
+                    <strong>승인 결정 로그</strong>
+                    {approvalAuditEvents.slice(0, 6).map((event) => (
+                      <div key={event.id}>
+                        <span className={`status-pill ${decisionClass(String(event.after_value?.decision ?? ""))}`}>
+                          {approvalEventLabel(event.event_type)}
+                        </span>
+                        <p>{getAuditTextValue(event.after_value, "target") ?? event.entity_id ?? "대상 미기록"}</p>
+                        <em>
+                          {formatDateTime(event.created_at)}
+                          {event.actor ? ` / ${event.actor}` : ""}
+                        </em>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </article>
             </aside>
           </section>
@@ -400,6 +427,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                       <strong>{event.event_type}</strong>
                       <span>{formatDateTime(event.created_at)}</span>
                       <em>{event.reason ?? event.actor ?? "사유 미기록"}</em>
+                      {event.actor ? <small>{event.actor}</small> : null}
                     </div>
                   ))
                 )}
@@ -467,6 +495,24 @@ function decisionLabel(decision: string) {
 
 function decisionClass(decision: string) {
   return decision === "approved" || decision === "executed" ? "include" : decision === "held" ? "review" : "neutral";
+}
+
+function approvalEventLabel(eventType: string) {
+  if (eventType.endsWith(".approved")) {
+    return "승인";
+  }
+
+  if (eventType.endsWith(".held")) {
+    return "보류";
+  }
+
+  return "기록";
+}
+
+function getAuditTextValue(value: Record<string, unknown> | null, key: string) {
+  const field = value?.[key];
+
+  return typeof field === "string" && field.trim() ? field : null;
 }
 
 function riskLabel(risk: string) {
