@@ -18,7 +18,7 @@ import {
   Sparkles,
   WandSparkles
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/app/components/auth/AuthProvider";
 import {
   createPlannerCsv,
@@ -248,6 +248,9 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [stageDraftState, setStageDraftState] = useState<StageDraftState>({ status: "idle" });
   const [saveDraftState, setSaveDraftState] = useState<SaveDraftState>({ status: "idle" });
   const [accountSnapshotState, setAccountSnapshotState] = useState<AccountSnapshotState>({ status: "idle" });
+  const stageRequestInFlight = useRef(false);
+  const saveRequestInFlight = useRef(false);
+  const accountScanInFlight = useRef(false);
   const [approvalFilter, setApprovalFilter] = useState<ApprovalFilter>("all");
   const [approvalSearch, setApprovalSearch] = useState("");
   const [campaignId, setCampaignId] = useState(initialDraftSnapshot?.executionContext.campaignId ?? "");
@@ -400,12 +403,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       : approvalSummary.approved === 0
         ? {
             type: "button" as const,
-            label: "차단 제외 승인",
-            helper: "검토 가능한 변경을 먼저 승인 큐에서 확정합니다.",
-            icon: "approval" as const,
-            disabled: false,
-            onClick: approveAllChanges
-          }
+          label: "차단 제외 승인",
+          helper: "검토 가능한 변경을 먼저 승인 큐에서 확정합니다.",
+          icon: "approval" as const,
+          disabled: false,
+          action: "approve" as const
+        }
         : !executionConnectionApplied
           ? {
               type: "button" as const,
@@ -413,7 +416,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               helper: isShoppingSearch ? "쇼핑몰 채널과 상품그룹 후보를 불러옵니다." : "사이트 비즈채널 후보를 불러옵니다.",
               icon: "scan" as const,
               disabled: !canScanAccount || accountSnapshotState.status === "loading",
-              onClick: loadAccountSnapshot
+              action: "scan" as const
             }
           : !stageValidated
             ? {
@@ -422,7 +425,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 helper: "승인과 연결 정보를 서버에서 다시 계산합니다.",
                 icon: "validate" as const,
                 disabled: !canValidateDraft || activeStageDraftState.status === "loading",
-                onClick: stageExecutionDraft
+                action: "validate" as const
               }
             : {
                 type: "button" as const,
@@ -430,7 +433,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 helper: "검증된 초안과 승인 상태를 Supabase 이력으로 남깁니다.",
                 icon: "save" as const,
                 disabled: !canSaveHistory || activeSaveDraftState.status === "loading",
-                onClick: saveDraftHistory
+                action: "save" as const
               };
   const setupSteps = [
     {
@@ -727,6 +730,11 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   }
 
   async function stageExecutionDraft() {
+    if (stageRequestInFlight.current || !canValidateDraft) {
+      return;
+    }
+
+    stageRequestInFlight.current = true;
     setStageDraftState({ status: "loading", fingerprint: executionFingerprint, message: "초안 검증 중" });
 
     try {
@@ -757,10 +765,17 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         fingerprint: executionFingerprint,
         message: error instanceof Error ? error.message : "초안 검증에 실패했습니다."
       });
+    } finally {
+      stageRequestInFlight.current = false;
     }
   }
 
   async function saveDraftHistory() {
+    if (saveRequestInFlight.current || !canSaveHistory) {
+      return;
+    }
+
+    saveRequestInFlight.current = true;
     setSaveDraftState({ status: "loading", fingerprint: saveFingerprint });
 
     try {
@@ -808,10 +823,17 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         fingerprint: saveFingerprint,
         message: error instanceof Error ? error.message : "저장에 실패했습니다."
       });
+    } finally {
+      saveRequestInFlight.current = false;
     }
   }
 
   async function loadAccountSnapshot() {
+    if (accountScanInFlight.current || !canScanAccount) {
+      return;
+    }
+
+    accountScanInFlight.current = true;
     setAccountSnapshotState({ status: "loading" });
 
     try {
@@ -830,6 +852,8 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         status: "error",
         message: error instanceof Error ? error.message : "계정 스캔에 실패했습니다."
       });
+    } finally {
+      accountScanInFlight.current = false;
     }
   }
 
@@ -1008,7 +1032,15 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                   className="icon-button primary compact"
                   disabled={railPrimaryAction.disabled}
                   type="button"
-                  onClick={railPrimaryAction.onClick}
+                  onClick={
+                    railPrimaryAction.action === "approve"
+                      ? approveAllChanges
+                      : railPrimaryAction.action === "scan"
+                        ? loadAccountSnapshot
+                        : railPrimaryAction.action === "validate"
+                          ? stageExecutionDraft
+                          : saveDraftHistory
+                  }
                 >
                   <RailActionIcon type={railPrimaryAction.icon} />
                   {railPrimaryAction.label}
