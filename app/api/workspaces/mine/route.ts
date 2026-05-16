@@ -9,6 +9,8 @@ type WorkspaceMemberRow = {
   created_at: string;
 };
 
+type WorkspaceMembershipSource = "membership" | "history";
+
 type WorkspaceRow = {
   id: string;
   name: string;
@@ -48,12 +50,34 @@ export async function GET(request: Request) {
     .eq("user_id", access.state.userId)
     .order("created_at", { ascending: false });
 
-  if (membershipsError) {
-    return NextResponse.json({ ok: false, error: sanitizeError(membershipsError.message) }, { status: 502 });
+  const [legacyRunsByUserResult, legacyRunsByEmailResult] = await Promise.all([
+    supabase
+      .from("planning_runs")
+      .select("workspace_id, created_at")
+      .eq("created_by_user_id", access.state.userId),
+    access.state.email
+      ? supabase.from("planning_runs").select("workspace_id, created_at").eq("created_by", access.state.email)
+      : { data: [], error: null }
+  ]);
+
+  const lookupError = membershipsError ?? legacyRunsByUserResult.error ?? legacyRunsByEmailResult.error;
+
+  if (lookupError) {
+    return NextResponse.json({ ok: false, error: sanitizeError(lookupError.message) }, { status: 502 });
   }
 
   const memberRows = (memberships ?? []) as WorkspaceMemberRow[];
-  const workspaceIds = [...new Set(memberRows.map((membership) => membership.workspace_id).filter(Boolean))];
+  const legacyRows = [
+    ...((legacyRunsByUserResult.data ?? []) as PlanningRunWorkspaceRow[]),
+    ...((legacyRunsByEmailResult.data ?? []) as PlanningRunWorkspaceRow[])
+  ];
+  const legacyLatestRunByWorkspace = summarizePlanningRuns(legacyRows);
+  const workspaceIds = [
+    ...new Set([
+      ...memberRows.map((membership) => membership.workspace_id).filter(Boolean),
+      ...legacyRows.map((run) => run.workspace_id).filter((workspaceId): workspaceId is string => Boolean(workspaceId))
+    ])
+  ];
 
   if (workspaceIds.length === 0) {
     return NextResponse.json({
@@ -82,28 +106,33 @@ export async function GET(request: Request) {
     ((workspacesResult.data ?? []) as WorkspaceRow[]).map((workspace) => [workspace.id, workspace])
   );
   const runSummaryByWorkspace = summarizePlanningRuns((planningRunsResult.data ?? []) as PlanningRunWorkspaceRow[]);
+  const membershipByWorkspace = new Map(memberRows.map((membership) => [membership.workspace_id, membership]));
 
-  const response = memberRows
-    .map((membership) => {
-      const workspace = workspacesById.get(membership.workspace_id);
+  const response = workspaceIds
+    .map((workspaceId) => {
+      const workspace = workspacesById.get(workspaceId);
 
       if (!workspace) {
         return null;
       }
 
+      const membership = membershipByWorkspace.get(workspaceId);
+      const legacySummary = legacyLatestRunByWorkspace.get(workspaceId);
       const runSummary = runSummaryByWorkspace.get(workspace.id) ?? {
         planningRunCount: 0,
         latestRunAt: null
       };
+      const membershipSource: WorkspaceMembershipSource = membership ? "membership" : "history";
 
       return {
         id: workspace.id,
         name: workspace.name,
         mode: workspace.mode,
         ownerUserId: workspace.owner_user_id,
-        role: membership.role,
-        memberEmail: membership.email,
-        memberCreatedAt: membership.created_at,
+        role: membership?.role ?? "owner",
+        memberEmail: membership?.email ?? access.state.email,
+        memberCreatedAt: membership?.created_at ?? legacySummary?.latestRunAt ?? workspace.created_at,
+        membershipSource,
         createdAt: workspace.created_at,
         updatedAt: workspace.updated_at,
         planningRunCount: runSummary.planningRunCount,

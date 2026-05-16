@@ -11,6 +11,7 @@ type WorkspaceMemberActivityRow = {
 
 type PlanningRunActivityRow = {
   id: string;
+  workspace_id: string | null;
   created_by_user_id: string | null;
   created_by: string | null;
   created_at: string;
@@ -207,10 +208,13 @@ async function getUserActivitySummary(
       ? admin.from("workspace_members").select("workspace_id, user_id, role").in("user_id", userIds)
       : { data: [], error: null },
     userIds.length > 0
-      ? admin.from("planning_runs").select("id, created_by_user_id, created_by, created_at").in("created_by_user_id", userIds)
+      ? admin
+          .from("planning_runs")
+          .select("id, workspace_id, created_by_user_id, created_by, created_at")
+          .in("created_by_user_id", userIds)
       : { data: [], error: null },
     emails.length > 0
-      ? admin.from("planning_runs").select("id, created_by_user_id, created_by, created_at").in("created_by", emails)
+      ? admin.from("planning_runs").select("id, workspace_id, created_by_user_id, created_by, created_at").in("created_by", emails)
       : { data: [], error: null }
   ]);
 
@@ -274,7 +278,7 @@ async function getUserActivitySummary(
 
   for (const run of (runsByUserResult.data ?? []) as PlanningRunActivityRow[]) {
     if (run.created_by_user_id) {
-      addRunActivity(byUser, seenRunsByUser, run.created_by_user_id, run);
+      addRunActivity(byUser, seenWorkspacesByUser, seenRunsByUser, run.created_by_user_id, run);
     }
   }
 
@@ -282,7 +286,7 @@ async function getUserActivitySummary(
     const matchedUserIds = run.created_by ? userIdsByEmail.get(run.created_by.toLowerCase()) ?? [] : [];
 
     for (const userId of matchedUserIds) {
-      addRunActivity(byUser, seenRunsByUser, userId, run);
+      addRunActivity(byUser, seenWorkspacesByUser, seenRunsByUser, userId, run);
     }
   }
 
@@ -294,6 +298,7 @@ async function getUserActivitySummary(
 
 function addRunActivity(
   byUser: Map<string, { workspaceCount: number; ownedWorkspaceCount: number; planningRunCount: number; latestPlanningRunAt: string | null }>,
+  seenWorkspacesByUser: Map<string, Set<string>>,
   seenRunsByUser: Map<string, Set<string>>,
   userId: string,
   run: PlanningRunActivityRow
@@ -312,6 +317,17 @@ function addRunActivity(
 
   seenRuns.add(run.id);
   summary.planningRunCount += 1;
+
+  if (run.workspace_id) {
+    const seenWorkspaces = seenWorkspacesByUser.get(userId) ?? new Set<string>();
+
+    if (!seenWorkspaces.has(run.workspace_id)) {
+      seenWorkspaces.add(run.workspace_id);
+      summary.workspaceCount += 1;
+    }
+
+    seenWorkspacesByUser.set(userId, seenWorkspaces);
+  }
 
   if (!summary.latestPlanningRunAt || new Date(run.created_at).getTime() > new Date(summary.latestPlanningRunAt).getTime()) {
     summary.latestPlanningRunAt = run.created_at;

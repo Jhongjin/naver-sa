@@ -74,6 +74,7 @@ type WorkspaceMembership = {
   role: "owner" | "admin" | "member" | "viewer";
   memberEmail: string | null;
   memberCreatedAt: string;
+  membershipSource: "membership" | "history";
   createdAt: string;
   updatedAt: string;
   planningRunCount: number;
@@ -318,7 +319,7 @@ function MyPageContent() {
                   </div>
                   <div>
                     <dt>소유 상태</dt>
-                    <dd>{workspace.ownerUserId === user?.id ? "Owner" : "Member"}</dd>
+                    <dd>{workspaceOwnerLabel(workspace.ownerUserId, user?.id, workspace.membershipSource)}</dd>
                   </div>
                 </dl>
               </article>
@@ -437,6 +438,14 @@ function workspaceRoleLabel(role: "owner" | "admin" | "member" | "viewer") {
   };
 
   return labels[role];
+}
+
+function workspaceOwnerLabel(ownerUserId: string | null, currentUserId: string | undefined, source: "membership" | "history") {
+  if (ownerUserId && ownerUserId === currentUserId) {
+    return "소유자";
+  }
+
+  return source === "history" ? "이력 기반" : "멤버";
 }
 
 function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {
