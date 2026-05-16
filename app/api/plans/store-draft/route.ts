@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createNaverExecutionDraft, type NaverExecutionContext } from "@/lib/execution-draft";
-import { verifyOperatorAccess } from "@/lib/operator-access";
+import { verifyUserAccess } from "@/lib/auth-access";
 import {
   generatePlannerPlan,
   mardDefaultInput,
@@ -13,7 +13,7 @@ import type { ApprovalDecision, ApprovalDecisionMap } from "@/lib/reporting";
 import { getSupabaseAdminState } from "@/lib/supabase-admin";
 
 export async function POST(request: Request) {
-  const access = verifyOperatorAccess(request, { requireConfigured: true });
+  const access = await verifyUserAccess(request);
 
   if (!access.ok) {
     return NextResponse.json(access, { status: access.status });
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   const input = coercePlannerInput(isRecord(body.input) ? body.input : {});
   const decisions = coerceDecisions(body.decisions);
   const executionContext = coerceExecutionContext(body.executionContext);
-  const createdBy = typeof body.createdBy === "string" ? body.createdBy : "operator";
+  const createdBy = access.user.email ?? access.user.id;
   const plan = generatePlannerPlan(input);
   const executionDraft = createNaverExecutionDraft(plan, decisions, executionContext);
   const result = await savePlanningRun({ plan, decisions, executionDraft, createdBy });

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   AlertTriangle,
   BarChart3,
@@ -18,6 +19,7 @@ import {
   WandSparkles
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/app/components/auth/AuthProvider";
 import {
   createPlannerCsv,
   generatePlannerPlan,
@@ -61,10 +63,11 @@ type StageDraftResponse = {
   ok: boolean;
   dryRun: boolean;
   automationLevel: string;
-  operatorAccess: {
-    configured: boolean;
-    sameOrigin: boolean;
-    mode: "operator-code" | "open-dry-run";
+  authAccess: {
+    mode: "supabase-auth";
+    role: "member" | "admin";
+    userId: string;
+    email: string | null;
   };
   naver: {
     ready: boolean;
@@ -189,49 +192,10 @@ type SaveDraftState =
       message: string;
     };
 
-type OperatorSessionResponse = {
-  ok: boolean;
-  role?: "operator" | "open-dry-run";
-  mode?: "operator-code" | "open-dry-run";
-  error?: string;
-  code?: string;
-  capabilities?: {
-    canReadAccountInventory: boolean;
-    canSaveDraftHistory: boolean;
-    canCreateTestEntities: boolean;
-    canActivateLiveCampaigns: boolean;
-    canDeleteProductionData: boolean;
-  };
-  session?: {
-    expiresInSeconds: number;
-    workspaceScope: string;
-  };
-  guardrails?: {
-    liveCampaignActivation: string;
-    productionDeletion: string;
-    externalWriteExecution: string;
-  };
-};
-
-type OperatorSessionState =
-  | {
-      status: "idle";
-    }
-  | {
-      status: "loading";
-    }
-  | {
-      status: "success";
-      response: OperatorSessionResponse;
-    }
-  | {
-      status: "error";
-      message: string;
-    };
-
 type ApprovalFilter = "all" | "pending" | "approved" | "held" | "blocked";
 
 export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
+  const { user, getAccessToken } = useAuth();
   const [mode, setMode] = useState<PlannerMode>(initialInput.mode);
   const [productType, setProductType] = useState<PlannerProductType>(initialInput.productType);
   const [brandName, setBrandName] = useState(initialInput.brandName);
@@ -245,10 +209,8 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [stageDraftState, setStageDraftState] = useState<StageDraftState>({ status: "idle" });
   const [saveDraftState, setSaveDraftState] = useState<SaveDraftState>({ status: "idle" });
   const [accountSnapshotState, setAccountSnapshotState] = useState<AccountSnapshotState>({ status: "idle" });
-  const [operatorSessionState, setOperatorSessionState] = useState<OperatorSessionState>({ status: "idle" });
   const [approvalFilter, setApprovalFilter] = useState<ApprovalFilter>("all");
   const [approvalSearch, setApprovalSearch] = useState("");
-  const [operatorCode, setOperatorCode] = useState("");
   const [pcChannelId, setPcChannelId] = useState("");
   const [mobileChannelId, setMobileChannelId] = useState("");
   const [shoppingChannelId, setShoppingChannelId] = useState("");
@@ -343,6 +305,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const canRequestProtectedExecution =
     stageValidated && activeStageDraftState.response.draft.validation.canExecuteTest && channelApplied;
   const modeLabel = mode === "agency" ? "대행사 모드" : "광고주 모드";
+  const memberEmail = user?.email ?? "로그인 계정";
   const channelStatusLabel = channelApplied ? "연결됨" : "미연결";
   const blockerTone = executionDraft.validation.blockerCount > 0 ? "rose" : "green";
   const approvalTone = approvalSummary.pending > 0 ? "amber" : "green";
@@ -528,46 +491,16 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     setApprovalDecisions({});
   }
 
-  function operatorHeaders(): Record<string, string> {
-    const code = operatorCode.trim();
-    return code ? { "x-operator-code": code } : {};
-  }
+  async function authHeaders(): Promise<Record<string, string>> {
+    const token = await getAccessToken();
 
-  function updateOperatorCode(value: string) {
-    setOperatorCode(value);
-    setOperatorSessionState({ status: "idle" });
-  }
-
-  async function verifyOperatorSession() {
-    if (!operatorCode.trim()) {
-      setOperatorSessionState({ status: "error", message: "운영자 코드를 먼저 입력해 주세요." });
-      return;
+    if (!token) {
+      throw new Error("로그인 세션이 만료되었습니다. 다시 로그인해 주세요.");
     }
 
-    setOperatorSessionState({ status: "loading" });
-
-    try {
-      const response = await fetch("/api/operator/session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...operatorHeaders()
-        },
-        body: "{}"
-      });
-      const data = (await response.json()) as OperatorSessionResponse;
-
-      if (!response.ok || !data.ok) {
-        throw new Error(data.error ?? "운영자 세션 확인에 실패했습니다.");
-      }
-
-      setOperatorSessionState({ status: "success", response: data });
-    } catch (error) {
-      setOperatorSessionState({
-        status: "error",
-        message: error instanceof Error ? error.message : "운영자 세션 확인에 실패했습니다."
-      });
-    }
+    return {
+      authorization: `Bearer ${token}`
+    };
   }
 
   async function stageExecutionDraft() {
@@ -578,7 +511,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...operatorHeaders()
+          ...(await authHeaders())
         },
         body: JSON.stringify({
           input,
@@ -610,13 +543,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...operatorHeaders()
+          ...(await authHeaders())
         },
         body: JSON.stringify({
           input,
           decisions: approvalDecisions,
-          executionContext,
-          createdBy: mode === "agency" ? "agency-operator" : "advertiser-operator"
+          executionContext
         })
       });
       const data = (await response.json()) as
@@ -654,7 +586,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
     try {
       const response = await fetch("/api/naver/account-snapshot", {
-        headers: operatorHeaders()
+        headers: await authHeaders()
       });
       const data = (await response.json()) as AccountSnapshotResponse;
 
@@ -705,6 +637,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         </div>
 
         <nav className="nav-list" aria-label="워크스페이스 메뉴">
+          <Link className="nav-link" href="/">
+            <ExternalLink size={18} />
+            홈페이지
+          </Link>
           <a className="nav-link active" href="#planner">
             <WandSparkles size={18} />
             자동 세팅
@@ -729,6 +665,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             <BarChart3 size={18} />
             기능 범위
           </a>
+          <Link className="nav-link" href="/mypage">
+            <ShieldCheck size={18} />
+            마이페이지
+          </Link>
         </nav>
 
         <div className="sidebar-note">
@@ -746,7 +686,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <span>{productLabel}</span>
               <span>{plan.input.vertical}</span>
               <span>{modeLabel}</span>
-              <span>테스트 모드</span>
+              <span>{memberEmail}</span>
             </div>
           </div>
           <div className="topbar-actions">
@@ -758,15 +698,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <Download size={17} />
               {keywordLabel} CSV
             </button>
-            <button
-              className="icon-button primary"
-              type="button"
-              disabled={activeStageDraftState.status === "loading"}
-              onClick={stageExecutionDraft}
-            >
-              <Rocket size={17} />
-              {activeStageDraftState.status === "loading" ? "검증 중" : "초안 검증"}
-            </button>
+            <Link className="icon-button primary" href="/mypage">
+              <ShieldCheck size={17} />
+              계정
+            </Link>
           </div>
         </header>
 
@@ -796,6 +731,80 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             tone="blue"
           />
           <StatusTile label="집행 상태" value="Live off" caption="삭제도 금지" tone="green" />
+        </section>
+
+        <section className="execution-rail" aria-label="승인부터 저장까지 실행 순서">
+          <div className="execution-rail-heading">
+            <div>
+              <p className="eyebrow">Execution Rail</p>
+              <h2>승인에서 이력 저장까지 한 번에 진행</h2>
+            </div>
+            <span>{nextAction.status}</span>
+          </div>
+          <div className="rail-step-grid">
+            <article className={approvalSummary.approved > 0 ? "done" : "attention"}>
+              <span>01</span>
+              <strong>승인 확정</strong>
+              <p>{approvalSummary.approved}건 승인, {approvalSummary.pending}건 대기</p>
+              <button className="icon-button subtle" type="button" onClick={approveAllChanges}>
+                <CheckCircle2 size={17} />
+                전체 승인
+              </button>
+            </article>
+            <article className={channelApplied ? "done" : "attention"}>
+              <span>02</span>
+              <strong>계정 스캔</strong>
+              <p>{channelApplied ? "채널이 적용되었습니다" : "Naver 채널을 조회하고 적용합니다"}</p>
+              <button
+                className="icon-button subtle"
+                disabled={accountSnapshotState.status === "loading"}
+                type="button"
+                onClick={loadAccountSnapshot}
+              >
+                <Search size={17} />
+                {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
+              </button>
+            </article>
+            <article className={stageValidated ? "done" : "attention"}>
+              <span>03</span>
+              <strong>초안 검증</strong>
+              <p>{executionDraft.validation.blockerCount}건 차단, {executionDraft.payloads.length}개 payload</p>
+              <button
+                className="icon-button subtle"
+                disabled={activeStageDraftState.status === "loading"}
+                type="button"
+                onClick={stageExecutionDraft}
+              >
+                <Rocket size={17} />
+                {activeStageDraftState.status === "loading" ? "검증 중" : "초안 검증"}
+              </button>
+            </article>
+            <article className={saveDraftState.status === "success" ? "done" : "pending"}>
+              <span>04</span>
+              <strong>이력 저장</strong>
+              <p>승인 상태와 전송 초안을 Supabase에 남깁니다</p>
+              <button
+                className="icon-button primary"
+                disabled={saveDraftState.status === "loading"}
+                type="button"
+                onClick={saveDraftHistory}
+              >
+                <FileText size={17} />
+                {saveDraftState.status === "loading" ? "저장 중" : "이력 저장"}
+              </button>
+            </article>
+          </div>
+          <div className="rail-notice-stack">
+            <MemberSessionNotice email={memberEmail} />
+            <AccountSnapshotNotice
+              productType={productType}
+              state={accountSnapshotState}
+              onApplyChannel={applyBusinessChannel}
+              onApplyProductGroup={applyProductGroup}
+            />
+            <StageDraftNotice state={activeStageDraftState} />
+            <SaveDraftNotice state={saveDraftState} />
+          </div>
         </section>
 
         <section className="workbench-grid" id="planner" aria-label="세팅 워크벤치">
@@ -917,15 +926,6 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                   <Download size={17} />
                   승인 CSV
                 </button>
-                <button
-                  className="icon-button subtle"
-                  type="button"
-                  disabled={saveDraftState.status === "loading"}
-                  onClick={saveDraftHistory}
-                >
-                  <FileText size={17} />
-                  {saveDraftState.status === "loading" ? "저장 중" : "이력 저장"}
-                </button>
               </div>
             </div>
             <div className="approval-summary" aria-label="승인 상태 요약">
@@ -963,7 +963,6 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               </span>
               <em>{approvalProgress}% 승인 완료</em>
             </div>
-            <SaveDraftNotice state={saveDraftState} />
             <div className="approval-worklist" aria-label="승인할 변경 목록">
               {filteredStagedChanges.length === 0 ? (
                 <div className="empty-state">
@@ -1034,25 +1033,6 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 </button>
               </div>
               <div className="execution-controls">
-                <label className="field">
-                  <span>운영자 코드</span>
-                  <input
-                    autoComplete="off"
-                    type="password"
-                    value={operatorCode}
-                    onChange={(event) => updateOperatorCode(event.target.value)}
-                  />
-                  <small>검증 요청에만 사용하며 화면에는 저장하지 않습니다.</small>
-                </label>
-                <button
-                  className="icon-button subtle"
-                  type="button"
-                  disabled={operatorSessionState.status === "loading"}
-                  onClick={verifyOperatorSession}
-                >
-                  <ShieldCheck size={17} />
-                  {operatorSessionState.status === "loading" ? "확인 중" : "세션 확인"}
-                </button>
                 {isShoppingSearch ? (
                   <>
                     <label className="field">
@@ -1076,27 +1056,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                     </label>
                   </>
                 )}
-                <button
-                  className="icon-button subtle"
-                  type="button"
-                  disabled={accountSnapshotState.status === "loading"}
-                  onClick={loadAccountSnapshot}
-                >
-                  <Search size={17} />
-                  {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
-                </button>
-                <button
-                  className="icon-button primary execution-save-button"
-                  type="button"
-                  disabled={saveDraftState.status === "loading"}
-                  onClick={saveDraftHistory}
-                >
-                  <FileText size={17} />
-                  {saveDraftState.status === "loading" ? "저장 중" : "이력 저장"}
-                </button>
               </div>
-              <OperatorSessionNotice state={operatorSessionState} />
-              <SaveDraftNotice state={saveDraftState} />
               <ul className="preflight-checklist" aria-label="전송 전 체크리스트">
                 {preflightChecks.map((check) => (
                   <li className={check.state} key={check.label}>
@@ -1108,12 +1068,6 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                   </li>
                 ))}
               </ul>
-              <AccountSnapshotNotice
-                productType={productType}
-                state={accountSnapshotState}
-                onApplyChannel={applyBusinessChannel}
-                onApplyProductGroup={applyProductGroup}
-              />
               <div className="execution-grid">
                 <div>
                   <span>승인</span>
@@ -1132,7 +1086,6 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                   <strong>{executionDraft.validation.blockerCount}건</strong>
                 </div>
               </div>
-              <StageDraftNotice state={activeStageDraftState} />
               <div className="payload-list compact">
                 {executionDraft.payloads.length === 0 ? (
                   <p>승인된 항목이 없어서 아직 전송 초안이 없습니다.</p>
@@ -1474,7 +1427,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
           <div className="productization-grid">
             <div>
               <strong>권한</strong>
-              <span>현재 operator code 기반 보호. 다음 단계는 사용자/워크스페이스 권한 분리입니다.</span>
+              <span>회원 세션 기반으로 보호 API를 호출합니다. 다음 단계는 워크스페이스별 역할 분리입니다.</span>
             </div>
             <div>
               <strong>워크스페이스</strong>
@@ -1550,51 +1503,21 @@ function StageDraftNotice({ state }: { state: StageDraftState }) {
   );
 }
 
-function OperatorSessionNotice({ state }: { state: OperatorSessionState }) {
-  if (state.status === "idle") {
-    return null;
-  }
-
-  if (state.status === "loading") {
-    return (
-      <div className="stage-notice neutral">
-        <strong>운영자 세션 확인 중</strong>
-        <span>입력된 코드를 서버에서 검증하고 허용된 작업 범위를 확인합니다.</span>
-      </div>
-    );
-  }
-
-  if (state.status === "error") {
-    return (
-      <div className="stage-notice danger">
-        <strong>운영자 세션 확인 실패</strong>
-        <span>{state.message}</span>
-      </div>
-    );
-  }
-
-  const capabilities = state.response.capabilities;
-  const sessionMinutes = Math.round((state.response.session?.expiresInSeconds ?? 0) / 60);
-
+function MemberSessionNotice({ email }: { email: string }) {
   return (
-    <div className="stage-notice success operator-session-notice">
+    <div className="stage-notice success member-session-notice">
       <div>
-        <strong>운영자 세션 확인 완료</strong>
-        <span>
-          {state.response.role ?? "operator"} / {sessionMinutes > 0 ? `${sessionMinutes}분 유효` : "세션 TTL 없음"}
-        </span>
+        <strong>회원 세션 확인 완료</strong>
+        <span>{email}</span>
       </div>
-      <div className="operator-capability-grid">
-        <span className={capabilities?.canReadAccountInventory ? "enabled" : "blocked"}>계정 스캔</span>
-        <span className={capabilities?.canSaveDraftHistory ? "enabled" : "blocked"}>이력 저장</span>
-        <span className={capabilities?.canCreateTestEntities ? "enabled" : "blocked"}>테스트 생성</span>
-        <span className={capabilities?.canActivateLiveCampaigns ? "enabled" : "blocked"}>라이브 활성화</span>
-        <span className={capabilities?.canDeleteProductionData ? "enabled" : "blocked"}>삭제</span>
+      <div className="member-capability-grid">
+        <span className="enabled">계정 스캔</span>
+        <span className="enabled">이력 저장</span>
+        <span className="blocked">테스트 생성</span>
+        <span className="blocked">라이브 활성화</span>
+        <span className="blocked">삭제</span>
       </div>
-      <span>
-        live: {state.response.guardrails?.liveCampaignActivation ?? "blocked"} / delete:{" "}
-        {state.response.guardrails?.productionDeletion ?? "blocked"}
-      </span>
+      <span>live: blocked / delete: blocked</span>
     </div>
   );
 }

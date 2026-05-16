@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyUserAccess } from "@/lib/auth-access";
 
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   const access = await verifyUserAccess(request);
 
   if (!access.ok) {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createNaverExecutionDraft, type NaverExecutionContext } from "@/lib/execution-draft";
 import { getNaverConfigState } from "@/lib/naver-search-ad";
-import { verifyOperatorAccess } from "@/lib/operator-access";
+import { verifyUserAccess } from "@/lib/auth-access";
 import {
   generatePlannerPlan,
   mardDefaultInput,
@@ -12,7 +12,7 @@ import {
 import { summarizeApprovals, type ApprovalDecision, type ApprovalDecisionMap } from "@/lib/reporting";
 
 export async function POST(request: Request) {
-  const access = verifyOperatorAccess(request);
+  const access = await verifyUserAccess(request);
 
   if (!access.ok) {
     return NextResponse.json(access, { status: access.status });
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     dryRun: true,
     externalRequest: false,
     automationLevel: "Level 2 Staged Changes",
-    operatorAccess: access.state,
+    authAccess: access.state,
     naver: {
       ready: naverState.ready,
       missing: naverState.missing,

@@ -10,6 +10,11 @@ The first functional MVP workspace is implemented as a dry-run planner. It does 
 
 Implemented:
 
+- digital product homepage at `/`
+- Supabase Auth signup and login pages at `/signup` and `/login`
+- authenticated workspace at `/workspace`
+- account page at `/mypage`
+- admin-only member management page at `/admin/users`
 - interactive keyword planning workspace
 - seed keyword expansion and intent classification
 - campaign/ad group draft generation
@@ -23,6 +28,7 @@ Implemented:
 - internal dry-run preview API at `/api/plans/preview`
 - Naver Search Ad read-only readiness API at `/api/naver/readiness`
 - protected planning persistence API at `/api/plans/store`
+- authenticated draft history API at `/api/plans/store-draft`
 - Supabase planning table readiness API at `/api/supabase/readiness`
 - Supabase planning/audit schema migration
 - dry-run optimization recommendation engine

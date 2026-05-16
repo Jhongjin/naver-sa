@@ -7,10 +7,10 @@ import {
   type NaverBusinessChannelSummary,
   type NaverProductGroupSummary
 } from "@/lib/naver-search-ad";
-import { verifyOperatorAccess } from "@/lib/operator-access";
+import { verifyUserAccess } from "@/lib/auth-access";
 
 export async function GET(request: Request) {
-  const access = verifyOperatorAccess(request, { requireConfigured: true });
+  const access = await verifyUserAccess(request);
 
   if (!access.ok) {
     return NextResponse.json(access, { status: access.status });
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     {
       ok,
       externalRequest: true,
-      operatorAccess: access.state,
+      authAccess: access.state,
       channels: channelsResult.ok ? channelsResult.data.map(normalizeChannel) : [],
       campaigns: campaignsResult.ok ? campaignsResult.data : [],
       productGroups: productGroupsResult.ok ? productGroupsResult.data.map(normalizeProductGroup) : [],

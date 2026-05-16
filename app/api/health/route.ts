@@ -14,7 +14,7 @@ const requiredVariables = [
   "ENCRYPTION_KEY"
 ];
 
-const optionalVariables = ["OPERATOR_ACCESS_CODE"];
+const optionalVariables = ["ADMIN_EMAILS"];
 
 export function GET() {
   const variables = requiredVariables.map((name) => ({

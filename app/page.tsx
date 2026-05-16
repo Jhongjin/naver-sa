@@ -1,6 +1,5 @@
-import { PlannerWorkspace } from "@/app/components/PlannerWorkspace";
-import { mardDefaultInput } from "@/lib/planner";
+import { LandingPage } from "@/app/components/LandingPage";
 
 export default function Home() {
-  return <PlannerWorkspace initialInput={mardDefaultInput} />;
+  return <LandingPage />;
 }

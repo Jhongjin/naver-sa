@@ -40,7 +40,7 @@ Do not commit real secret values. Use `.env.local` for local development and Ver
 |---|---|---|
 | `CRON_SECRET` | Server only | Protects scheduled sync endpoints. |
 | `ENCRYPTION_KEY` | Server only | Used for encrypting stored external credentials. |
-| `OPERATOR_ACCESS_CODE` | Server only | Optional but recommended. Protects browser-triggered dry-run staging and required for read-only account inventory. Do not reuse `CRON_SECRET`. |
+| `ADMIN_EMAILS` | Server only | Optional comma-separated admin allowlist for 회원관리. User sessions still come from Supabase Auth. |
 
 ## Should Naver API Keys Be Registered In Both Vercel And Supabase?
 
