@@ -5,6 +5,7 @@ import {
   type NaverExecutionPayload
 } from "@/lib/execution-draft";
 import { requestNaverSearchAd } from "@/lib/naver-search-ad";
+import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 import {
   generatePlannerPlan,
   mardDefaultInput,
@@ -28,6 +29,15 @@ type ExecutionResponse = {
     naverEntityId?: string;
     error?: string;
   }>;
+  history?: {
+    saved: boolean;
+    executionDraftId?: string;
+    warning?: string;
+  };
+};
+
+type PersistableExecutionResult = ExecutionResponse["results"][number] & {
+  response?: unknown;
 };
 
 export async function POST(request: Request) {
@@ -86,6 +96,7 @@ export async function POST(request: Request) {
   }
 
   const results: ExecutionResponse["results"] = [];
+  const persistableResults: PersistableExecutionResult[] = [];
   const runtimeValues: RuntimeValueMap = {};
 
   for (const payload of draft.payloads) {
@@ -93,6 +104,14 @@ export async function POST(request: Request) {
 
     if (resolvedPayload.unresolved.length > 0) {
       results.push({
+        id: payload.id,
+        idempotencyKey: payload.idempotencyKey,
+        ok: false,
+        status: 409,
+        target: payload.target,
+        error: `Unresolved runtime references: ${resolvedPayload.unresolved.join(", ")}`
+      });
+      persistableResults.push({
         id: payload.id,
         idempotencyKey: payload.idempotencyKey,
         ok: false,
@@ -108,7 +127,7 @@ export async function POST(request: Request) {
       body: resolvedPayload.body
     });
 
-    results.push({
+    const executionResult = {
       id: payload.id,
       idempotencyKey: payload.idempotencyKey,
       ok: result.ok,
@@ -116,6 +135,12 @@ export async function POST(request: Request) {
       target: payload.target,
       naverEntityId: result.ok ? extractPrimaryEntityId(result.data) : undefined,
       error: result.ok ? undefined : result.error
+    };
+
+    results.push(executionResult);
+    persistableResults.push({
+      ...executionResult,
+      response: result.ok ? result.data : undefined
     });
 
     if (!result.ok) {
@@ -125,15 +150,107 @@ export async function POST(request: Request) {
     runtimeValues[payload.id] = extractRuntimeValues(result.data);
   }
 
+  const executionSucceeded = results.every((result) => result.ok);
+  const history = await persistExecutionResults({
+    draftKey: draft.draftKey,
+    succeeded: executionSucceeded,
+    results: persistableResults
+  });
   const response: ExecutionResponse = {
-    ok: results.every((result) => result.ok),
+    ok: executionSucceeded,
     dryRun: false,
     payloadCount: draft.payloads.length,
     executedCount: results.filter((result) => result.ok).length,
-    results
+    results,
+    history
   };
 
   return NextResponse.json(response, { status: response.ok ? 200 : 502 });
+}
+
+async function persistExecutionResults(input: {
+  draftKey: string;
+  succeeded: boolean;
+  results: PersistableExecutionResult[];
+}): Promise<NonNullable<ExecutionResponse["history"]>> {
+  const state = getSupabaseAdminState();
+
+  if (!state.ready) {
+    return {
+      saved: false,
+      warning: "Supabase admin environment is not configured."
+    };
+  }
+
+  const supabase = getSupabaseAdminClient();
+
+  if (!supabase) {
+    return {
+      saved: false,
+      warning: "Supabase admin client is unavailable."
+    };
+  }
+
+  const { data: draft, error: draftError } = await supabase
+    .from("execution_drafts")
+    .select("id, planning_run_id")
+    .eq("draft_key", input.draftKey)
+    .single();
+
+  if (draftError || !draft) {
+    return {
+      saved: false,
+      warning: "Execution draft history was not found. Save history before requesting protected execution."
+    };
+  }
+
+  if (input.results.length > 0) {
+    const { error: resultError } = await supabase.from("execution_results").insert(
+      input.results.map((result) => ({
+        execution_draft_id: draft.id,
+        idempotency_key: result.idempotencyKey,
+        payload_key: result.id,
+        ok: result.ok,
+        status: result.status,
+        target: result.target,
+        naver_entity_id: result.naverEntityId ?? null,
+        error: result.error ?? null,
+        response: result.response ?? {}
+      }))
+    );
+
+    if (resultError) {
+      return {
+        saved: false,
+        executionDraftId: draft.id as string,
+        warning: sanitizePersistenceError(resultError.message)
+      };
+    }
+  }
+
+  await supabase
+    .from("execution_drafts")
+    .update({
+      status: input.succeeded ? "executed" : "failed"
+    })
+    .eq("id", draft.id);
+
+  await supabase.from("audit_events").insert({
+    planning_run_id: draft.planning_run_id,
+    event_type: input.succeeded ? "execution_draft.executed" : "execution_draft.failed",
+    entity_type: "execution_draft",
+    entity_id: draft.id,
+    after_value: {
+      resultCount: input.results.length,
+      ok: input.succeeded
+    },
+    reason: "Protected test execution result was recorded."
+  });
+
+  return {
+    saved: true,
+    executionDraftId: draft.id as string
+  };
 }
 
 function verifyAdminSecret(request: Request): { ok: true } | { ok: false; status: number; error: string } {
@@ -340,6 +457,13 @@ function extractRuntimeValues(data: unknown): Record<string, string> {
 function extractPrimaryEntityId(data: unknown): string | undefined {
   const values = extractRuntimeValues(data);
   return values.nccCampaignId ?? values.nccAdgroupId ?? values.nccKeywordId ?? values.nccAdId;
+}
+
+function sanitizePersistenceError(message: string): string {
+  return message
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer [REDACTED]")
+    .replace(/apikey[=:]\s*[^,\s}]+/gi, "apikey=[REDACTED]")
+    .slice(0, 220);
 }
 
 function recordStringValue(value: unknown): Record<string, string> | undefined {
