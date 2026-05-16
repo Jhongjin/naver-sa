@@ -381,6 +381,9 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     plan.stagedChanges.length === 0
       ? 100
       : Math.round((approvalSummary.approved / plan.stagedChanges.length) * 100);
+  const draftStatusLabel = initialDraftSnapshot
+    ? `임시저장 복구 ${formatShortDateTime(initialDraftSnapshot.savedAt)}`
+    : "임시저장 활성";
   const nextAction = getNextAction({
     approvedCount: approvalSummary.approved,
     channelApplied: executionConnectionApplied,
@@ -954,8 +957,11 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               <span>{plan.input.vertical}</span>
               <span>{modeLabel}</span>
               <span>{memberEmail}</span>
-              <span>임시저장 활성</span>
+              <span className={initialDraftSnapshot ? "restored" : ""}>{draftStatusLabel}</span>
             </div>
+            {initialDraftSnapshot ? (
+              <p className="draft-restore-note">이 브라우저의 임시저장 초안을 불러왔습니다.</p>
+            ) : null}
           </div>
           <div className="topbar-actions">
             <a className="icon-button subtle" href={plan.input.siteUrl} target="_blank" rel="noreferrer">
@@ -2268,6 +2274,15 @@ function stringOrDefault(value: unknown, fallback: string): string {
 
 function stringOrUndefined(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function formatShortDateTime(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
 }
 
 function FeatureCard({ feature }: { feature: BenchmarkFeature }) {

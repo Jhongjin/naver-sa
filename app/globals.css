@@ -360,6 +360,21 @@ h3 {
   padding: 5px 8px;
 }
 
+.topbar-meta span.restored {
+  background: rgba(15, 118, 110, 0.08);
+  border-color: rgba(15, 118, 110, 0.18);
+  color: #0f766e;
+  font-weight: 800;
+}
+
+.draft-restore-note {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 8px 0 0;
+}
+
 .app-shell .icon-button.primary {
   background: #ff5a3d;
   color: #17120f;
