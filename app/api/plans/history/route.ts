@@ -22,6 +22,11 @@ type PlanningRunRow = {
   created_at: string;
 };
 
+type WorkspaceRow = {
+  id: string;
+  name: string;
+};
+
 type ExecutionDraftRow = {
   id: string;
   planning_run_id: string;
@@ -101,6 +106,9 @@ export async function GET(request: Request) {
 
   const planningRuns = (runs ?? []) as PlanningRunRow[];
   const runIds = planningRuns.map((run) => run.id);
+  const workspaceIds = [
+    ...new Set(planningRuns.map((run) => run.workspace_id).filter((workspaceId): workspaceId is string => Boolean(workspaceId)))
+  ];
 
   if (runIds.length === 0) {
     return NextResponse.json({
@@ -111,23 +119,30 @@ export async function GET(request: Request) {
     });
   }
 
-  const [draftsResult, changesResult] = await Promise.all([
+  const [draftsResult, changesResult, workspacesResult] = await Promise.all([
     supabase
       .from("execution_drafts")
       .select("id, planning_run_id, draft_id, draft_key, approved_change_count, status, validation, created_at")
       .in("planning_run_id", runIds)
       .order("created_at", { ascending: false }),
-    supabase.from("staged_changes").select("planning_run_id, decision, risk").in("planning_run_id", runIds)
+    supabase.from("staged_changes").select("planning_run_id, decision, risk").in("planning_run_id", runIds),
+    workspaceIds.length > 0
+      ? supabase.from("workspaces").select("id, name").in("id", workspaceIds)
+      : { data: [], error: null }
   ]);
 
-  if (draftsResult.error || changesResult.error) {
+  if (draftsResult.error || changesResult.error || workspacesResult.error) {
     return NextResponse.json(
-      { ok: false, error: sanitizeError(draftsResult.error?.message ?? changesResult.error?.message) },
+      {
+        ok: false,
+        error: sanitizeError(draftsResult.error?.message ?? changesResult.error?.message ?? workspacesResult.error?.message)
+      },
       { status: 502 }
     );
   }
 
   const latestDraftByRun = new Map<string, ExecutionDraftRow>();
+  const workspaceById = new Map(((workspacesResult.data ?? []) as WorkspaceRow[]).map((workspace) => [workspace.id, workspace]));
 
   for (const draft of (draftsResult.data ?? []) as ExecutionDraftRow[]) {
     if (!latestDraftByRun.has(draft.planning_run_id)) {
@@ -162,6 +177,7 @@ export async function GET(request: Request) {
 
   const history = planningRuns.map((run) => {
     const draft = latestDraftByRun.get(run.id);
+    const workspace = run.workspace_id ? workspaceById.get(run.workspace_id) : null;
 
     return {
       id: run.id,
@@ -178,6 +194,7 @@ export async function GET(request: Request) {
       createdBy: run.created_by,
       createdByUserId: run.created_by_user_id,
       workspaceId: run.workspace_id,
+      workspaceName: workspace?.name ?? null,
       createdAt: run.created_at,
       approvalSummary: approvalSummaryByRun.get(run.id) ?? {
         approved: 0,

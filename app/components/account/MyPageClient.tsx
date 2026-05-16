@@ -43,6 +43,9 @@ type HistoryRun = {
   brandName: string;
   vertical: string;
   productType: "powerlink" | "shoppingSearch";
+  workspaceId: string | null;
+  workspaceName: string | null;
+  createdBy: string | null;
   createdAt: string;
   expectedClicks: number | null;
   approvalSummary: {
@@ -367,8 +370,11 @@ function MyPageContent() {
               <Link className="history-item history-item-link" href={`/history/${run.id}`} key={run.id}>
                 <div>
                   <span className="status-pill include">{productLabel(run.productType)}</span>
+                  {run.workspaceName ? <span className="status-pill neutral">{run.workspaceName}</span> : null}
                   <strong>{run.brandName}</strong>
-                  <p>{run.vertical} / {formatDateTime(run.createdAt)}</p>
+                  <p>
+                    {run.vertical} / {run.createdBy ?? "저장자 미기록"} / {formatDateTime(run.createdAt)}
+                  </p>
                 </div>
                 <dl>
                   <div>
