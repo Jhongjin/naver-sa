@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
+import { formatKoreanDateTime, formatKoreanNumber, formatWon } from "@/lib/formatters";
 import { plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
 
 type HistoryDetailResponse = {
@@ -129,8 +130,6 @@ type HistoryDetailResponse = {
     created_at: string;
   }>;
 };
-
-const numberFormatter = new Intl.NumberFormat("ko-KR");
 
 export function HistoryDetailClient({ planningRunId }: { planningRunId: string }) {
   return (
@@ -291,7 +290,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
             <p className="eyebrow">Saved Run Detail</p>
             <h1>{data.run.brandName}</h1>
             <p>
-              {productTypeLabel(data.run.productType)} / {data.run.vertical} / {formatDateTime(data.run.createdAt)}
+              {productTypeLabel(data.run.productType)} / {data.run.vertical} / {formatKoreanDateTime(data.run.createdAt)}
             </p>
             <div className="history-context-strip" aria-label="저장 맥락">
               <div>
@@ -372,7 +371,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                     </div>
                     <div>
                       <span>생성</span>
-                      <strong>{formatDateTime(latestDraft.generatedAt)}</strong>
+                      <strong>{formatKoreanDateTime(latestDraft.generatedAt)}</strong>
                     </div>
                   </div>
                   <IssueList title="차단 항목" items={latestDraft.validation?.blockers ?? []} tone="danger" />
@@ -470,7 +469,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                       <strong>{change.target}</strong>
                       <p>
                         {change.entityType} / {change.action} / {riskLabel(change.risk)}
-                        {change.decidedAt ? ` / ${formatDateTime(change.decidedAt)}` : ""}
+                        {change.decidedAt ? ` / ${formatKoreanDateTime(change.decidedAt)}` : ""}
                       </p>
                       {change.decisionNote || change.decidedBy ? (
                         <em>
@@ -491,7 +490,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                         </span>
                         <p>{getAuditTextValue(event.after_value, "target") ?? event.entity_id ?? "대상 미기록"}</p>
                         <em>
-                          {formatDateTime(event.created_at)}
+                          {formatKoreanDateTime(event.created_at)}
                           {event.actor ? ` / ${event.actor}` : ""}
                         </em>
                         {getAuditTextValue(event.after_value, "note") ? (
@@ -520,7 +519,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                     <strong>{keyword.term}</strong>
                     <span>{keyword.adGroupName}</span>
                     <em>
-                      {formatWon(keyword.bid)} / 클릭 {numberFormatter.format(keyword.expectedClicks)}
+                      {formatWon(keyword.bid)} / 클릭 {formatKoreanNumber(keyword.expectedClicks)}
                     </em>
                   </div>
                 ))}
@@ -542,7 +541,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                   data.auditEvents.map((event) => (
                     <div key={event.id}>
                       <strong>{event.event_type}</strong>
-                      <span>{formatDateTime(event.created_at)}</span>
+                      <span>{formatKoreanDateTime(event.created_at)}</span>
                       <em>{event.reason ?? event.actor ?? "사유 미기록"}</em>
                       {event.actor ? <small>{event.actor}</small> : null}
                     </div>
@@ -666,17 +665,4 @@ function safeFileName(value: string) {
     .replace(/[^a-z0-9가-힣_-]+/gi, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60) || "naver-sa";
-}
-
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(new Date(value));
-}
-
-function formatWon(value: number) {
-  return `${numberFormatter.format(value)}원`;
 }

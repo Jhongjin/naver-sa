@@ -5,6 +5,7 @@ import { Activity, AlertTriangle, FileClock, Network, RefreshCw, Search, ShieldC
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
+import { formatKoreanDate, formatKoreanDateTime } from "@/lib/formatters";
 import { productTypeLabel } from "@/lib/ui-labels";
 
 type ManagedUser = {
@@ -463,7 +464,7 @@ function AdminUsersContent() {
                   <strong>{activity.brandName}</strong>
                   <p>
                     {activity.workspaceName ?? activity.vertical} / {activity.createdBy ?? "unknown"} /{" "}
-                    {formatDateTime(activity.createdAt)}
+                    {formatKoreanDateTime(activity.createdAt)}
                   </p>
                 </div>
                 <dl>
@@ -574,17 +575,17 @@ function AdminUsersContent() {
               <strong>{user.workspaceCount} WS</strong>
               <small>
                 {user.planningRunCount} saved
-                {user.latestPlanningRunAt ? ` / ${formatDate(user.latestPlanningRunAt)}` : ""}
+                {user.latestPlanningRunAt ? ` / ${formatKoreanDate(user.latestPlanningRunAt)}` : ""}
               </small>
               {user.ownedWorkspaceCount > 0 ? <small>owner {user.ownedWorkspaceCount}</small> : null}
             </span>
             <span>
               <span className="mobile-label">가입일</span>
-              {formatDate(user.createdAt)}
+              {formatKoreanDate(user.createdAt)}
             </span>
             <span>
               <span className="mobile-label">마지막 로그인</span>
-              {user.lastSignInAt ? formatDate(user.lastSignInAt) : "없음"}
+              {user.lastSignInAt ? formatKoreanDate(user.lastSignInAt) : "없음"}
             </span>
             <div className="role-actions">
               <span className="role-source">{roleSourceLabel(user.roleSource)}</span>
@@ -672,21 +673,4 @@ function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {
   };
 
   return labels[status];
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(new Date(value));
-}
-
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(new Date(value));
 }

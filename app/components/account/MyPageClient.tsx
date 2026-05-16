@@ -18,6 +18,7 @@ import {
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
+import { formatKoreanDateTime } from "@/lib/formatters";
 import { draftStatusClass, plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
 
 type SessionSummary = {
@@ -341,7 +342,7 @@ function MyPageContent() {
                 <div>
                   <span className="status-pill include">{plannerModeLabel(workspace.mode)}</span>
                   <strong>{workspace.name}</strong>
-                  <p>{workspace.latestRunAt ? `최근 저장 ${formatDateTime(workspace.latestRunAt)}` : "저장 이력 대기"}</p>
+                  <p>{workspace.latestRunAt ? `최근 저장 ${formatKoreanDateTime(workspace.latestRunAt)}` : "저장 이력 대기"}</p>
                 </div>
                 <dl>
                   <div>
@@ -418,7 +419,7 @@ function MyPageContent() {
                   {run.workspaceName ? <span className="status-pill neutral">{run.workspaceName}</span> : null}
                   <strong>{run.brandName}</strong>
                   <p>
-                    {run.vertical} / {run.createdBy ?? "저장자 미기록"} / {formatDateTime(run.createdAt)}
+                    {run.vertical} / {run.createdBy ?? "저장자 미기록"} / {formatKoreanDateTime(run.createdAt)}
                   </p>
                 </div>
                 <dl>
@@ -521,13 +522,4 @@ function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {
   };
 
   return labels[status];
-}
-
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(new Date(value));
 }

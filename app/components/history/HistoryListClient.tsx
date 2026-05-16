@@ -14,6 +14,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
+import { formatCompactWon, formatKoreanDateTime, formatKoreanNumber } from "@/lib/formatters";
 import { draftStatusClass, plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
 
 type HistoryRun = {
@@ -65,8 +66,6 @@ type HistoryResponse = {
 type ProductFilter = "all" | "powerlink" | "shoppingSearch";
 type DraftFilter = "all" | "ready" | "blocked" | "failed" | "executed" | "none";
 type DateFilter = "all" | "7" | "30";
-
-const numberFormatter = new Intl.NumberFormat("ko-KR");
 
 export function HistoryListClient() {
   return (
@@ -573,7 +572,7 @@ function HistoryListContent() {
                   <strong>{run.brandName}</strong>
                   <p>
                     {run.vertical} / {plannerModeLabel(run.mode)} / {run.createdBy ?? "저장자 미기록"} /{" "}
-                    {formatDateTime(run.createdAt)}
+                    {formatKoreanDateTime(run.createdAt)}
                   </p>
                   <div className="history-browser-validation" aria-label="초안 검증 요약">
                     <span>payload {run.executionDraft?.approvedChangeCount ?? 0}</span>
@@ -596,7 +595,7 @@ function HistoryListContent() {
                   </div>
                   <div>
                     <dt>키워드그룹</dt>
-                    <dd>{run.adGroupCount ? `${numberFormatter.format(run.adGroupCount)}개` : "미기록"}</dd>
+                    <dd>{run.adGroupCount ? `${formatKoreanNumber(run.adGroupCount)}개` : "미기록"}</dd>
                   </div>
                 </dl>
                 <span className="history-item-action">
@@ -704,27 +703,6 @@ function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {
   };
 
   return labels[status];
-}
-
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(new Date(value));
-}
-
-function formatCompactWon(value: number) {
-  if (value >= 100000000) {
-    return `${numberFormatter.format(Math.round(value / 100000000))}억`;
-  }
-
-  if (value >= 10000) {
-    return `${numberFormatter.format(Math.round(value / 10000))}만`;
-  }
-
-  return `${numberFormatter.format(value)}원`;
 }
 
 function escapeCsvCell(value: string) {
