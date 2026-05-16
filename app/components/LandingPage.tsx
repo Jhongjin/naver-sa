@@ -12,7 +12,9 @@ import {
   Users
 } from "lucide-react";
 import { DigitalHeroCanvas } from "@/app/components/DigitalHeroCanvas";
+import { HeroMeteorLayer } from "@/app/components/HeroMeteorLayer";
 import { HeroMotionLayer } from "@/app/components/HeroMotionLayer";
+import { HeroRadarOrbit } from "@/app/components/HeroRadarOrbit";
 
 const flowSteps = [
   {
@@ -130,13 +132,7 @@ export function LandingPage() {
         <DigitalHeroCanvas />
         <div className="hero-noise" aria-hidden="true" />
         <HeroMotionLayer />
-        <div className="hero-white-sweep" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
+        <HeroMeteorLayer />
         <div className="landing-hero-shell">
           <div className="landing-hero-content">
             <p className="eyebrow">SA autopilot / membership control</p>
@@ -179,16 +175,7 @@ export function LandingPage() {
                 <strong>22</strong>
                 <span>approved operations</span>
               </div>
-              <div className="hero-orbit" aria-hidden="true">
-                <span className="orbit-ring outer" />
-                <span className="orbit-ring middle" />
-                <span className="orbit-ring inner" />
-                <span className="orbit-comet alpha" />
-                <span className="orbit-comet beta" />
-                <span className="orbit-node one" />
-                <span className="orbit-node two" />
-                <span className="orbit-node three" />
-              </div>
+              <HeroRadarOrbit />
             </div>
             <div className="art-window payload-window">
               <span>POST /campaigns</span>
