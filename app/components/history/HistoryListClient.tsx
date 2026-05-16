@@ -14,6 +14,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
+import { draftStatusClass } from "@/lib/ui-labels";
 
 type HistoryRun = {
   id: string;
@@ -711,18 +712,6 @@ function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {
   };
 
   return labels[status];
-}
-
-function draftStatusClass(status: "blocked" | "ready" | "executed" | "failed" | undefined) {
-  if (status === "ready" || status === "executed") {
-    return "include";
-  }
-
-  if (status === "blocked" || status === "failed") {
-    return "review";
-  }
-
-  return "neutral";
 }
 
 function formatDateTime(value: string) {
