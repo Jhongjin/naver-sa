@@ -2518,6 +2518,7 @@ td span {
 }
 
 .hero-art-board::before {
+  animation: board-grid-drift 18s linear infinite;
   content: "";
   inset: 0;
   position: absolute;
@@ -2650,23 +2651,44 @@ td span {
 }
 
 .orbit-node {
+  animation-duration: 4.8s;
+  animation-iteration-count: infinite;
+  animation-timing-function: var(--motion-ease);
   background: var(--landing-green);
   box-shadow: rgba(116, 217, 170, 0.38) 0 0 20px;
   height: 7px;
   width: 7px;
 }
 
+.orbit-node::after {
+  animation: node-ping 2.4s var(--motion-ease) infinite;
+  border: 1px solid currentColor;
+  border-radius: inherit;
+  content: "";
+  inset: -7px;
+  opacity: 0;
+  position: absolute;
+}
+
 .orbit-node.one {
+  animation-name: orbit-node-one;
   left: 12%;
   top: 40%;
 }
 
 .orbit-node.two {
+  animation-delay: -1.2s;
+  animation-name: orbit-node-two;
+  color: var(--landing-accent);
+  background: var(--landing-accent);
+  box-shadow: rgba(255, 91, 57, 0.42) 0 0 22px;
   right: 18%;
   top: 28%;
 }
 
 .orbit-node.three {
+  animation-delay: -2.1s;
+  animation-name: orbit-node-three;
   bottom: 18%;
   left: 56%;
 }
@@ -2687,11 +2709,26 @@ td span {
 }
 
 .payload-window span::after {
+  animation: payload-dot-pulse 2.8s var(--motion-ease) infinite;
   background: rgba(116, 217, 170, 0.8);
   border-radius: 999px;
+  box-shadow: rgba(116, 217, 170, 0.45) 0 0 14px;
   content: "";
   height: 6px;
+  transform-origin: center;
   width: 6px;
+}
+
+.payload-window span:nth-child(2)::after {
+  animation-delay: -0.7s;
+}
+
+.payload-window span:nth-child(3)::after {
+  animation-delay: -1.4s;
+}
+
+.payload-window span:nth-child(4)::after {
+  animation-delay: -2.1s;
 }
 
 .scan-window {
@@ -3015,9 +3052,91 @@ td span {
   }
 }
 
+@keyframes board-grid-drift {
+  to {
+    background-position:
+      34px 34px,
+      34px 34px;
+  }
+}
+
 @keyframes orbit-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes orbit-node-one {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  45% {
+    transform: translate3d(28px, -16px, 0) scale(1.32);
+  }
+
+  72% {
+    transform: translate3d(12px, 18px, 0) scale(0.92);
+  }
+}
+
+@keyframes orbit-node-two {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.08);
+  }
+
+  42% {
+    transform: translate3d(-24px, 22px, 0) scale(0.9);
+  }
+
+  76% {
+    transform: translate3d(-8px, -18px, 0) scale(1.36);
+  }
+}
+
+@keyframes orbit-node-three {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  38% {
+    transform: translate3d(18px, 20px, 0) scale(1.24);
+  }
+
+  70% {
+    transform: translate3d(-20px, -10px, 0) scale(0.94);
+  }
+}
+
+@keyframes node-ping {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+
+  42% {
+    opacity: 0.34;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.85);
+  }
+}
+
+@keyframes payload-dot-pulse {
+  0%,
+  100% {
+    opacity: 0.48;
+    transform: translateX(-2px) scale(0.78);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateX(2px) scale(1.35);
   }
 }
 

@@ -9,6 +9,7 @@ type NodePoint = {
   vy: number;
   r: number;
   hue: number;
+  pulse: number;
 };
 
 export function DigitalHeroCanvas() {
@@ -53,7 +54,8 @@ export function DigitalHeroCanvas() {
         vx: (pseudoRandom(index + 37) - 0.5) * 0.38,
         vy: (pseudoRandom(index + 73) - 0.5) * 0.38,
         r: 0.9 + pseudoRandom(index + 101) * 2.8,
-        hue: pseudoRandom(index + 127) > 0.68 ? 14 : 155
+        hue: pseudoRandom(index + 127) > 0.68 ? 14 : 155,
+        pulse: pseudoRandom(index + 149) * Math.PI * 2
       }));
     };
 
@@ -96,15 +98,19 @@ export function DigitalHeroCanvas() {
 
       if (!reduceMotion) {
         for (const node of nodes) {
-          node.x += node.vx;
-          node.y += node.vy;
+          node.x += node.vx + Math.cos(phase * 2.8 + node.pulse) * 0.16;
+          node.y += node.vy + Math.sin(phase * 2.4 + node.pulse) * 0.16;
 
-          if (node.x < 0 || node.x > width) {
-            node.vx *= -1;
+          if (node.x < -24) {
+            node.x = width + 24;
+          } else if (node.x > width + 24) {
+            node.x = -24;
           }
 
-          if (node.y < 0 || node.y > height) {
-            node.vy *= -1;
+          if (node.y < -24) {
+            node.y = height + 24;
+          } else if (node.y > height + 24) {
+            node.y = -24;
           }
         }
       }
@@ -146,12 +152,22 @@ export function DigitalHeroCanvas() {
       }
 
       for (const node of nodes) {
+        const pulse = reduceMotion ? 0.78 : 0.55 + Math.sin(time * 0.002 + node.pulse) * 0.28;
+        const radius = node.r + Math.max(0, pulse) * 1.6;
+        const alpha = node.hue === 14 ? 0.76 + pulse * 0.16 : 0.62 + pulse * 0.18;
+        const color =
+          node.hue === 14 ? `rgba(255, 91, 57, ${alpha})` : `rgba(110, 231, 183, ${alpha})`;
+
+        context.shadowColor = node.hue === 14 ? "rgba(255, 91, 57, 0.42)" : "rgba(110, 231, 183, 0.38)";
+        context.shadowBlur = 8 + pulse * 8;
         context.fillStyle =
-          node.hue === 14 ? "rgba(255, 91, 57, 0.82)" : "rgba(110, 231, 183, 0.72)";
+          color;
         context.beginPath();
-        context.arc(node.x, node.y, node.r, 0, Math.PI * 2);
+        context.arc(node.x, node.y, radius, 0, Math.PI * 2);
         context.fill();
       }
+
+      context.shadowBlur = 0;
 
       context.fillStyle = "rgba(247, 242, 232, 0.18)";
       context.font = "12px ui-monospace, SFMono-Regular, Consolas, monospace";
