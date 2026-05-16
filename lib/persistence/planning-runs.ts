@@ -114,6 +114,37 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
     details: change.details,
     decision: decisions[change.id] ?? "pending"
   }));
+  const decisionAuditRows = plan.stagedChanges.flatMap((change) => {
+    const decision = decisions[change.id] ?? "pending";
+
+    if (decision === "pending") {
+      return [];
+    }
+
+    return [
+      {
+        workspace_id: workspace.id,
+        planning_run_id: planningRunId,
+        event_type: `staged_change.${decision}`,
+        actor: input.createdBy,
+        entity_type: "staged_change",
+        entity_id: change.id,
+        before_value: {
+          decision: "pending"
+        },
+        after_value: {
+          decision,
+          externalKey: change.id,
+          entityType: change.type,
+          target: change.target,
+          action: change.action,
+          risk: change.risk,
+          approvalRequired: change.approval === "승인 필요"
+        },
+        reason: "Operator approval decision was saved."
+      }
+    ];
+  });
 
   const [keywordResult, adGroupResult, stagedChangeResult, auditResult] = await Promise.all([
     supabase.from("planning_keywords").insert(keywordRows),
@@ -141,6 +172,14 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
       ok: false,
       error: sanitizeSupabaseError(error.message)
     };
+  }
+
+  if (decisionAuditRows.length > 0) {
+    const { error: decisionAuditError } = await supabase.from("audit_events").insert(decisionAuditRows);
+
+    if (decisionAuditError) {
+      warnings.push(`Approval decision audit was not saved: ${sanitizeSupabaseError(decisionAuditError.message)}`);
+    }
   }
 
   let executionDraftId: string | undefined;
