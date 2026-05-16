@@ -22,6 +22,7 @@ import { useAuth } from "@/app/components/auth/AuthProvider";
 type SessionSummary = {
   ok: true;
   role: "member" | "admin";
+  mode: "supabase-auth";
   email: string | null;
   userId: string;
   capabilities: {
@@ -36,6 +37,10 @@ type SessionSummary = {
     liveCampaignActivation: string;
     productionDeletion: string;
     externalWriteExecution: string;
+  };
+  session: {
+    expiresInSeconds: number;
+    workspaceScope: string;
   };
 };
 
@@ -257,8 +262,12 @@ function MyPageContent() {
         </article>
         <article>
           <Clock3 size={22} />
-          <strong>안전 정책</strong>
-          <span>{sessionSummary ? guardrailLabel(sessionSummary.guardrails) : "확인 중"}</span>
+          <strong>세션</strong>
+          <span>
+            {sessionSummary
+              ? `${sessionLabel(sessionSummary)} / ${guardrailLabel(sessionSummary.guardrails)}`
+              : "확인 중"}
+          </span>
         </article>
       </section>
 
@@ -460,6 +469,27 @@ function guardrailLabel(guardrails: SessionSummary["guardrails"]) {
   }
 
   return `live ${guardrails.liveCampaignActivation} / delete ${guardrails.productionDeletion}`;
+}
+
+function sessionLabel(sessionSummary: SessionSummary) {
+  return `${sessionSummary.mode} / ${formatSessionTtl(sessionSummary.session.expiresInSeconds)} 유효`;
+}
+
+function formatSessionTtl(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return "만료";
+  }
+
+  const minutes = Math.max(1, Math.round(seconds / 60));
+
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    return remainingMinutes > 0 ? `${hours}시간 ${remainingMinutes}분` : `${hours}시간`;
+  }
+
+  return `${minutes}분`;
 }
 
 function productLabel(productType: "powerlink" | "shoppingSearch") {
