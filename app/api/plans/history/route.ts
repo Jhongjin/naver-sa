@@ -80,7 +80,8 @@ export async function GET(request: Request) {
   const limit = clampLimit(url.searchParams.get("limit"));
   const offset = clampOffset(url.searchParams.get("offset"));
   const productType = coerceProductType(url.searchParams.get("productType"));
-  const createdSince = coerceCreatedSince(url.searchParams.get("days"));
+  const dayWindow = coerceDayWindow(url.searchParams.get("days"));
+  const createdSince = dayWindow ? new Date(Date.now() - dayWindow * 24 * 60 * 60 * 1000).toISOString() : null;
   const searchQuery = coerceSearchQuery(url.searchParams.get("q"));
   const readableWorkspaceIds =
     access.state.role === "admin" ? [] : await getReadableWorkspaceIds(supabase, access.state.userId);
@@ -265,7 +266,12 @@ export async function GET(request: Request) {
     offset,
     limit,
     nextOffset,
-    scope: access.state.role === "admin" ? "all" : "mine"
+    scope: access.state.role === "admin" ? "all" : "mine",
+    filters: {
+      productType: productType ?? "all",
+      days: dayWindow,
+      q: searchQuery
+    }
   });
 }
 
@@ -293,14 +299,14 @@ function coerceProductType(value: string | null): "powerlink" | "shoppingSearch"
   return value === "powerlink" || value === "shoppingSearch" ? value : null;
 }
 
-function coerceCreatedSince(value: string | null): string | null {
+function coerceDayWindow(value: string | null): 7 | 30 | null {
   const parsed = Number(value);
 
   if (parsed !== 7 && parsed !== 30) {
     return null;
   }
 
-  return new Date(Date.now() - parsed * 24 * 60 * 60 * 1000).toISOString();
+  return parsed;
 }
 
 function coerceSearchQuery(value: string | null): string | null {

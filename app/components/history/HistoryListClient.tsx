@@ -54,6 +54,11 @@ type HistoryResponse = {
   limit: number;
   nextOffset: number | null;
   scope: "mine" | "all";
+  filters: {
+    productType: ProductFilter;
+    days: 7 | 30 | null;
+    q: string | null;
+  };
 };
 
 type ProductFilter = "all" | "powerlink" | "shoppingSearch";
