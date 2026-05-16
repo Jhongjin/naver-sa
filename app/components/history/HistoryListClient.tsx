@@ -78,6 +78,7 @@ function HistoryListContent() {
   const [status, setStatus] = useState<"idle" | "loading" | "loadingMore" | "error">("loading");
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
+  const [serverQuery, setServerQuery] = useState("");
   const [productFilter, setProductFilter] = useState<ProductFilter>("all");
   const [draftFilter, setDraftFilter] = useState<DraftFilter>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
@@ -103,6 +104,10 @@ function HistoryListContent() {
       params.set("days", dateFilter);
     }
 
+    if (serverQuery.trim()) {
+      params.set("q", serverQuery.trim());
+    }
+
     const response = await fetch(`/api/plans/history?${params.toString()}`, {
       headers: {
         authorization: `Bearer ${token}`
@@ -115,7 +120,7 @@ function HistoryListContent() {
     }
 
     return data;
-  }, [dateFilter, getAccessToken, productFilter]);
+  }, [dateFilter, getAccessToken, productFilter, serverQuery]);
 
   const loadHistory = useCallback(async () => {
     setStatus("loading");
@@ -169,6 +174,16 @@ function HistoryListContent() {
       window.clearTimeout(timer);
     };
   }, [loadHistory]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setServerQuery(query.trim());
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [query]);
 
   const summary = useMemo(
     () => ({

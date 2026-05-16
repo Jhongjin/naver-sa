@@ -77,6 +77,7 @@ export async function GET(request: Request) {
   const offset = clampOffset(url.searchParams.get("offset"));
   const productType = coerceProductType(url.searchParams.get("productType"));
   const createdSince = coerceCreatedSince(url.searchParams.get("days"));
+  const searchQuery = coerceSearchQuery(url.searchParams.get("q"));
   const readableWorkspaceIds =
     access.state.role === "admin" ? [] : await getReadableWorkspaceIds(supabase, access.state.userId);
   let runsQuery = supabase
@@ -94,6 +95,18 @@ export async function GET(request: Request) {
 
   if (createdSince) {
     runsQuery = runsQuery.gte("created_at", createdSince);
+  }
+
+  if (searchQuery) {
+    const pattern = `%${searchQuery}%`;
+    runsQuery = runsQuery.or(
+      [
+        `brand_name.ilike.${pattern}`,
+        `site_url.ilike.${pattern}`,
+        `vertical.ilike.${pattern}`,
+        `created_by.ilike.${pattern}`
+      ].join(",")
+    );
   }
 
   if (access.state.role !== "admin") {
@@ -284,6 +297,16 @@ function coerceCreatedSince(value: string | null): string | null {
   }
 
   return new Date(Date.now() - parsed * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function coerceSearchQuery(value: string | null): string | null {
+  const sanitized = value
+    ?.replace(/[,%()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+
+  return sanitized || null;
 }
 
 async function getReadableWorkspaceIds(
