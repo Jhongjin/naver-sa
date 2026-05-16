@@ -579,20 +579,26 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     };
   }, []);
 
+  function plannerDownloadFileName(input: PlannerInput, kind: string, extension: string) {
+    const dateStamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+    const savedRunSuffix =
+      activeSaveDraftState.status === "success" ? `-${activeSaveDraftState.planningRunId.slice(0, 8)}` : "";
+
+    return `${slugFileName(input.brandName)}-${input.productType}-${kind}-${dateStamp}${savedRunSuffix}.${extension}`;
+  }
+
   function downloadCsv() {
-    const blob = new Blob([createPlannerCsv(plan)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${plan.input.brandName.toLowerCase().replace(/\s+/g, "-")}-keyword-plan.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadTextFile(
+      createPlannerCsv(plan),
+      plannerDownloadFileName(plan.input, "keyword-plan", "csv"),
+      "text/csv;charset=utf-8"
+    );
   }
 
   function downloadApprovalCsv() {
     downloadTextFile(
       createApprovalCsv(plan, approvalDecisions, approvalNotes),
-      `${slugFileName(plan.input.brandName)}-approval-queue.csv`,
+      plannerDownloadFileName(plan.input, "approval-queue", "csv"),
       "text/csv;charset=utf-8"
     );
   }
@@ -600,7 +606,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   function downloadReport() {
     downloadTextFile(
       createPlannerReport(plan, approvalDecisions, approvalNotes, createExecutionReportContext()),
-      `${slugFileName(plan.input.brandName)}-setup-report.md`,
+      plannerDownloadFileName(plan.input, "setup-report", "md"),
       "text/markdown;charset=utf-8"
     );
   }
@@ -608,7 +614,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   function downloadExcelReport() {
     downloadTextFile(
       createPlannerExcelReport(plan, approvalDecisions, approvalNotes, createExecutionReportContext()),
-      `${slugFileName(plan.input.brandName)}-setup-report.xls`,
+      plannerDownloadFileName(plan.input, "setup-report", "xls"),
       "application/vnd.ms-excel;charset=utf-8"
     );
   }
@@ -650,7 +656,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   function downloadExecutionDraft() {
     downloadTextFile(
       JSON.stringify(executionDraft, null, 2),
-      `${slugFileName(plan.input.brandName)}-naver-execution-draft.json`,
+      plannerDownloadFileName(plan.input, "naver-execution-draft", "json"),
       "application/json;charset=utf-8"
     );
   }
