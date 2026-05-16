@@ -166,6 +166,8 @@ function HistoryListContent() {
     }),
     [runs]
   );
+  const hasActiveFilters =
+    query.trim().length > 0 || productFilter !== "all" || draftFilter !== "all" || dateFilter !== "all";
 
   const filteredRuns = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -249,6 +251,13 @@ function HistoryListContent() {
     link.download = `naver-sa-history-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  function resetFilters() {
+    setQuery("");
+    setProductFilter("all");
+    setDraftFilter("all");
+    setDateFilter("all");
   }
 
   return (
@@ -377,7 +386,17 @@ function HistoryListContent() {
               확인할 수 있습니다.
             </p>
           </div>
-          <span className="status-pill neutral">최근 25건</span>
+          <div className="history-browser-heading-actions">
+            <span className="status-pill neutral">최근 25건</span>
+            <button
+              className="icon-button subtle compact"
+              disabled={!hasActiveFilters}
+              type="button"
+              onClick={resetFilters}
+            >
+              필터 초기화
+            </button>
+          </div>
         </div>
 
         {status === "loading" ? (

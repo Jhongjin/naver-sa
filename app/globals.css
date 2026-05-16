@@ -4150,6 +4150,19 @@ td span {
   max-width: 680px;
 }
 
+.history-browser-heading-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.icon-button.compact {
+  min-height: 32px;
+  padding: 0 11px;
+}
+
 .history-browser-list {
   display: grid;
   gap: 10px;
