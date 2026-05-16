@@ -23,16 +23,24 @@ export function GET() {
   }));
   const recommended = recommendedVariables.map((name) => ({
     name,
-    present: Boolean(process.env[name])
+    present: Boolean(process.env[name]),
+    purpose: "Optional first-admin bootstrap fallback. Supabase app_metadata.role=admin is also supported."
   }));
   const warnings = recommended
     .filter((variable) => !variable.present)
-    .map((variable) => `${variable.name} is recommended for first admin bootstrap.`);
+    .map(
+      (variable) =>
+        `${variable.name} is optional after an app_metadata admin exists; configure it only if no admin can access member management.`
+    );
 
   return NextResponse.json({
     ok: variables.every((variable) => variable.present),
     variables,
     recommended,
-    warnings
+    warnings,
+    adminBootstrap: {
+      appMetadataRoleSupported: true,
+      adminEmailsConfigured: Boolean(process.env.ADMIN_EMAILS)
+    }
   });
 }
