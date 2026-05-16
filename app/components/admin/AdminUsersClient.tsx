@@ -95,6 +95,8 @@ function AdminUsersContent() {
       total: users.length,
       admins: users.filter((user) => user.role === "admin").length,
       members: users.filter((user) => user.role === "member").length,
+      unconfirmed: users.filter((user) => !user.emailConfirmed).length,
+      neverSignedIn: users.filter((user) => !user.lastSignInAt).length,
       workspaceLinks: users.reduce((total, user) => total + user.workspaceCount, 0),
       planningRuns: users.reduce((total, user) => total + user.planningRunCount, 0)
     }),
@@ -255,6 +257,16 @@ function AdminUsersContent() {
           <UserCheck size={18} />
           <span>멤버</span>
           <strong>{summary.members}명</strong>
+        </article>
+        <article>
+          <AlertTriangle size={18} />
+          <span>메일 미확인</span>
+          <strong>{summary.unconfirmed}명</strong>
+        </article>
+        <article>
+          <UserCheck size={18} />
+          <span>로그인 전</span>
+          <strong>{summary.neverSignedIn}명</strong>
         </article>
         <article>
           <Network size={18} />
