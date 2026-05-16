@@ -18,7 +18,7 @@ import {
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
-import { draftStatusClass } from "@/lib/ui-labels";
+import { draftStatusClass, plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
 
 type SessionSummary = {
   ok: true;
@@ -339,7 +339,7 @@ function MyPageContent() {
             {workspaceMemberships.map((workspace) => (
               <article className="workspace-membership-item" key={workspace.id}>
                 <div>
-                  <span className="status-pill include">{modeLabel(workspace.mode)}</span>
+                  <span className="status-pill include">{plannerModeLabel(workspace.mode)}</span>
                   <strong>{workspace.name}</strong>
                   <p>{workspace.latestRunAt ? `최근 저장 ${formatDateTime(workspace.latestRunAt)}` : "저장 이력 대기"}</p>
                 </div>
@@ -411,7 +411,7 @@ function MyPageContent() {
             {historyRuns.map((run) => (
               <Link className="history-item history-item-link" href={`/history/${run.id}`} key={run.id}>
                 <div>
-                  <span className="status-pill include">{productLabel(run.productType)}</span>
+                  <span className="status-pill include">{productTypeLabel(run.productType)}</span>
                   <span className={`status-pill ${draftStatusClass(run.executionDraft?.status)}`}>
                     {run.executionDraft ? draftStatusLabel(run.executionDraft.status) : "초안 없음"}
                   </span>
@@ -491,14 +491,6 @@ function formatSessionTtl(seconds: number) {
   }
 
   return `${minutes}분`;
-}
-
-function productLabel(productType: "powerlink" | "shoppingSearch") {
-  return productType === "shoppingSearch" ? "쇼핑검색" : "파워링크";
-}
-
-function modeLabel(mode: "agency" | "advertiser") {
-  return mode === "agency" ? "대행사" : "광고주";
 }
 
 function workspaceRoleLabel(role: "owner" | "admin" | "member" | "viewer") {

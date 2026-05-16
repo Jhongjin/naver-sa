@@ -14,7 +14,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
-import { draftStatusClass } from "@/lib/ui-labels";
+import { draftStatusClass, plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
 
 type HistoryRun = {
   id: string;
@@ -299,8 +299,8 @@ function HistoryListContent() {
           run.vertical,
           run.createdBy,
           run.workspaceName,
-          productLabel(run.productType),
-          modeLabel(run.mode),
+          productTypeLabel(run.productType),
+          plannerModeLabel(run.mode),
           run.id
         ]
           .filter(Boolean)
@@ -341,8 +341,8 @@ function HistoryListContent() {
         run.id,
         run.brandName,
         run.workspaceName ?? "",
-        productLabel(run.productType),
-        modeLabel(run.mode),
+        productTypeLabel(run.productType),
+        plannerModeLabel(run.mode),
         run.vertical,
         run.createdBy ?? "",
         run.createdAt,
@@ -565,14 +565,14 @@ function HistoryListContent() {
             {filteredRuns.map((run) => (
               <Link className="history-browser-item" href={`/history/${run.id}`} key={run.id}>
                 <div>
-                  <span className="status-pill include">{productLabel(run.productType)}</span>
+                  <span className="status-pill include">{productTypeLabel(run.productType)}</span>
                   <span className={`status-pill ${draftStatusClass(run.executionDraft?.status)}`}>
                     {run.executionDraft ? draftStatusLabel(run.executionDraft.status) : "초안 없음"}
                   </span>
                   {run.workspaceName ? <span className="status-pill neutral">{run.workspaceName}</span> : null}
                   <strong>{run.brandName}</strong>
                   <p>
-                    {run.vertical} / {modeLabel(run.mode)} / {run.createdBy ?? "저장자 미기록"} /{" "}
+                    {run.vertical} / {plannerModeLabel(run.mode)} / {run.createdBy ?? "저장자 미기록"} /{" "}
                     {formatDateTime(run.createdAt)}
                   </p>
                   <div className="history-browser-validation" aria-label="초안 검증 요약">
@@ -693,14 +693,6 @@ function isWithinDateFilter(value: string, filter: DateFilter) {
   const threshold = Date.now() - days * 24 * 60 * 60 * 1000;
 
   return date >= threshold;
-}
-
-function productLabel(productType: "powerlink" | "shoppingSearch") {
-  return productType === "shoppingSearch" ? "쇼핑검색" : "파워링크";
-}
-
-function modeLabel(mode: "agency" | "advertiser") {
-  return mode === "agency" ? "대행사" : "광고주";
 }
 
 function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {

@@ -5,6 +5,7 @@ import { Activity, AlertTriangle, FileClock, Network, RefreshCw, Search, ShieldC
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
+import { productTypeLabel } from "@/lib/ui-labels";
 
 type ManagedUser = {
   id: string;
@@ -458,7 +459,7 @@ function AdminUsersContent() {
             {filteredActivities.map((activity) => (
               <Link className="admin-activity-item" href={`/history/${activity.id}`} key={activity.id}>
                 <div>
-                  <span className="status-pill include">{productLabel(activity.productType)}</span>
+                  <span className="status-pill include">{productTypeLabel(activity.productType)}</span>
                   <strong>{activity.brandName}</strong>
                   <p>
                     {activity.workspaceName ?? activity.vertical} / {activity.createdBy ?? "unknown"} /{" "}
@@ -660,10 +661,6 @@ function roleSourceLabel(value: ManagedUser["roleSource"]) {
   };
 
   return labels[value];
-}
-
-function productLabel(productType: "powerlink" | "shoppingSearch") {
-  return productType === "shoppingSearch" ? "쇼핑검색" : "파워링크";
 }
 
 function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {

@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
+import { plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
 
 type HistoryDetailResponse = {
   ok: true;
@@ -290,13 +291,13 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
             <p className="eyebrow">Saved Run Detail</p>
             <h1>{data.run.brandName}</h1>
             <p>
-              {productLabel(data.run.productType)} / {data.run.vertical} / {formatDateTime(data.run.createdAt)}
+              {productTypeLabel(data.run.productType)} / {data.run.vertical} / {formatDateTime(data.run.createdAt)}
             </p>
             <div className="history-context-strip" aria-label="저장 맥락">
               <div>
                 <span>워크스페이스</span>
                 <strong>{data.run.workspaceName ?? "미기록"}</strong>
-                <em>{data.run.workspaceMode ? modeLabel(data.run.workspaceMode) : data.run.workspaceId ? "ID 연결" : "연결 없음"}</em>
+                <em>{data.run.workspaceMode ? plannerModeLabel(data.run.workspaceMode) : data.run.workspaceId ? "ID 연결" : "연결 없음"}</em>
               </div>
               <div>
                 <span>저장자</span>
@@ -439,7 +440,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                   </div>
                   <div>
                     <dt>모드</dt>
-                    <dd>{modeLabel(data.run.mode)}</dd>
+                    <dd>{plannerModeLabel(data.run.mode)}</dd>
                   </div>
                   <div>
                     <dt>워크스페이스</dt>
@@ -580,14 +581,6 @@ function IssueList({
       ))}
     </div>
   );
-}
-
-function productLabel(productType: "powerlink" | "shoppingSearch") {
-  return productType === "shoppingSearch" ? "쇼핑검색" : "파워링크";
-}
-
-function modeLabel(mode: "agency" | "advertiser") {
-  return mode === "agency" ? "대행사" : "광고주";
 }
 
 function ownerContextLabel(ownerUserId: string | null, creatorUserId: string | null) {
