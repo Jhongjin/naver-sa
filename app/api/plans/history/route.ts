@@ -148,7 +148,12 @@ export async function GET(request: Request) {
       offset,
       limit,
       nextOffset: null,
-      scope: access.state.role === "admin" ? "all" : "mine"
+      scope: access.state.role === "admin" ? "all" : "mine",
+      filters: {
+        productType: productType ?? "all",
+        days: dayWindow,
+        q: searchQuery
+      }
     });
   }
 
