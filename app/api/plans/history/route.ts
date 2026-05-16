@@ -74,15 +74,17 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const limit = clampLimit(url.searchParams.get("limit"));
+  const offset = clampOffset(url.searchParams.get("offset"));
   const readableWorkspaceIds =
     access.state.role === "admin" ? [] : await getReadableWorkspaceIds(supabase, access.state.userId);
   let runsQuery = supabase
     .from("planning_runs")
     .select(
-      "id, workspace_id, brand_name, site_url, vertical, monthly_budget, max_bid, mode, product_type, forecast, created_by, created_by_user_id, created_at"
+      "id, workspace_id, brand_name, site_url, vertical, monthly_budget, max_bid, mode, product_type, forecast, created_by, created_by_user_id, created_at",
+      { count: "exact" }
     )
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
 
   if (access.state.role !== "admin") {
     const creators = [access.state.email, access.state.userId].filter((value): value is string => Boolean(value));
@@ -98,7 +100,7 @@ export async function GET(request: Request) {
     runsQuery = runsQuery.or(ownershipFilters.join(","));
   }
 
-  const { data: runs, error: runsError } = await runsQuery;
+  const { data: runs, error: runsError, count } = await runsQuery;
 
   if (runsError) {
     return NextResponse.json({ ok: false, error: sanitizeError(runsError.message) }, { status: 502 });
@@ -114,7 +116,10 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ok: true,
       runs: [],
-      total: 0,
+      total: count ?? 0,
+      offset,
+      limit,
+      nextOffset: null,
       scope: access.state.role === "admin" ? "all" : "mine"
     });
   }
@@ -217,10 +222,22 @@ export async function GET(request: Request) {
     };
   });
 
+  const nextOffset =
+    count !== null && count !== undefined
+      ? offset + history.length < count
+        ? offset + history.length
+        : null
+      : history.length === limit
+        ? offset + history.length
+        : null;
+
   return NextResponse.json({
     ok: true,
     runs: history,
-    total: history.length,
+    total: count ?? offset + history.length,
+    offset,
+    limit,
+    nextOffset,
     scope: access.state.role === "admin" ? "all" : "mine"
   });
 }
@@ -233,6 +250,16 @@ function clampLimit(value: string | null): number {
   }
 
   return Math.min(Math.max(Math.trunc(parsed), 1), 25);
+}
+
+function clampOffset(value: string | null): number {
+  const parsed = Number(value ?? 0);
+
+  if (!Number.isFinite(parsed)) {
+    return 0;
+  }
+
+  return Math.min(Math.max(Math.trunc(parsed), 0), 1000);
 }
 
 async function getReadableWorkspaceIds(

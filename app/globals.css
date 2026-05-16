@@ -4223,6 +4223,10 @@ td span {
   white-space: nowrap;
 }
 
+.history-load-more {
+  justify-self: center;
+}
+
 .workspace-membership-panel {
   align-items: stretch;
   grid-template-columns: 1fr;

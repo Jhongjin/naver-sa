@@ -50,6 +50,9 @@ type HistoryResponse = {
   ok: true;
   runs: HistoryRun[];
   total: number;
+  offset: number;
+  limit: number;
+  nextOffset: number | null;
   scope: "mine" | "all";
 };
 
@@ -70,24 +73,21 @@ function HistoryListContent() {
   const { getAccessToken } = useAuth();
   const [runs, setRuns] = useState<HistoryRun[]>([]);
   const [scope, setScope] = useState<"mine" | "all">("mine");
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("loading");
+  const [status, setStatus] = useState<"idle" | "loading" | "loadingMore" | "error">("loading");
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
   const [productFilter, setProductFilter] = useState<ProductFilter>("all");
   const [draftFilter, setDraftFilter] = useState<DraftFilter>("all");
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
 
-  const loadHistory = useCallback(async () => {
-    setStatus("loading");
-    setMessage("");
+  const fetchHistory = useCallback(async (offset: number) => {
     const token = await getAccessToken();
 
     if (!token) {
-      setStatus("error");
-      setMessage("로그인이 필요합니다.");
-      return;
+      throw new Error("로그인이 필요합니다.");
     }
 
-    const response = await fetch("/api/plans/history?limit=25", {
+    const response = await fetch(`/api/plans/history?limit=25&offset=${offset}`, {
       headers: {
         authorization: `Bearer ${token}`
       }
@@ -95,15 +95,49 @@ function HistoryListContent() {
     const data = (await response.json()) as HistoryResponse | { ok?: false; error?: string };
 
     if (!response.ok || data.ok !== true) {
+      throw new Error("error" in data && data.error ? data.error : "저장 이력을 불러오지 못했습니다.");
+    }
+
+    return data;
+  }, [getAccessToken]);
+
+  const loadHistory = useCallback(async () => {
+    setStatus("loading");
+    setMessage("");
+
+    try {
+      const data = await fetchHistory(0);
+
+      setRuns(data.runs);
+      setNextOffset(data.nextOffset);
+      setScope(data.scope);
+      setStatus("idle");
+    } catch (error) {
       setStatus("error");
-      setMessage("error" in data && data.error ? data.error : "저장 이력을 불러오지 못했습니다.");
+      setMessage(error instanceof Error ? error.message : "저장 이력을 불러오지 못했습니다.");
+    }
+  }, [fetchHistory]);
+
+  async function loadMoreHistory() {
+    if (nextOffset === null) {
       return;
     }
 
-    setRuns(data.runs);
-    setScope(data.scope);
-    setStatus("idle");
-  }, [getAccessToken]);
+    setStatus("loadingMore");
+    setMessage("");
+
+    try {
+      const data = await fetchHistory(nextOffset);
+
+      setRuns((current) => [...current, ...data.runs]);
+      setNextOffset(data.nextOffset);
+      setScope(data.scope);
+      setStatus("idle");
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "저장 이력을 더 불러오지 못했습니다.");
+    }
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -235,7 +269,12 @@ function HistoryListContent() {
           <Link className="icon-button primary" href="/workspace">
             워크스페이스 열기
           </Link>
-          <button className="icon-button subtle" disabled={status === "loading"} type="button" onClick={loadHistory}>
+          <button
+            className="icon-button subtle"
+            disabled={status === "loading" || status === "loadingMore"}
+            type="button"
+            onClick={loadHistory}
+          >
             <RefreshCw size={17} />
             새로고침
           </button>
@@ -398,6 +437,17 @@ function HistoryListContent() {
               </Link>
             ))}
           </div>
+        ) : null}
+        {status !== "loading" && nextOffset !== null ? (
+          <button
+            className="icon-button subtle history-load-more"
+            disabled={status === "loadingMore"}
+            type="button"
+            onClick={loadMoreHistory}
+          >
+            <RefreshCw size={17} />
+            {status === "loadingMore" ? "불러오는 중" : "더 보기"}
+          </button>
         ) : null}
       </section>
     </main>
