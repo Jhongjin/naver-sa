@@ -54,6 +54,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [companyName, setCompanyName] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [lastSignupEmail, setLastSignupEmail] = useState("");
   const isSignup = mode === "signup";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -92,13 +93,45 @@ export function AuthForm({ mode }: AuthFormProps) {
 
     if (isSignup && !result.data.session) {
       setStatus("success");
+      setLastSignupEmail(email);
       setMessage("가입 확인 메일을 보냈습니다. 메일 인증 후 로그인해 주세요.");
       return;
     }
 
     setStatus("success");
+    setLastSignupEmail("");
     setMessage(isSignup ? "회원가입이 완료되었습니다." : "로그인되었습니다.");
     router.push("/workspace");
+  }
+
+  async function resendConfirmationEmail() {
+    if (!lastSignupEmail) {
+      return;
+    }
+
+    setStatus("loading");
+    setMessage("");
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase) {
+      setStatus("error");
+      setMessage("Supabase 공개 인증 환경변수가 설정되지 않았습니다.");
+      return;
+    }
+
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: lastSignupEmail
+    });
+
+    if (error) {
+      setStatus("error");
+      setMessage(error.message);
+      return;
+    }
+
+    setStatus("success");
+    setMessage("가입 확인 메일을 다시 보냈습니다. 받은 편지함과 스팸함을 함께 확인해 주세요.");
   }
 
   return (
@@ -112,7 +145,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           <div className="auth-copy">
             <p className="eyebrow">Account Access</p>
             <h1>{isSignup ? "팀 계정을 만들고 승인 흐름을 시작하세요" : "회원 계정으로 워크스페이스에 접속하세요"}</h1>
-              <p>로그인 세션과 권한으로 계정 스캔, 초안 검증, 이력 저장 접근을 나눕니다.</p>
+            <p>로그인 세션과 권한으로 계정 스캔, 초안 검증, 이력 저장 접근을 나눕니다.</p>
           </div>
           <div className="auth-flow-list" aria-label="계정 접근 흐름">
             {authSteps.map((step) => (
@@ -177,6 +210,17 @@ export function AuthForm({ mode }: AuthFormProps) {
               <small>8자 이상으로 설정해 주세요.</small>
             </label>
             {message ? <p className={`auth-message ${status}`}>{message}</p> : null}
+            {isSignup && lastSignupEmail ? (
+              <button
+                className="icon-button subtle auth-resend"
+                disabled={status === "loading"}
+                type="button"
+                onClick={resendConfirmationEmail}
+              >
+                <Mail size={17} />
+                인증 메일 다시 보내기
+              </button>
+            ) : null}
             <button className="icon-button primary auth-submit" disabled={status === "loading"} type="submit">
               {isSignup ? <UserPlus size={18} /> : <Mail size={18} />}
               {status === "loading" ? "처리 중" : isSignup ? "회원가입" : "로그인"}
