@@ -411,6 +411,11 @@ function HistoryListContent() {
                     {run.vertical} / {modeLabel(run.mode)} / {run.createdBy ?? "저장자 미기록"} /{" "}
                     {formatDateTime(run.createdAt)}
                   </p>
+                  <div className="history-browser-validation" aria-label="초안 검증 요약">
+                    <span>payload {run.executionDraft?.approvedChangeCount ?? 0}</span>
+                    <span>차단 {run.executionDraft?.blockerCount ?? 0}</span>
+                    <span>경고 {run.executionDraft?.warningCount ?? 0}</span>
+                  </div>
                 </div>
                 <dl>
                   <div>
