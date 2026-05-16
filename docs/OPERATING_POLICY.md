@@ -210,5 +210,6 @@ Implementation rule:
 
 - use `jsonNoStore` from `lib/http.ts` for protected JSON responses
 - keep `Cache-Control: no-store` on both success and error responses
+- POST-only operational routes should return explicit 405 JSON through `methodNotAllowed`, including `Allow` and `Cache-Control: no-store`
 - do not include API keys, tokens, admin secrets, or raw service role values in response bodies
 - public readiness endpoints may return only presence/configuration booleans, never secret values
