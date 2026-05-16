@@ -40,6 +40,7 @@ export async function POST(request: Request) {
   const executionContext = coerceExecutionContext(body.executionContext);
   const stagedDraftKey = stringValueOrUndefined(body.stagedDraftKey);
   const createdBy = access.user.email ?? access.user.id;
+  const createdByUserId = access.user.id;
   const plan = generatePlannerPlan(input);
   const executionDraft = createNaverExecutionDraft(plan, decisions, executionContext);
 
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await savePlanningRun({ plan, decisions, decisionNotes, executionDraft, createdBy });
+  const result = await savePlanningRun({ plan, decisions, decisionNotes, executionDraft, createdBy, createdByUserId });
 
   return NextResponse.json(
     {

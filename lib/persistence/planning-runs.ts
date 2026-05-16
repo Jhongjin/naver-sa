@@ -9,6 +9,7 @@ export type SavePlanningRunInput = {
   decisionNotes?: ApprovalDecisionNoteMap;
   executionDraft?: NaverExecutionDraft;
   createdBy?: string;
+  createdByUserId?: string;
 };
 
 export type SavePlanningRunResult =
@@ -36,12 +37,15 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
   const { plan, decisions } = input;
   const decisionNotes = input.decisionNotes ?? {};
   const warnings: string[] = [];
+  const ownershipSupport = await getWorkspaceOwnershipSupport(supabase);
+  const workspaceInsert = {
+    name: `${plan.input.brandName} Workspace`,
+    mode: plan.input.mode,
+    ...(ownershipSupport.workspaceOwner && input.createdByUserId ? { owner_user_id: input.createdByUserId } : {})
+  };
   const { data: workspace, error: workspaceError } = await supabase
     .from("workspaces")
-    .insert({
-      name: `${plan.input.brandName} Workspace`,
-      mode: plan.input.mode
-    })
+    .insert(workspaceInsert)
     .select("id")
     .single();
 
@@ -52,22 +56,26 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
     };
   }
 
+  const planningRunInsert = {
+    workspace_id: workspace.id,
+    brand_name: plan.input.brandName,
+    site_url: plan.input.siteUrl,
+    vertical: plan.input.vertical,
+    monthly_budget: plan.input.monthlyBudget,
+    max_bid: plan.input.maxBid,
+    mode: plan.input.mode,
+    product_type: plan.input.productType,
+    seed_keywords: plan.input.seedKeywords,
+    forecast: plan.forecast,
+    assumptions: plan.assumptions,
+    created_by: input.createdBy,
+    ...(ownershipSupport.planningRunUser && input.createdByUserId
+      ? { created_by_user_id: input.createdByUserId }
+      : {})
+  };
   const { data: run, error: runError } = await supabase
     .from("planning_runs")
-    .insert({
-      workspace_id: workspace.id,
-      brand_name: plan.input.brandName,
-      site_url: plan.input.siteUrl,
-      vertical: plan.input.vertical,
-      monthly_budget: plan.input.monthlyBudget,
-      max_bid: plan.input.maxBid,
-      mode: plan.input.mode,
-      product_type: plan.input.productType,
-      seed_keywords: plan.input.seedKeywords,
-      forecast: plan.forecast,
-      assumptions: plan.assumptions,
-      created_by: input.createdBy
-    })
+    .insert(planningRunInsert)
     .select("id")
     .single();
 
@@ -204,6 +212,22 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
     }
   }
 
+  if (ownershipSupport.workspaceMembers && input.createdByUserId) {
+    const { error: memberError } = await supabase.from("workspace_members").upsert(
+      {
+        workspace_id: workspace.id,
+        user_id: input.createdByUserId,
+        email: input.createdBy ?? null,
+        role: "owner"
+      },
+      { onConflict: "workspace_id,user_id" }
+    );
+
+    if (memberError) {
+      warnings.push(`Workspace membership was not saved: ${sanitizeSupabaseError(memberError.message)}`);
+    }
+  }
+
   let executionDraftId: string | undefined;
 
   if (input.executionDraft) {
@@ -227,6 +251,20 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
     planningRunId,
     executionDraftId,
     warnings
+  };
+}
+
+async function getWorkspaceOwnershipSupport(supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>) {
+  const [workspaceResult, runResult, memberResult] = await Promise.all([
+    supabase.from("workspaces").select("id,owner_user_id", { head: true }),
+    supabase.from("planning_runs").select("id,created_by_user_id", { head: true }),
+    supabase.from("workspace_members").select("id", { head: true })
+  ]);
+
+  return {
+    workspaceOwner: !workspaceResult.error,
+    planningRunUser: !runResult.error,
+    workspaceMembers: !memberResult.error
   };
 }
 

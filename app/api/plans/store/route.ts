@@ -6,7 +6,8 @@ import {
   coerceDecisions,
   coerceExecutionContext,
   coercePlannerInput,
-  readJsonRecord
+  readJsonRecord,
+  stringValueOrUndefined
 } from "@/lib/planner-request";
 import { savePlanningRun } from "@/lib/persistence/planning-runs";
 import { getSupabaseAdminState } from "@/lib/supabase-admin";
@@ -37,9 +38,10 @@ export async function POST(request: Request) {
   const decisionNotes = coerceDecisionNotes(body.decisionNotes);
   const executionContext = coerceExecutionContext(body.executionContext);
   const createdBy = typeof body.createdBy === "string" ? body.createdBy : undefined;
+  const createdByUserId = stringValueOrUndefined(body.createdByUserId);
   const plan = generatePlannerPlan(input);
   const executionDraft = createNaverExecutionDraft(plan, decisions, executionContext);
-  const result = await savePlanningRun({ plan, decisions, decisionNotes, executionDraft, createdBy });
+  const result = await savePlanningRun({ plan, decisions, decisionNotes, executionDraft, createdBy, createdByUserId });
 
   return NextResponse.json(result, { status: result.ok ? 201 : 500 });
 }
