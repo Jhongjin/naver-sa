@@ -77,6 +77,7 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
   }
 
   const planningRunId = run.id as string;
+  const supportsDecisionMetadata = await getStagedChangeDecisionMetadataSupport(supabase);
   const keywordRows = plan.keywords.map((keyword) => ({
     planning_run_id: planningRunId,
     term: keyword.term,
@@ -107,7 +108,7 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
   const stagedChangeRows = plan.stagedChanges.map((change) => {
     const decision = decisions[change.id] ?? "pending";
 
-    return {
+    const row = {
       planning_run_id: planningRunId,
       external_key: change.id,
       entity_type: change.type,
@@ -118,6 +119,17 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
       details: change.details,
       decision,
       decided_at: decision === "pending" ? null : decisionSavedAt
+    };
+
+    if (!supportsDecisionMetadata) {
+      return row;
+    }
+
+    return {
+      ...row,
+      decided_by: decision === "pending" ? null : input.createdBy ?? null,
+      decision_note: null,
+      decision_source: "workspace"
     };
   });
   const decisionAuditRows = plan.stagedChanges.flatMap((change) => {
@@ -212,6 +224,16 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
     executionDraftId,
     warnings
   };
+}
+
+async function getStagedChangeDecisionMetadataSupport(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
+): Promise<boolean> {
+  const { error } = await supabase.from("staged_changes").select("id,decided_by,decision_note,decision_source", {
+    head: true
+  });
+
+  return !error;
 }
 
 async function saveExecutionDraft(input: {
