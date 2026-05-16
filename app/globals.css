@@ -1910,9 +1910,25 @@ td span {
   padding-top: 10px;
 }
 
+.campaign-list {
+  border-top: 1px solid var(--line);
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
 .channel-item {
   border-top: 1px solid var(--line);
   padding-top: 8px;
+}
+
+.channel-action-group {
+  display: flex;
+  gap: 6px;
+}
+
+.channel-action-group .icon-button {
+  min-height: 34px;
+  padding: 7px 9px;
 }
 
 .channel-item strong,
@@ -4546,7 +4562,8 @@ td span {
 }
 
 .execution-rail .channel-item,
-.execution-rail .product-group-list {
+.execution-rail .product-group-list,
+.execution-rail .campaign-list {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
@@ -4649,6 +4666,11 @@ td span {
   .channel-item {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .channel-action-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .channel-item .icon-button {

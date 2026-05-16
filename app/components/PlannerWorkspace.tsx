@@ -212,6 +212,7 @@ type WorkspaceDraftSnapshot = {
   input: PlannerInput;
   decisions: ApprovalDecisionMap;
   executionContext: {
+    campaignId?: string;
     pcChannelId?: string;
     mobileChannelId?: string;
     shoppingChannelId?: string;
@@ -245,6 +246,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [accountSnapshotState, setAccountSnapshotState] = useState<AccountSnapshotState>({ status: "idle" });
   const [approvalFilter, setApprovalFilter] = useState<ApprovalFilter>("all");
   const [approvalSearch, setApprovalSearch] = useState("");
+  const [campaignId, setCampaignId] = useState(initialDraftSnapshot?.executionContext.campaignId ?? "");
   const [pcChannelId, setPcChannelId] = useState(initialDraftSnapshot?.executionContext.pcChannelId ?? "");
   const [mobileChannelId, setMobileChannelId] = useState(initialDraftSnapshot?.executionContext.mobileChannelId ?? "");
   const [shoppingChannelId, setShoppingChannelId] = useState(
@@ -280,12 +282,13 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   );
   const executionContext = useMemo(
     () => ({
+      campaignId: campaignId.trim() || undefined,
       pcChannelId: pcChannelId.trim() || undefined,
       mobileChannelId: mobileChannelId.trim() || undefined,
       shoppingChannelId: shoppingChannelId.trim() || undefined,
       productGroupId: productGroupId.trim() || undefined
     }),
-    [mobileChannelId, pcChannelId, productGroupId, shoppingChannelId]
+    [campaignId, mobileChannelId, pcChannelId, productGroupId, shoppingChannelId]
   );
 
   const plan = useMemo(() => generatePlannerPlan(input), [input]);
@@ -606,6 +609,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     setMaxBid(initialInput.maxBid);
     setSeedText(initialInput.seedKeywords.join("\n"));
     setApprovalDecisions({});
+    setCampaignId("");
     setPcChannelId("");
     setMobileChannelId("");
     setShoppingChannelId("");
@@ -731,14 +735,23 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     }
   }
 
-  function applyBusinessChannel(channelId: string) {
+  function applyBusinessChannel(channelId: string, target: "shopping" | "pc" | "mobile" | "both" = "both") {
     if (isShoppingSearch) {
       setShoppingChannelId(channelId);
       return;
     }
 
-    setPcChannelId(channelId);
-    setMobileChannelId(channelId);
+    if (target === "pc" || target === "both") {
+      setPcChannelId(channelId);
+    }
+
+    if (target === "mobile" || target === "both") {
+      setMobileChannelId(channelId);
+    }
+  }
+
+  function applyCampaign(nextCampaignId: string) {
+    setCampaignId(nextCampaignId);
   }
 
   function applyProductGroup(productGroupIdValue: string, businessChannelId: string) {
@@ -961,6 +974,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               productType={productType}
               state={accountSnapshotState}
               onApplyChannel={applyBusinessChannel}
+              onApplyCampaign={applyCampaign}
               onApplyProductGroup={applyProductGroup}
             />
             <StageDraftNotice state={activeStageDraftState} />
@@ -1194,6 +1208,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 </button>
               </div>
               <div className="execution-controls">
+                <label className="field">
+                  <span>캠페인 ID</span>
+                  <input value={campaignId} onChange={(event) => setCampaignId(event.target.value)} />
+                </label>
                 {isShoppingSearch ? (
                   <>
                     <label className="field">
@@ -1726,11 +1744,13 @@ function AccountSnapshotNotice({
   productType,
   state,
   onApplyChannel,
+  onApplyCampaign,
   onApplyProductGroup
 }: {
   productType: PlannerProductType;
   state: AccountSnapshotState;
-  onApplyChannel: (channelId: string) => void;
+  onApplyChannel: (channelId: string, target?: "shopping" | "pc" | "mobile" | "both") => void;
+  onApplyCampaign: (campaignId: string) => void;
   onApplyProductGroup: (productGroupId: string, businessChannelId: string) => void;
 }) {
   if (state.status === "idle") {
@@ -1757,6 +1777,7 @@ function AccountSnapshotNotice({
 
   const isShoppingSearch = productType === "shoppingSearch";
   const productGroups = (state.response.productGroups ?? []).filter((productGroup) => productGroup.id);
+  const campaigns = (state.response.campaigns ?? []).filter((campaign) => campaign.nccCampaignId);
   const snapshotWarnings = Object.entries(state.response.errors ?? {}).filter((entry): entry is [string, string] =>
     Boolean(entry[1])
   );
@@ -1780,7 +1801,7 @@ function AccountSnapshotNotice({
       <div className="snapshot-summary">
         <span>{isShoppingSearch ? "쇼핑채널" : "비즈채널"} {eligibleChannels.length}개</span>
         {isShoppingSearch ? <span>상품그룹 {productGroups.length}개</span> : null}
-        <span>캠페인 {state.response.campaigns?.length ?? 0}개</span>
+        <span>캠페인 {campaigns.length}개</span>
       </div>
       {state.response.partial && snapshotWarnings.length > 0 ? (
         <div className="snapshot-warning-list">
@@ -1810,7 +1831,43 @@ function AccountSnapshotNotice({
                 <em>{channel.site ?? channel.mobileSite ?? "URL 미확인"}</em>
               </div>
               <button className="icon-button subtle" type="button" onClick={() => onApplyChannel(channel.id)}>
-                적용
+                {isShoppingSearch ? "적용" : "둘 다"}
+              </button>
+              {!isShoppingSearch ? (
+                <div className="channel-action-group">
+                  <button className="icon-button subtle" type="button" onClick={() => onApplyChannel(channel.id, "pc")}>
+                    PC
+                  </button>
+                  <button
+                    className="icon-button subtle"
+                    type="button"
+                    onClick={() => onApplyChannel(channel.id, "mobile")}
+                  >
+                    모바일
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ))
+        )}
+      </div>
+      <div className="channel-list campaign-list">
+        {campaigns.length === 0 ? (
+          <span>조회된 캠페인이 없습니다. 캠페인 생성 초안을 승인하거나 캠페인 ID를 직접 입력하세요.</span>
+        ) : (
+          campaigns.map((campaign) => (
+            <div className="channel-item" key={campaign.nccCampaignId}>
+              <div>
+                <strong>{campaign.name ?? "캠페인 이름 없음"}</strong>
+                <span>{campaign.userLock ? "OFF/잠금 상태" : "상태 확인 필요"}</span>
+                <em>{campaign.nccCampaignId}</em>
+              </div>
+              <button
+                className="icon-button subtle"
+                type="button"
+                onClick={() => onApplyCampaign(campaign.nccCampaignId ?? "")}
+              >
+                캠페인 적용
               </button>
             </div>
           ))
@@ -1961,6 +2018,7 @@ function parseExecutionContext(value: unknown): WorkspaceDraftSnapshot["executio
   }
 
   return {
+    campaignId: stringOrUndefined(value.campaignId),
     pcChannelId: stringOrUndefined(value.pcChannelId),
     mobileChannelId: stringOrUndefined(value.mobileChannelId),
     shoppingChannelId: stringOrUndefined(value.shoppingChannelId),
