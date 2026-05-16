@@ -208,6 +208,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
         </Link>
         <nav aria-label="이력 메뉴">
           <Link href="/workspace">워크스페이스</Link>
+          <Link href="/history">저장 이력</Link>
           <Link href="/mypage">마이페이지</Link>
         </nav>
       </header>
@@ -235,9 +236,9 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
       {data ? (
         <>
           <section className="account-hero history-detail-hero">
-            <Link className="history-back-link" href="/mypage">
+            <Link className="history-back-link" href="/history">
               <ArrowLeft size={16} />
-              최근 이력
+              저장 이력
             </Link>
             <p className="eyebrow">Saved Run Detail</p>
             <h1>{data.run.brandName}</h1>

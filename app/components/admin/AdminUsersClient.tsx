@@ -206,6 +206,7 @@ function AdminUsersContent() {
         </Link>
         <nav aria-label="관리자 메뉴">
           <Link href="/workspace">워크스페이스</Link>
+          <Link href="/history">저장 이력</Link>
           <Link href="/mypage">마이페이지</Link>
         </nav>
       </header>
@@ -263,9 +264,9 @@ function AdminUsersContent() {
             <h2>최근 저장 활동</h2>
             <p>최근 planning run과 execution draft 상태를 회원관리에서 바로 추적합니다.</p>
           </div>
-          <Link className="icon-button subtle" href="/workspace">
+          <Link className="icon-button subtle" href="/history">
             <Activity size={17} />
-            작업 화면
+            전체 이력
           </Link>
         </div>
         {activityStatus === "loading" ? (

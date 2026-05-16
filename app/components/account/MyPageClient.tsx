@@ -213,6 +213,7 @@ function MyPageContent() {
         </Link>
         <nav aria-label="계정 메뉴">
           <Link href="/workspace">워크스페이스</Link>
+          <Link href="/history">저장 이력</Link>
           {sessionSummary?.role === "admin" ? <Link href="/admin/users">회원관리</Link> : null}
         </nav>
       </header>
@@ -345,9 +346,9 @@ function MyPageContent() {
             <h2>최근 저장 이력</h2>
             <p>워크스페이스에서 저장한 planning run과 execution draft 상태를 다시 확인합니다.</p>
           </div>
-          <Link className="icon-button subtle" href="/workspace">
+          <Link className="icon-button subtle" href="/history">
             <FileClock size={17} />
-            워크스페이스
+            전체 이력
           </Link>
         </div>
         {historyStatus === "loading" ? (

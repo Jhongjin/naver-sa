@@ -855,6 +855,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             <FileText size={18} />
             리포트
           </a>
+          <Link className="nav-link" href="/history">
+            <FileText size={18} />
+            저장 이력
+          </Link>
           <a className="nav-link" href="#benchmark">
             <BarChart3 size={18} />
             기능 범위
