@@ -56,6 +56,8 @@ Planned stack:
 
 - `docs/SETUP.md`
 - `docs/ENVIRONMENT.md`
+- `docs/SUPABASE_SQL_SETUP.md`
 - `docs/OPERATING_POLICY.md`
 - `docs/implementation/2026-05-03_safe-production-verification.md`
+- `supabase/manual-setup.sql`
 - `.env.example`

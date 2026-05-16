@@ -20,6 +20,10 @@ Apply migrations in timestamp order:
 4. Confirm `execution_payloads_idempotency_key_key` has been dropped.
 5. Visit `/api/supabase/readiness` after deploy.
 
+For a fresh project or one-shot repair, use `supabase/manual-setup.sql` instead
+of copying migrations one by one. The operator-facing SQL guide is
+`docs/SUPABASE_SQL_SETUP.md`.
+
 The MVP enables RLS on public app tables, but browser clients do not write to those tables directly. The app writes planning and execution history through protected server routes using `SUPABASE_SERVICE_ROLE_KEY`.
 
 ## Auth Checklist
