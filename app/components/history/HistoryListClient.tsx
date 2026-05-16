@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   DatabaseZap,
+  Download,
   FileClock,
   ListFilter,
   RefreshCw,
@@ -158,6 +159,61 @@ function HistoryListContent() {
     });
   }, [draftFilter, productFilter, query, runs]);
 
+  function downloadFilteredCsv() {
+    if (filteredRuns.length === 0) {
+      return;
+    }
+
+    const rows = [
+      [
+        "planning_run_id",
+        "brand",
+        "workspace",
+        "product_type",
+        "mode",
+        "vertical",
+        "created_by",
+        "created_at",
+        "approved",
+        "held",
+        "pending",
+        "blocked",
+        "draft_status",
+        "draft_blockers",
+        "monthly_budget",
+        "max_bid",
+        "site_url"
+      ],
+      ...filteredRuns.map((run) => [
+        run.id,
+        run.brandName,
+        run.workspaceName ?? "",
+        productLabel(run.productType),
+        modeLabel(run.mode),
+        run.vertical,
+        run.createdBy ?? "",
+        run.createdAt,
+        String(run.approvalSummary.approved),
+        String(run.approvalSummary.held),
+        String(run.approvalSummary.pending),
+        String(run.approvalSummary.blocked),
+        run.executionDraft ? draftStatusLabel(run.executionDraft.status) : "초안 없음",
+        String(run.executionDraft?.blockerCount ?? 0),
+        String(run.monthlyBudget),
+        String(run.maxBid),
+        run.siteUrl
+      ])
+    ];
+    const csv = rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `naver-sa-history-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <main className="account-page history-browser-page">
       <header className="account-header">
@@ -182,6 +238,15 @@ function HistoryListContent() {
           <button className="icon-button subtle" disabled={status === "loading"} type="button" onClick={loadHistory}>
             <RefreshCw size={17} />
             새로고침
+          </button>
+          <button
+            className="icon-button subtle"
+            disabled={filteredRuns.length === 0}
+            type="button"
+            onClick={downloadFilteredCsv}
+          >
+            <Download size={17} />
+            CSV
           </button>
         </div>
       </section>
@@ -412,4 +477,8 @@ function formatCompactWon(value: number) {
   }
 
   return `${numberFormatter.format(value)}원`;
+}
+
+function escapeCsvCell(value: string) {
+  return `"${value.replaceAll("\"", "\"\"")}"`;
 }
