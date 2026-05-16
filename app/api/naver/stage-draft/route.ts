@@ -35,8 +35,7 @@ export async function POST(request: Request) {
     authAccess: access.state,
     naver: {
       ready: naverState.ready,
-      missing: naverState.missing,
-      baseUrl: naverState.baseUrl,
+      missingCount: naverState.missing.length,
       customerIdPresent: naverState.customerIdPresent
     },
     approvalSummary,

@@ -51,10 +51,10 @@ const currencyFormatter = new Intl.NumberFormat("ko-KR");
 
 type NaverReadiness = {
   ok: boolean;
-  state: {
+  ready: boolean;
+  configuration: {
     ready: boolean;
-    missing: string[];
-    baseUrl: string;
+    missingCount: number;
     customerIdPresent: boolean;
   };
   externalRequest: boolean;
@@ -73,8 +73,7 @@ type StageDraftResponse = {
   };
   naver: {
     ready: boolean;
-    missing: string[];
-    baseUrl: string;
+    missingCount: number;
     customerIdPresent: boolean;
   };
   draft: {
@@ -1522,7 +1521,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 <ShieldCheck size={18} />
                 {naverReadiness?.ok
                   ? "공식 Search AD 서명 방식 준비 완료"
-                  : `환경변수 ${naverReadiness?.state.missing.length ?? "-"}개 확인 필요`}
+                  : `환경변수 ${naverReadiness?.configuration.missingCount ?? "-"}개 확인 필요`}
               </li>
             </ul>
           </article>

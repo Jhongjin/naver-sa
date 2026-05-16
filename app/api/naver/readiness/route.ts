@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getNaverConfigState, listNaverCampaigns } from "@/lib/naver-search-ad";
+import { getNaverConfigState, listNaverCampaigns, type NaverConfigState } from "@/lib/naver-search-ad";
 import { verifyUserAccess } from "@/lib/auth-access";
 
 export async function GET(request: Request) {
@@ -8,13 +8,7 @@ export async function GET(request: Request) {
   const shouldCheckCampaigns = url.searchParams.get("check") === "campaigns";
 
   if (!shouldCheckCampaigns) {
-    return NextResponse.json({
-      ok: state.ready,
-      state,
-      externalRequest: false,
-      readOnlyEndpoints: ["/ncc/campaigns", "/ncc/adgroups", "/ncc/keywords", "/stats"],
-      writeExecution: "blocked in MVP"
-    });
+    return NextResponse.json(toPublicReadiness(state));
   }
 
   const access = await verifyUserAccess(request, { requireAdmin: true });
@@ -44,4 +38,21 @@ export async function GET(request: Request) {
     externalRequest: true,
     readOnlyCheck: result
   });
+}
+
+function toPublicReadiness(state: NaverConfigState) {
+  return {
+    ok: state.ready,
+    ready: state.ready,
+    configuration: {
+      ready: state.ready,
+      missingCount: state.missing.length,
+      customerIdPresent: state.customerIdPresent
+    },
+    externalRequest: false,
+    readOnlyEndpointCount: 4,
+    writeExecution: "blocked in MVP",
+    deleteExecution: "blocked in MVP",
+    detail: "Use ?check=campaigns with an admin session for a live read-only connectivity check."
+  };
 }
