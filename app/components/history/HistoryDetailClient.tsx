@@ -30,6 +30,11 @@ type HistoryDetailResponse = {
     forecast: Record<string, unknown>;
     assumptions: string[];
     createdBy: string | null;
+    createdByUserId: string | null;
+    workspaceId: string | null;
+    workspaceName: string | null;
+    workspaceMode: "agency" | "advertiser" | null;
+    workspaceOwnerUserId: string | null;
     createdAt: string;
     approvalSummary: {
       approved: number;
@@ -239,6 +244,23 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
             <p>
               {productLabel(data.run.productType)} / {data.run.vertical} / {formatDateTime(data.run.createdAt)}
             </p>
+            <div className="history-context-strip" aria-label="저장 맥락">
+              <div>
+                <span>워크스페이스</span>
+                <strong>{data.run.workspaceName ?? "미기록"}</strong>
+                <em>{data.run.workspaceMode ? modeLabel(data.run.workspaceMode) : data.run.workspaceId ? "ID 연결" : "연결 없음"}</em>
+              </div>
+              <div>
+                <span>저장자</span>
+                <strong>{data.run.createdBy ?? "미기록"}</strong>
+                <em>{data.run.createdByUserId ? "회원 세션 저장" : "레거시 저장"}</em>
+              </div>
+              <div>
+                <span>소유 맥락</span>
+                <strong>{ownerContextLabel(data.run.workspaceOwnerUserId, data.run.createdByUserId)}</strong>
+                <em>live/delete blocked</em>
+              </div>
+            </div>
             <div className="history-detail-actions">
               <Link className="icon-button primary" href="/workspace">
                 워크스페이스 열기
@@ -339,7 +361,11 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                   </div>
                   <div>
                     <dt>모드</dt>
-                    <dd>{data.run.mode === "agency" ? "대행사" : "광고주"}</dd>
+                    <dd>{modeLabel(data.run.mode)}</dd>
+                  </div>
+                  <div>
+                    <dt>워크스페이스</dt>
+                    <dd>{data.run.workspaceName ?? "미기록"}</dd>
                   </div>
                   <div>
                     <dt>저장자</dt>
@@ -480,6 +506,18 @@ function IssueList({
 
 function productLabel(productType: "powerlink" | "shoppingSearch") {
   return productType === "shoppingSearch" ? "쇼핑검색" : "파워링크";
+}
+
+function modeLabel(mode: "agency" | "advertiser") {
+  return mode === "agency" ? "대행사" : "광고주";
+}
+
+function ownerContextLabel(ownerUserId: string | null, creatorUserId: string | null) {
+  if (!ownerUserId || !creatorUserId) {
+    return "이력 기반";
+  }
+
+  return ownerUserId === creatorUserId ? "소유자 저장" : "멤버 저장";
 }
 
 function draftStatusLabel(status: "blocked" | "ready" | "executed" | "failed") {

@@ -4106,6 +4106,50 @@ td span {
   margin-top: 22px;
 }
 
+.history-context-strip {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 22px;
+  max-width: 860px;
+}
+
+.history-context-strip div {
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.history-context-strip span,
+.history-context-strip strong,
+.history-context-strip em {
+  display: block;
+}
+
+.history-context-strip span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.history-context-strip strong {
+  color: #0f172a;
+  font-size: 15px;
+  margin-top: 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-context-strip em {
+  color: #0f766e;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+  margin-top: 5px;
+}
+
 .history-detail-loading,
 .history-detail-empty,
 .history-detail-summary,
@@ -5115,6 +5159,10 @@ td span {
 
   .history-detail-summary,
   .history-validation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-context-strip {
     grid-template-columns: 1fr;
   }
 

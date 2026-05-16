@@ -20,6 +20,13 @@ type PlanningRunRow = {
   created_at: string;
 };
 
+type WorkspaceRow = {
+  id: string;
+  name: string;
+  mode: "agency" | "advertiser";
+  owner_user_id: string | null;
+};
+
 type PlanningKeywordRow = {
   id: string;
   term: string;
@@ -171,6 +178,22 @@ export async function GET(request: Request, context: RouteContext) {
     return NextResponse.json({ ok: false, error: "Planning run was not found." }, { status: 404 });
   }
 
+  let workspace: WorkspaceRow | null = null;
+
+  if (planningRun.workspace_id) {
+    const { data: workspaceData, error: workspaceError } = await supabase
+      .from("workspaces")
+      .select("id, name, mode, owner_user_id")
+      .eq("id", planningRun.workspace_id)
+      .maybeSingle();
+
+    if (workspaceError) {
+      return NextResponse.json({ ok: false, error: sanitizeError(workspaceError.message) }, { status: 502 });
+    }
+
+    workspace = (workspaceData ?? null) as WorkspaceRow | null;
+  }
+
   const [keywordsResult, adGroupsResult, changesResult, draftsResult, auditResult] = await Promise.all([
     supabase
       .from("planning_keywords")
@@ -275,6 +298,9 @@ export async function GET(request: Request, context: RouteContext) {
       createdBy: planningRun.created_by,
       createdByUserId: planningRun.created_by_user_id,
       workspaceId: planningRun.workspace_id,
+      workspaceName: workspace?.name ?? null,
+      workspaceMode: workspace?.mode ?? null,
+      workspaceOwnerUserId: workspace?.owner_user_id ?? null,
       createdAt: planningRun.created_at,
       approvalSummary: summarizeChanges(changes)
     },
