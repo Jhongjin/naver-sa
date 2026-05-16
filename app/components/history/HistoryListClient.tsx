@@ -361,7 +361,7 @@ function HistoryListContent() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `naver-sa-history-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = buildHistoryCsvFileName({ dateFilter, draftFilter, productFilter, query });
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -639,7 +639,7 @@ function coerceProductFilter(value: string | null): ProductFilter {
 function draftFilterLabel(value: DraftFilter) {
   const labels = {
     all: "전체",
-    ready: "Ready",
+    ready: "준비",
     blocked: "차단",
     failed: "실패",
     executed: "실행",
@@ -692,6 +692,38 @@ function isWithinDateFilter(value: string, filter: DateFilter) {
   const threshold = Date.now() - days * 24 * 60 * 60 * 1000;
 
   return date >= threshold;
+}
+
+function buildHistoryCsvFileName({
+  dateFilter,
+  draftFilter,
+  productFilter,
+  query
+}: {
+  dateFilter: DateFilter;
+  draftFilter: DraftFilter;
+  productFilter: ProductFilter;
+  query: string;
+}) {
+  const segments = [
+    "naver-sa-history",
+    query.trim() ? safeFileName(query.trim()) : null,
+    productFilter !== "all" ? safeFileName(productFilterLabel(productFilter)) : null,
+    draftFilter !== "all" ? safeFileName(draftFilterLabel(draftFilter)) : null,
+    dateFilter !== "all" ? safeFileName(`최근-${dateFilterLabel(dateFilter)}`) : null,
+    new Date().toISOString().slice(0, 10)
+  ].filter((segment): segment is string => Boolean(segment));
+
+  return `${segments.join("-")}.csv`;
+}
+
+function safeFileName(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣_-]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
 }
 
 function escapeCsvCell(value: string) {
