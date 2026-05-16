@@ -410,7 +410,7 @@ async function saveExecutionDraft(input: {
     if (payloadError) {
       return {
         ok: false,
-        error: `Execution payload history was not saved: ${sanitizeSupabaseError(payloadError.message)}`
+        error: formatPayloadPersistenceError(payloadError)
       };
     }
   }
@@ -439,6 +439,17 @@ async function saveExecutionDraft(input: {
 
 function sanitizeSupabaseError(message: string | undefined): string {
   return message?.slice(0, 300) || "Supabase persistence failed.";
+}
+
+function formatPayloadPersistenceError(error: { code?: string; message?: string; details?: string | null }): string {
+  if (isPayloadIdempotencyConstraintError(error)) {
+    return [
+      "Execution payload history was not saved because the legacy global idempotency constraint is still active.",
+      "Apply supabase/migrations/20260516101400_relax_execution_payload_idempotency.sql, then save the draft again."
+    ].join(" ");
+  }
+
+  return `Execution payload history was not saved: ${sanitizeSupabaseError(error.message)}`;
 }
 
 function isPayloadIdempotencyConstraintError(error: { code?: string; message?: string; details?: string | null }): boolean {
