@@ -9,9 +9,13 @@ create table if not exists public.workspaces (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   mode text not null default 'agency' check (mode in ('agency', 'advertiser')),
+  owner_user_id uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.workspaces
+  add column if not exists owner_user_id uuid;
 
 create table if not exists public.ad_accounts (
   id uuid primary key default gen_random_uuid(),
@@ -39,6 +43,7 @@ create table if not exists public.planning_runs (
   assumptions text[] not null default '{}',
   product_type text not null default 'powerlink',
   created_by text,
+  created_by_user_id uuid,
   created_at timestamptz not null default now(),
   constraint planning_runs_product_type_check
     check (product_type in ('powerlink', 'shoppingSearch'))
@@ -46,6 +51,9 @@ create table if not exists public.planning_runs (
 
 alter table public.planning_runs
   add column if not exists product_type text not null default 'powerlink';
+
+alter table public.planning_runs
+  add column if not exists created_by_user_id uuid;
 
 update public.planning_runs
 set product_type = 'powerlink'
@@ -116,9 +124,31 @@ create table if not exists public.staged_changes (
   decision text not null default 'pending'
     check (decision in ('pending', 'approved', 'held', 'executed', 'failed')),
   decided_at timestamptz,
+  decided_by text,
+  decision_note text,
+  decision_source text not null default 'workspace',
   executed_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table public.staged_changes
+  add column if not exists decided_by text,
+  add column if not exists decision_note text,
+  add column if not exists decision_source text not null default 'workspace';
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'staged_changes_decision_source_check'
+      and conrelid = 'public.staged_changes'::regclass
+  ) then
+    alter table public.staged_changes
+      add constraint staged_changes_decision_source_check
+      check (decision_source in ('workspace', 'api', 'import', 'system'));
+  end if;
+end $$;
 
 create table if not exists public.audit_events (
   id uuid primary key default gen_random_uuid(),
@@ -132,6 +162,17 @@ create table if not exists public.audit_events (
   after_value jsonb,
   reason text,
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.workspace_members (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  user_id uuid not null,
+  email text,
+  role text not null default 'owner',
+  created_at timestamptz not null default now(),
+  unique (workspace_id, user_id),
+  check (role in ('owner', 'admin', 'member', 'viewer'))
 );
 
 create table if not exists public.execution_drafts (
@@ -216,6 +257,7 @@ alter table public.audit_events enable row level security;
 alter table public.execution_drafts enable row level security;
 alter table public.execution_payloads enable row level security;
 alter table public.execution_results enable row level security;
+alter table public.workspace_members enable row level security;
 
 create index if not exists planning_runs_created_at_idx
   on public.planning_runs(created_at desc);
@@ -223,6 +265,12 @@ create index if not exists planning_keywords_run_status_idx
   on public.planning_keywords(planning_run_id, status);
 create index if not exists staged_changes_run_decision_idx
   on public.staged_changes(planning_run_id, decision);
+create index if not exists staged_changes_decided_by_idx
+  on public.staged_changes(decided_by)
+  where decided_by is not null;
+create index if not exists staged_changes_decided_at_idx
+  on public.staged_changes(decided_at desc)
+  where decided_at is not null;
 create index if not exists audit_events_created_at_idx
   on public.audit_events(created_at desc);
 create index if not exists execution_drafts_run_idx
@@ -233,6 +281,14 @@ create index if not exists execution_payloads_idempotency_idx
   on public.execution_payloads(idempotency_key);
 create index if not exists execution_results_idempotency_idx
   on public.execution_results(idempotency_key, created_at desc);
+create index if not exists workspaces_owner_user_id_idx
+  on public.workspaces(owner_user_id)
+  where owner_user_id is not null;
+create index if not exists planning_runs_created_by_user_id_idx
+  on public.planning_runs(created_by_user_id, created_at desc)
+  where created_by_user_id is not null;
+create index if not exists workspace_members_user_id_idx
+  on public.workspace_members(user_id);
 
 -- Optional admin bootstrap after a user signs up through /signup.
 -- Prefer ADMIN_EMAILS in Vercel for the first admin. Use this SQL only when
