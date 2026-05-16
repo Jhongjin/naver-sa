@@ -89,9 +89,10 @@ export async function PATCH(request: Request) {
 
   const body = await readJson(request);
   const userId = typeof body.userId === "string" ? body.userId : "";
+  const action = body.action === "confirmEmail" ? "confirmEmail" : "setRole";
   const role = body.role === "admin" || body.role === "member" ? (body.role as AppUserRole) : null;
 
-  if (!userId || !role) {
+  if (!userId || (action === "setRole" && !role)) {
     return jsonNoStore({ ok: false, error: "userId and role are required." }, { status: 400 });
   }
 
@@ -99,6 +100,34 @@ export async function PATCH(request: Request) {
 
   if (getError || !existing.user) {
     return jsonNoStore({ ok: false, error: "User was not found." }, { status: 404 });
+  }
+
+  if (action === "confirmEmail") {
+    if (existing.user.email_confirmed_at) {
+      return jsonNoStore({
+        ok: true,
+        userId,
+        emailConfirmed: true
+      });
+    }
+
+    const { error } = await admin.auth.admin.updateUserById(userId, {
+      email_confirm: true
+    });
+
+    if (error) {
+      return jsonNoStore({ ok: false, error: sanitizeAdminError(error.message) }, { status: 502 });
+    }
+
+    return jsonNoStore({
+      ok: true,
+      userId,
+      emailConfirmed: true
+    });
+  }
+
+  if (!role) {
+    return jsonNoStore({ ok: false, error: "role is required." }, { status: 400 });
   }
 
   if (existing.user.id === access.user.id && role === "member") {

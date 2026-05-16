@@ -258,6 +258,35 @@ function AdminUsersContent() {
     await loadUsers();
   }
 
+  async function confirmUserEmail(userId: string) {
+    setStatus("loading");
+    const token = await getAccessToken();
+
+    if (!token) {
+      setStatus("error");
+      setMessage("로그인이 필요합니다.");
+      return;
+    }
+
+    const response = await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ action: "confirmEmail", userId })
+    });
+
+    if (!response.ok) {
+      setStatus("error");
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      setMessage(data.error ?? "메일 확인 상태를 변경하지 못했습니다.");
+      return;
+    }
+
+    await loadUsers();
+  }
+
   async function runNaverReadinessCheck() {
     setNaverCheckStatus("loading");
     setNaverCheckMessage("");
@@ -570,11 +599,21 @@ function AdminUsersContent() {
               <span className="mobile-label">회사</span>
               {user.companyName ?? "미등록"}
             </span>
-            <span>
+            <span className="admin-status-cell">
               <span className="mobile-label">상태</span>
               <span className={`status-pill ${user.emailConfirmed ? "include" : "review"}`}>
                 {user.emailConfirmed ? "인증됨" : "메일 미확인"}
               </span>
+              {!user.emailConfirmed ? (
+                <button
+                  className="admin-inline-action"
+                  disabled={status === "loading"}
+                  type="button"
+                  onClick={() => confirmUserEmail(user.id)}
+                >
+                  확인 처리
+                </button>
+              ) : null}
             </span>
             <span className="admin-activity-cell">
               <span className="mobile-label">운영</span>
