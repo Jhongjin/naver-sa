@@ -1,6 +1,10 @@
 import { verifyUserAccess } from "@/lib/auth-access";
-import { jsonNoStore } from "@/lib/http";
+import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { getSupabaseAdminClient, getSupabaseAdminState, type SupabaseUrlState } from "@/lib/supabase-admin";
+
+export function POST() {
+  return methodNotAllowed(["GET"]);
+}
 
 const requiredTables = [
   "workspaces",

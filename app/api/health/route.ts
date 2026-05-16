@@ -1,4 +1,4 @@
-import { jsonNoStore } from "@/lib/http";
+import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 
 const requiredVariables = [
   "NEXT_PUBLIC_APP_URL",
@@ -15,6 +15,10 @@ const requiredVariables = [
 ];
 
 const recommendedVariables = ["ADMIN_EMAILS"];
+
+export function POST() {
+  return methodNotAllowed(["GET"]);
+}
 
 export function GET() {
   const variables = requiredVariables.map((name) => ({

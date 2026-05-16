@@ -1,6 +1,10 @@
 import { getNaverConfigState, listNaverCampaigns, type NaverConfigState } from "@/lib/naver-search-ad";
 import { verifyUserAccess } from "@/lib/auth-access";
-import { jsonNoStore } from "@/lib/http";
+import { jsonNoStore, methodNotAllowed } from "@/lib/http";
+
+export function POST() {
+  return methodNotAllowed(["GET"]);
+}
 
 export async function GET(request: Request) {
   const state = getNaverConfigState();
