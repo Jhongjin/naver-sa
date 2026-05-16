@@ -196,6 +196,10 @@ type SaveDraftState =
       message: string;
       planningRunId: string;
       executionDraftId?: string;
+      draftKey: string;
+      payloadCount: number;
+      blockerCount: number;
+      warningCount: number;
       warnings: string[];
     }
   | {
@@ -823,12 +827,18 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         throw new Error(`${message ?? "저장에 실패했습니다."}${missing}`);
       }
 
+      const savedDraft = activeStageDraftState.status === "success" ? activeStageDraftState.response.draft : executionDraft;
+
       setSaveDraftState({
         status: "success",
         fingerprint: saveFingerprint,
         message: "승인 상태와 전송 초안 이력을 저장했습니다.",
         planningRunId: data.planningRunId,
         executionDraftId: data.executionDraftId,
+        draftKey: savedDraft.draftKey,
+        payloadCount: savedDraft.payloads.length,
+        blockerCount: savedDraft.validation.blockerCount,
+        warningCount: savedDraft.validation.warningCount,
         warnings: data.warnings ?? []
       });
     } catch (error) {
@@ -1922,8 +1932,14 @@ function SaveDraftNotice({ state }: { state: SaveDraftState }) {
   return (
     <div className="stage-notice success">
       <strong>{state.message}</strong>
+      <div className="snapshot-summary">
+        <span>payload {state.payloadCount}개</span>
+        <span>차단 {state.blockerCount}건</span>
+        <span>경고 {state.warningCount}건</span>
+      </div>
       <span>planning run: {state.planningRunId}</span>
       {state.executionDraftId ? <span>execution draft: {state.executionDraftId}</span> : null}
+      <span>draft key: {state.draftKey.slice(0, 18)}...</span>
       <div className="inline-history-actions">
         <Link className="inline-history-link" href={`/history/${state.planningRunId}`}>
           상세 이력 열기
