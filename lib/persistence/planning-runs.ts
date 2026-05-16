@@ -1,11 +1,12 @@
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { PlannerPlan } from "@/lib/planner";
-import type { ApprovalDecisionMap } from "@/lib/reporting";
+import type { ApprovalDecisionMap, ApprovalDecisionNoteMap } from "@/lib/reporting";
 import type { NaverExecutionDraft } from "@/lib/execution-draft";
 
 export type SavePlanningRunInput = {
   plan: PlannerPlan;
   decisions: ApprovalDecisionMap;
+  decisionNotes?: ApprovalDecisionNoteMap;
   executionDraft?: NaverExecutionDraft;
   createdBy?: string;
 };
@@ -33,6 +34,7 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
   }
 
   const { plan, decisions } = input;
+  const decisionNotes = input.decisionNotes ?? {};
   const warnings: string[] = [];
   const { data: workspace, error: workspaceError } = await supabase
     .from("workspaces")
@@ -128,7 +130,7 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
     return {
       ...row,
       decided_by: decision === "pending" ? null : input.createdBy ?? null,
-      decision_note: null,
+      decision_note: decision === "pending" ? null : decisionNotes[change.id] ?? null,
       decision_source: "workspace"
     };
   });
@@ -157,7 +159,8 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
           target: change.target,
           action: change.action,
           risk: change.risk,
-          approvalRequired: change.approval === "승인 필요"
+          approvalRequired: change.approval === "승인 필요",
+          note: decisionNotes[change.id] ?? null
         },
         reason: "Operator approval decision was saved."
       }
@@ -177,7 +180,8 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
       entity_id: planningRunId,
       after_value: {
         forecast: plan.forecast,
-        decisions
+        decisions,
+        decisionNotes
       },
       reason: "MVP planner dry-run saved."
     })

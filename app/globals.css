@@ -712,6 +712,42 @@ h3 {
   justify-content: flex-end;
 }
 
+.approval-note-field {
+  display: grid;
+  gap: 6px;
+  grid-column: 1;
+  padding-left: 92px;
+}
+
+.approval-note-field span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.approval-note-field input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+  padding: 9px 10px;
+  transition:
+    border-color 180ms var(--motion-ease),
+    box-shadow 180ms var(--motion-ease),
+    background-color 180ms var(--motion-ease);
+}
+
+.approval-note-field input:focus {
+  border-color: rgba(17, 24, 39, 0.32);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(39, 139, 96, 0.12);
+}
+
 .inspector-stack {
   display: flex;
   flex-direction: column;
@@ -2228,6 +2264,11 @@ td span {
     padding-left: 86px;
   }
 
+  .approval-note-field {
+    grid-column: auto;
+    padding-left: 86px;
+  }
+
   .input-column,
   .inspector-stack {
     position: static;
@@ -2302,6 +2343,10 @@ td span {
   }
 
   .approval-row-meta {
+    padding-left: 0;
+  }
+
+  .approval-note-field {
     padding-left: 0;
   }
 
@@ -4184,6 +4229,7 @@ td span {
 .history-payload-item span:not(.status-pill),
 .history-payload-item em,
 .history-change-list p,
+.history-change-list em,
 .history-keyword-list span,
 .history-keyword-list em,
 .history-audit-list span,
@@ -4191,6 +4237,7 @@ td span {
 .history-audit-list small,
 .history-approval-timeline p,
 .history-approval-timeline em,
+.history-approval-timeline small,
 .history-payload-list > span,
 .history-audit-list > span {
   color: #64748b;

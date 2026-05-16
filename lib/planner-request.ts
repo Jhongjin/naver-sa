@@ -1,6 +1,6 @@
 import type { NaverExecutionContext } from "@/lib/execution-draft";
 import { mardDefaultInput, type PlannerInput, type PlannerMode, type PlannerProductType } from "@/lib/planner";
-import type { ApprovalDecision, ApprovalDecisionMap } from "@/lib/reporting";
+import type { ApprovalDecision, ApprovalDecisionMap, ApprovalDecisionNoteMap } from "@/lib/reporting";
 
 export async function readJsonRecord(request: Request): Promise<Record<string, unknown>> {
   try {
@@ -39,6 +39,18 @@ export function coerceDecisions(value: unknown): ApprovalDecisionMap {
   );
 }
 
+export function coerceDecisionNotes(value: unknown): ApprovalDecisionNoteMap {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([key, note]) => [key, typeof note === "string" ? normalizeNote(note) : ""] as const)
+      .filter((entry): entry is [string, string] => entry[1].length > 0)
+  );
+}
+
 export function coerceExecutionContext(value: unknown): NaverExecutionContext {
   if (!isRecord(value)) {
     return {};
@@ -64,6 +76,10 @@ export function stringValueOrUndefined(value: unknown): string | undefined {
 
 function stringValue(value: unknown, fallback: string): string {
   return typeof value === "string" ? value : fallback;
+}
+
+function normalizeNote(value: string): string {
+  return value.trim().replace(/\s+/g, " ").slice(0, 240);
 }
 
 function numberValue(value: unknown, fallback: number): number {

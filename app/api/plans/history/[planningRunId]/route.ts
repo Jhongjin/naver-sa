@@ -57,6 +57,9 @@ type StagedChangeRow = {
   details: string;
   decision: string;
   decided_at: string | null;
+  decided_by: string | null;
+  decision_note: string | null;
+  decision_source: string | null;
   executed_at: string | null;
   created_at: string;
 };
@@ -177,7 +180,7 @@ export async function GET(request: Request, context: RouteContext) {
     supabase
       .from("staged_changes")
       .select(
-        "id, external_key, entity_type, target, action, risk, approval_required, details, decision, decided_at, executed_at, created_at"
+        "id, external_key, entity_type, target, action, risk, approval_required, details, decision, decided_at, decided_by, decision_note, decision_source, executed_at, created_at"
       )
       .eq("planning_run_id", planningRun.id)
       .order("created_at", { ascending: true }),
@@ -301,6 +304,9 @@ export async function GET(request: Request, context: RouteContext) {
       details: change.details,
       decision: change.decision,
       decidedAt: change.decided_at,
+      decidedBy: change.decided_by,
+      decisionNote: change.decision_note,
+      decisionSource: change.decision_source,
       executedAt: change.executed_at,
       createdAt: change.created_at
     })),

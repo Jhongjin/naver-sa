@@ -68,6 +68,9 @@ type HistoryDetailResponse = {
     details: string;
     decision: string;
     decidedAt: string | null;
+    decidedBy: string | null;
+    decisionNote: string | null;
+    decisionSource: string | null;
   }>;
   executionDrafts: Array<{
     id: string;
@@ -364,6 +367,12 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                         {change.entityType} / {change.action} / {riskLabel(change.risk)}
                         {change.decidedAt ? ` / ${formatDateTime(change.decidedAt)}` : ""}
                       </p>
+                      {change.decisionNote || change.decidedBy ? (
+                        <em>
+                          {change.decisionNote ?? "메모 없음"}
+                          {change.decidedBy ? ` / ${change.decidedBy}` : ""}
+                        </em>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -380,6 +389,9 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                           {formatDateTime(event.created_at)}
                           {event.actor ? ` / ${event.actor}` : ""}
                         </em>
+                        {getAuditTextValue(event.after_value, "note") ? (
+                          <small>{getAuditTextValue(event.after_value, "note")}</small>
+                        ) : null}
                       </div>
                     ))}
                   </div>

@@ -3,6 +3,7 @@ import { createNaverExecutionDraft } from "@/lib/execution-draft";
 import { verifyUserAccess } from "@/lib/auth-access";
 import { generatePlannerPlan } from "@/lib/planner";
 import {
+  coerceDecisionNotes,
   coerceDecisions,
   coerceExecutionContext,
   coercePlannerInput,
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
   const body = await readJsonRecord(request);
   const input = coercePlannerInput(body.input);
   const decisions = coerceDecisions(body.decisions);
+  const decisionNotes = coerceDecisionNotes(body.decisionNotes);
   const executionContext = coerceExecutionContext(body.executionContext);
   const stagedDraftKey = stringValueOrUndefined(body.stagedDraftKey);
   const createdBy = access.user.email ?? access.user.id;
@@ -51,7 +53,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await savePlanningRun({ plan, decisions, executionDraft, createdBy });
+  const result = await savePlanningRun({ plan, decisions, decisionNotes, executionDraft, createdBy });
 
   return NextResponse.json(
     {

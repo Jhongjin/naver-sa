@@ -39,6 +39,7 @@ import {
   summarizeApprovals,
   type ApprovalDecision,
   type ApprovalDecisionMap,
+  type ApprovalDecisionNoteMap,
   type ExecutionReportContext
 } from "@/lib/reporting";
 import { generateOptimizationRecommendations, type OptimizationSeverity } from "@/lib/optimization";
@@ -210,6 +211,7 @@ type WorkspaceDraftSnapshot = {
   savedAt: string;
   input: PlannerInput;
   decisions: ApprovalDecisionMap;
+  decisionNotes?: ApprovalDecisionNoteMap;
   executionContext: {
     campaignId?: string;
     pcChannelId?: string;
@@ -238,6 +240,9 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   );
   const [approvalDecisions, setApprovalDecisions] = useState<ApprovalDecisionMap>(
     initialDraftSnapshot?.decisions ?? {}
+  );
+  const [approvalNotes, setApprovalNotes] = useState<ApprovalDecisionNoteMap>(
+    initialDraftSnapshot?.decisionNotes ?? {}
   );
   const [naverReadiness, setNaverReadiness] = useState<NaverReadiness | null>(null);
   const [stageDraftState, setStageDraftState] = useState<StageDraftState>({ status: "idle" });
@@ -300,16 +305,20 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     () => summarizeApprovals(plan.stagedChanges, approvalDecisions),
     [approvalDecisions, plan.stagedChanges]
   );
-  const draftFingerprint = useMemo(
+  const executionFingerprint = useMemo(
     () => JSON.stringify({ input, decisions: approvalDecisions, executionContext }),
     [approvalDecisions, executionContext, input]
   );
+  const saveFingerprint = useMemo(
+    () => JSON.stringify({ input, decisions: approvalDecisions, decisionNotes: approvalNotes, executionContext }),
+    [approvalDecisions, approvalNotes, executionContext, input]
+  );
   const activeStageDraftState =
-    stageDraftState.status !== "idle" && stageDraftState.fingerprint !== draftFingerprint
+    stageDraftState.status !== "idle" && stageDraftState.fingerprint !== executionFingerprint
       ? ({ status: "idle" } as const)
       : stageDraftState;
   const activeSaveDraftState =
-    saveDraftState.status !== "idle" && saveDraftState.fingerprint !== draftFingerprint
+    saveDraftState.status !== "idle" && saveDraftState.fingerprint !== saveFingerprint
       ? ({ status: "idle" } as const)
       : saveDraftState;
 
@@ -469,11 +478,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       savedAt: new Date().toISOString(),
       input,
       decisions: approvalDecisions,
+      decisionNotes: approvalNotes,
       executionContext
     };
 
     window.localStorage.setItem(workspaceDraftStorageKey, JSON.stringify(snapshot));
-  }, [approvalDecisions, executionContext, input, user?.id, workspaceDraftStorageKey]);
+  }, [approvalDecisions, approvalNotes, executionContext, input, user?.id, workspaceDraftStorageKey]);
 
   useEffect(() => {
     let active = true;
@@ -508,7 +518,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
   function downloadApprovalCsv() {
     downloadTextFile(
-      createApprovalCsv(plan, approvalDecisions),
+      createApprovalCsv(plan, approvalDecisions, approvalNotes),
       `${slugFileName(plan.input.brandName)}-approval-queue.csv`,
       "text/csv;charset=utf-8"
     );
@@ -579,6 +589,23 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     }));
   }
 
+  function setDecisionNote(changeId: string, note: string) {
+    setApprovalNotes((current) => {
+      const normalized = note.slice(0, 240);
+
+      if (!normalized.trim()) {
+        const next = { ...current };
+        delete next[changeId];
+        return next;
+      }
+
+      return {
+        ...current,
+        [changeId]: normalized
+      };
+    });
+  }
+
   function approveAllChanges() {
     setApprovalDecisions(
       Object.fromEntries(
@@ -592,6 +619,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
   function resetDecisions() {
     setApprovalDecisions({});
+    setApprovalNotes({});
   }
 
   function resetWorkspaceDraft() {
@@ -608,6 +636,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     setMaxBid(initialInput.maxBid);
     setSeedText(initialInput.seedKeywords.join("\n"));
     setApprovalDecisions({});
+    setApprovalNotes({});
     setCampaignId("");
     setPcChannelId("");
     setMobileChannelId("");
@@ -631,7 +660,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   }
 
   async function stageExecutionDraft() {
-    setStageDraftState({ status: "loading", fingerprint: draftFingerprint, message: "초안 검증 중" });
+    setStageDraftState({ status: "loading", fingerprint: executionFingerprint, message: "초안 검증 중" });
 
     try {
       const response = await fetch("/api/naver/stage-draft", {
@@ -654,18 +683,18 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         throw new Error("error" in data && data.error ? data.error : "초안 검증에 실패했습니다.");
       }
 
-      setStageDraftState({ status: "success", fingerprint: draftFingerprint, response: data as StageDraftResponse });
+      setStageDraftState({ status: "success", fingerprint: executionFingerprint, response: data as StageDraftResponse });
     } catch (error) {
       setStageDraftState({
         status: "error",
-        fingerprint: draftFingerprint,
+        fingerprint: executionFingerprint,
         message: error instanceof Error ? error.message : "초안 검증에 실패했습니다."
       });
     }
   }
 
   async function saveDraftHistory() {
-    setSaveDraftState({ status: "loading", fingerprint: draftFingerprint });
+    setSaveDraftState({ status: "loading", fingerprint: saveFingerprint });
 
     try {
       const response = await fetch("/api/plans/store-draft", {
@@ -677,7 +706,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         body: JSON.stringify({
           input,
           decisions: approvalDecisions,
-          executionContext
+          decisionNotes: approvalNotes,
+          executionContext,
+          stagedDraftKey:
+            activeStageDraftState.status === "success" ? activeStageDraftState.response.draft.draftKey : undefined
         })
       });
       const data = (await response.json()) as
@@ -697,7 +729,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
       setSaveDraftState({
         status: "success",
-        fingerprint: draftFingerprint,
+        fingerprint: saveFingerprint,
         message: "승인 상태와 전송 초안 이력을 저장했습니다.",
         planningRunId: data.planningRunId,
         executionDraftId: data.executionDraftId,
@@ -706,7 +738,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     } catch (error) {
       setSaveDraftState({
         status: "error",
-        fingerprint: draftFingerprint,
+        fingerprint: saveFingerprint,
         message: error instanceof Error ? error.message : "저장에 실패했습니다."
       });
     }
@@ -1146,6 +1178,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               ) : null}
               {filteredStagedChanges.map((change) => {
                 const decision = approvalDecisions[change.id] ?? "pending";
+                const note = approvalNotes[change.id] ?? "";
 
                 return (
                   <div className="approval-row" key={change.id}>
@@ -1179,6 +1212,15 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                         보류
                       </button>
                     </div>
+                    <label className="approval-note-field">
+                      <span>승인 메모</span>
+                      <input
+                        maxLength={240}
+                        placeholder="선택 사항: 보류 사유, 승인 근거"
+                        value={note}
+                        onChange={(event) => setDecisionNote(change.id, event.target.value)}
+                      />
+                    </label>
                   </div>
                 );
               })}
@@ -1964,6 +2006,7 @@ function parseWorkspaceDraftSnapshot(value: string | null): WorkspaceDraftSnapsh
       savedAt: parsed.savedAt,
       input,
       decisions: parseApprovalDecisions(parsed.decisions),
+      decisionNotes: parseApprovalNotes(parsed.decisionNotes),
       executionContext: parseExecutionContext(parsed.executionContext)
     };
   } catch {
@@ -2008,6 +2051,18 @@ function parseApprovalDecisions(value: unknown): ApprovalDecisionMap {
     Object.entries(value).filter((entry): entry is [string, ApprovalDecision] => {
       return entry[1] === "approved" || entry[1] === "held" || entry[1] === "pending";
     })
+  );
+}
+
+function parseApprovalNotes(value: unknown): ApprovalDecisionNoteMap {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([key, note]) => [key, typeof note === "string" ? note.slice(0, 240) : ""] as const)
+      .filter((entry): entry is [string, string] => entry[1].trim().length > 0)
   );
 }
 

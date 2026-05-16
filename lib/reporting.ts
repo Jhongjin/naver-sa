@@ -3,6 +3,7 @@ import type { PlannerPlan, StagedChange } from "@/lib/planner";
 export type ApprovalDecision = "pending" | "approved" | "held";
 
 export type ApprovalDecisionMap = Record<string, ApprovalDecision>;
+export type ApprovalDecisionNoteMap = Record<string, string>;
 
 export type ApprovalSummary = {
   pending: number;
@@ -44,8 +45,12 @@ export function summarizeApprovals(changes: StagedChange[], decisions: ApprovalD
   );
 }
 
-export function createApprovalCsv(plan: PlannerPlan, decisions: ApprovalDecisionMap): string {
-  const header = ["id", "type", "target", "action", "risk", "approval", "decision", "details"];
+export function createApprovalCsv(
+  plan: PlannerPlan,
+  decisions: ApprovalDecisionMap,
+  notes: ApprovalDecisionNoteMap = {}
+): string {
+  const header = ["id", "type", "target", "action", "risk", "approval", "decision", "note", "details"];
   const rows = plan.stagedChanges.map((change) => [
     change.id,
     change.type,
@@ -54,6 +59,7 @@ export function createApprovalCsv(plan: PlannerPlan, decisions: ApprovalDecision
     change.risk,
     change.approval,
     decisions[change.id] ?? "pending",
+    notes[change.id] ?? "",
     change.details
   ]);
 
