@@ -74,6 +74,7 @@ function HistoryListContent() {
   const { getAccessToken } = useAuth();
   const [runs, setRuns] = useState<HistoryRun[]>([]);
   const [scope, setScope] = useState<"mine" | "all">("mine");
+  const [totalCount, setTotalCount] = useState(0);
   const [status, setStatus] = useState<"idle" | "loading" | "loadingMore" | "error">("loading");
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
@@ -112,6 +113,7 @@ function HistoryListContent() {
 
       setRuns(data.runs);
       setNextOffset(data.nextOffset);
+      setTotalCount(data.total);
       setScope(data.scope);
       setStatus("idle");
     } catch (error) {
@@ -133,6 +135,7 @@ function HistoryListContent() {
 
       setRuns((current) => [...current, ...data.runs]);
       setNextOffset(data.nextOffset);
+      setTotalCount(data.total);
       setScope(data.scope);
       setStatus("idle");
     } catch (error) {
@@ -387,7 +390,9 @@ function HistoryListContent() {
             </p>
           </div>
           <div className="history-browser-heading-actions">
-            <span className="status-pill neutral">최근 25건</span>
+            <span className="status-pill neutral">
+              표시 {runs.length} / 전체 {totalCount}
+            </span>
             <button
               className="icon-button subtle compact"
               disabled={!hasActiveFilters}
