@@ -1805,9 +1805,14 @@ function SaveDraftNotice({ state }: { state: SaveDraftState }) {
       <strong>{state.message}</strong>
       <span>planning run: {state.planningRunId}</span>
       {state.executionDraftId ? <span>execution draft: {state.executionDraftId}</span> : null}
-      <Link className="inline-history-link" href={`/history/${state.planningRunId}`}>
-        저장 이력 열기
-      </Link>
+      <div className="inline-history-actions">
+        <Link className="inline-history-link" href={`/history/${state.planningRunId}`}>
+          상세 이력 열기
+        </Link>
+        <Link className="inline-history-link" href="/history">
+          전체 이력 보기
+        </Link>
+      </div>
       {state.warnings.length > 0 ? (
         <div className="blocker-list">
           {state.warnings.map((warning) => (

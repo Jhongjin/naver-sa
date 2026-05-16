@@ -1763,6 +1763,12 @@ td span {
   text-decoration: underline;
 }
 
+.inline-history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .preflight-checklist {
   display: grid;
   gap: 7px;
