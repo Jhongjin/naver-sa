@@ -145,6 +145,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
   const [status, setStatus] = useState<"loading" | "error" | "idle">("loading");
   const [message, setMessage] = useState("");
   const [copiedPayloadKey, setCopiedPayloadKey] = useState<string | null>(null);
+  const [copiedReference, setCopiedReference] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -214,6 +215,18 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
     setCopiedPayloadKey(payload.payloadKey);
     window.setTimeout(() => {
       setCopiedPayloadKey((current) => (current === payload.payloadKey ? null : current));
+    }, 1500);
+  }
+
+  async function copyReference(referenceKey: string, value: string) {
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(value);
+    setCopiedReference(referenceKey);
+    window.setTimeout(() => {
+      setCopiedReference((current) => (current === referenceKey ? null : current));
     }, 1500);
   }
 
@@ -316,6 +329,10 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
               <Link className="icon-button subtle" href={`/history?q=${encodeURIComponent(data.run.brandName)}`}>
                 같은 브랜드 이력
               </Link>
+              <button className="icon-button subtle" type="button" onClick={() => copyReference("planning-run-id", data.run.id)}>
+                <Copy size={15} />
+                {copiedReference === "planning-run-id" ? "복사됨" : "Run ID"}
+              </button>
               <a className="icon-button subtle" href={data.run.siteUrl} rel="noreferrer" target="_blank">
                 사이트 확인
               </a>
@@ -358,6 +375,14 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                     >
                       <Download size={15} />
                       Payload JSON
+                    </button>
+                    <button
+                      className="icon-button subtle compact"
+                      type="button"
+                      onClick={() => copyReference("draft-id", latestDraft.draftId)}
+                    >
+                      <Copy size={14} />
+                      {copiedReference === "draft-id" ? "복사됨" : "Draft ID"}
                     </button>
                   </div>
                   <div className="history-validation-grid">
