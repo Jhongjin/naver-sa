@@ -69,6 +69,7 @@ export function createApprovalCsv(
 export function createPlannerReport(
   plan: PlannerPlan,
   decisions: ApprovalDecisionMap,
+  notes: ApprovalDecisionNoteMap = {},
   execution?: ExecutionReportContext
 ): string {
   const approvalSummary = summarizeApprovals(plan.stagedChanges, decisions);
@@ -104,6 +105,7 @@ export function createPlannerReport(
       `- Action: ${change.action}`,
       `- Risk: ${change.risk}`,
       `- Decision: ${decisions[change.id] ?? "pending"}`,
+      ...(notes[change.id] ? [`- Decision note: ${notes[change.id]}`] : []),
       `- Details: ${change.details}`,
       ""
     ]),
@@ -142,6 +144,7 @@ export function createPlannerReport(
 export function createPlannerExcelReport(
   plan: PlannerPlan,
   decisions: ApprovalDecisionMap,
+  notes: ApprovalDecisionNoteMap = {},
   execution?: ExecutionReportContext
 ): string {
   const approvalSummary = summarizeApprovals(plan.stagedChanges, decisions);
@@ -152,6 +155,7 @@ export function createPlannerExcelReport(
     change.target,
     change.action,
     change.risk,
+    notes[change.id] ?? "",
     change.details
   ]);
   const keywordRows = plan.keywords.map((keyword) => [
@@ -214,7 +218,7 @@ export function createPlannerExcelReport(
       ["Held", approvalSummary.held],
       ["Pending", approvalSummary.pending]
     ]),
-    createHtmlTable("Approval Queue", ["Decision", "Type", "Target", "Action", "Risk", "Details"], approvedRows),
+    createHtmlTable("Approval Queue", ["Decision", "Type", "Target", "Action", "Risk", "Note", "Details"], approvedRows),
     createHtmlTable(
       "Keywords",
       ["Keyword", "Group", "Intent", "Status", "Estimated CPC", "Estimated Clicks", "Reason"],

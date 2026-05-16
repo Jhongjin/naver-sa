@@ -526,7 +526,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
   function downloadReport() {
     downloadTextFile(
-      createPlannerReport(plan, approvalDecisions, createExecutionReportContext()),
+      createPlannerReport(plan, approvalDecisions, approvalNotes, createExecutionReportContext()),
       `${slugFileName(plan.input.brandName)}-setup-report.md`,
       "text/markdown;charset=utf-8"
     );
@@ -534,7 +534,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
   function downloadExcelReport() {
     downloadTextFile(
-      createPlannerExcelReport(plan, approvalDecisions, createExecutionReportContext()),
+      createPlannerExcelReport(plan, approvalDecisions, approvalNotes, createExecutionReportContext()),
       `${slugFileName(plan.input.brandName)}-setup-report.xls`,
       "application/vnd.ms-excel;charset=utf-8"
     );
