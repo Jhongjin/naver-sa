@@ -4579,6 +4579,12 @@ td span {
   padding: 10px;
 }
 
+.history-draft-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
 .history-validation-grid,
 .history-info-list {
   display: grid;
@@ -4665,10 +4671,47 @@ td span {
 }
 
 .history-payload-item {
+  display: grid;
+  gap: 12px;
+}
+
+.history-payload-row {
   align-items: center;
   display: flex;
   gap: 12px;
   justify-content: space-between;
+}
+
+.history-payload-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.history-payload-json {
+  border-top: 1px solid rgba(15, 23, 42, 0.07);
+  padding-top: 10px;
+}
+
+.history-payload-json summary {
+  color: #0f766e;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.history-payload-json pre {
+  background: #0f172a;
+  border-radius: 12px;
+  color: #e2e8f0;
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 10px 0 0;
+  max-height: 320px;
+  overflow: auto;
+  padding: 12px;
 }
 
 .history-payload-item strong,
@@ -5594,9 +5637,13 @@ td span {
     grid-template-columns: 1fr;
   }
 
-  .history-payload-item {
+  .history-payload-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .history-payload-actions {
+    justify-content: flex-start;
   }
 
   .role-actions {

@@ -5,7 +5,9 @@ import {
   ArrowLeft,
   BadgeCheck,
   CheckCircle2,
+  Copy,
   DatabaseZap,
+  Download,
   FileJson,
   History,
   ListChecks,
@@ -100,6 +102,9 @@ type HistoryDetailResponse = {
       uri: string;
       entityType: string;
       target: string;
+      params: unknown;
+      body: unknown;
+      safety: unknown;
       results: Array<{
         id: string;
         ok: boolean;
@@ -139,6 +144,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
   const [data, setData] = useState<HistoryDetailResponse | null>(null);
   const [status, setStatus] = useState<"loading" | "error" | "idle">("loading");
   const [message, setMessage] = useState("");
+  const [copiedPayloadKey, setCopiedPayloadKey] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -198,6 +204,47 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
       ["차단", `${latestDraft?.validation?.blockerCount ?? 0}건`]
     ];
   }, [data, latestDraft]);
+
+  async function copyPayloadJson(payload: NonNullable<typeof latestDraft>["payloads"][number]) {
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(formatPayloadJson(payload));
+    setCopiedPayloadKey(payload.payloadKey);
+    window.setTimeout(() => {
+      setCopiedPayloadKey((current) => (current === payload.payloadKey ? null : current));
+    }, 1500);
+  }
+
+  function downloadLatestPayloads() {
+    if (!data || !latestDraft) {
+      return;
+    }
+
+    const blob = new Blob(
+      [
+        JSON.stringify(
+          {
+            planningRunId: data.run.id,
+            draftKey: latestDraft.draftKey,
+            draftId: latestDraft.draftId,
+            payloads: latestDraft.payloads
+          },
+          null,
+          2
+        )
+      ],
+      { type: "application/json;charset=utf-8" }
+    );
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `${safeFileName(data.run.brandName)}-saved-payloads.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <main className="account-page history-detail-page">
@@ -299,6 +346,17 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                     <code>{latestDraft.draftKey}</code>
                     <span>{latestDraft.draftId}</span>
                   </div>
+                  <div className="history-draft-toolbar">
+                    <button
+                      className="icon-button subtle compact"
+                      disabled={latestDraft.payloads.length === 0}
+                      type="button"
+                      onClick={downloadLatestPayloads}
+                    >
+                      <Download size={15} />
+                      Payload JSON
+                    </button>
+                  </div>
                   <div className="history-validation-grid">
                     <div>
                       <span>테스트 실행</span>
@@ -321,14 +379,30 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                     ) : (
                       latestDraft.payloads.map((payload) => (
                         <div className="history-payload-item" key={payload.id}>
-                          <div>
-                            <strong>{payload.payloadKey}</strong>
-                            <span>
-                              {payload.method} {payload.uri}
-                            </span>
-                            <em>{payload.entityType} / {payload.target}</em>
+                          <div className="history-payload-row">
+                            <div>
+                              <strong>{payload.payloadKey}</strong>
+                              <span>
+                                {payload.method} {payload.uri}
+                              </span>
+                              <em>{payload.entityType} / {payload.target}</em>
+                            </div>
+                            <div className="history-payload-actions">
+                              <span className="status-pill neutral">결과 {payload.results.length}건</span>
+                              <button
+                                className="icon-button subtle compact"
+                                type="button"
+                                onClick={() => copyPayloadJson(payload)}
+                              >
+                                <Copy size={14} />
+                                {copiedPayloadKey === payload.payloadKey ? "복사됨" : "JSON"}
+                              </button>
+                            </div>
                           </div>
-                          <span className="status-pill neutral">결과 {payload.results.length}건</span>
+                          <details className="history-payload-json">
+                            <summary>payload 본문</summary>
+                            <pre>{formatPayloadJson(payload)}</pre>
+                          </details>
                         </div>
                       ))
                     )}
@@ -568,6 +642,34 @@ function getAuditTextValue(value: Record<string, unknown> | null, key: string) {
 
 function riskLabel(risk: string) {
   return risk === "low" ? "낮음" : risk === "medium" ? "검토" : "차단";
+}
+
+function formatPayloadJson(payload: HistoryDetailResponse["executionDrafts"][number]["payloads"][number]) {
+  return JSON.stringify(
+    {
+      payloadKey: payload.payloadKey,
+      idempotencyKey: payload.idempotencyKey,
+      method: payload.method,
+      uri: payload.uri,
+      entityType: payload.entityType,
+      target: payload.target,
+      params: payload.params,
+      body: payload.body,
+      safety: payload.safety,
+      results: payload.results
+    },
+    null,
+    2
+  );
+}
+
+function safeFileName(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣_-]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "naver-sa";
 }
 
 function formatDateTime(value: string) {
