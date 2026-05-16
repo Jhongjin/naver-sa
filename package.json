@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "lint:api-policy": "node scripts/check-api-policy.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "latest",

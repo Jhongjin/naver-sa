@@ -214,3 +214,4 @@ Implementation rule:
 - public planner preview responses also use `no-store` so local checks and browser tests do not reuse stale drafts
 - do not include API keys, tokens, admin secrets, or raw service role values in response bodies
 - public readiness endpoints may return only presence/configuration booleans, never secret values
+- run `npm run lint:api-policy` before shipping API route changes to catch missing `jsonNoStore` and `methodNotAllowed` coverage
