@@ -130,7 +130,13 @@ export function LandingPage() {
         <DigitalHeroCanvas />
         <div className="hero-noise" aria-hidden="true" />
         <HeroMotionLayer />
-        <div className="hero-white-sweep" aria-hidden="true" />
+        <div className="hero-white-sweep" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
         <div className="landing-hero-shell">
           <div className="landing-hero-content">
             <p className="eyebrow">SA autopilot / membership control</p>

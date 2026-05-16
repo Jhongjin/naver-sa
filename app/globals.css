@@ -2491,27 +2491,78 @@ td span {
 }
 
 .hero-white-sweep {
-  animation: hero-white-sweep 5s linear infinite;
-  background: linear-gradient(
-    100deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0) 32%,
-    rgba(255, 255, 255, 0.62) 50%,
-    rgba(255, 255, 255, 0) 68%,
-    transparent 100%
-  );
-  bottom: -16%;
-  filter: blur(12px);
-  left: 0;
+  inset: 0;
   mix-blend-mode: screen;
-  opacity: 0;
+  overflow: hidden;
   pointer-events: none;
   position: absolute;
-  top: -16%;
-  transform: translate3d(-46vw, 0, 0) skewX(-15deg);
-  width: min(34vw, 420px);
+  z-index: 3;
+}
+
+.hero-white-sweep span {
+  --meteor-angle: -10deg;
+  --meteor-delay: 0s;
+  --meteor-length: min(28vw, 430px);
+  --meteor-top: 18%;
+  animation: hero-meteor-pass 5s linear infinite;
+  animation-delay: var(--meteor-delay);
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.2) 22%, rgba(255, 255, 255, 0.95) 88%, #ffffff 100%);
+  border-radius: 999px;
+  box-shadow:
+    rgba(255, 255, 255, 0.48) 0 0 16px,
+    rgba(255, 255, 255, 0.24) 0 0 40px;
+  height: 2px;
+  left: -34vw;
+  opacity: 0;
+  position: absolute;
+  top: var(--meteor-top);
+  transform: translate3d(-18vw, 0, 0) rotate(var(--meteor-angle));
+  transform-origin: 100% 50%;
+  width: var(--meteor-length);
   will-change: opacity, transform;
-  z-index: 1;
+}
+
+.hero-white-sweep span::after {
+  background: #ffffff;
+  border-radius: inherit;
+  box-shadow:
+    rgba(255, 255, 255, 0.7) 0 0 12px,
+    rgba(255, 255, 255, 0.36) 0 0 28px;
+  content: "";
+  height: 5px;
+  position: absolute;
+  right: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+}
+
+.hero-white-sweep span:nth-child(2) {
+  --meteor-angle: -14deg;
+  --meteor-delay: 0.1s;
+  --meteor-length: min(19vw, 300px);
+  --meteor-top: 36%;
+}
+
+.hero-white-sweep span:nth-child(3) {
+  --meteor-angle: -7deg;
+  --meteor-delay: 0.2s;
+  --meteor-length: min(24vw, 360px);
+  --meteor-top: 61%;
+}
+
+.hero-white-sweep span:nth-child(4) {
+  --meteor-angle: -12deg;
+  --meteor-delay: 2.5s;
+  --meteor-length: min(16vw, 250px);
+  --meteor-top: 27%;
+}
+
+.hero-white-sweep span:nth-child(5) {
+  --meteor-angle: -5deg;
+  --meteor-delay: 2.65s;
+  --meteor-length: min(20vw, 320px);
+  --meteor-top: 72%;
 }
 
 .landing-hero-shell {
@@ -2716,37 +2767,55 @@ td span {
 }
 
 .orbit-ring {
-  border: 1px solid rgba(245, 239, 228, 0.12);
+  --ring-color: rgba(245, 239, 228, 0.24);
+  --ring-size: 100%;
+  --ring-track: rgba(245, 239, 228, 0.1);
+  --ring-width: 2px;
+  background: conic-gradient(
+    from var(--ring-start, 0deg),
+    transparent 0deg 18deg,
+    var(--ring-color) 18deg 74deg,
+    transparent 74deg 132deg,
+    var(--ring-track) 132deg 178deg,
+    transparent 178deg 228deg,
+    var(--ring-color) 228deg 286deg,
+    transparent 286deg 360deg
+  );
+  box-shadow: inset 0 0 0 1px var(--ring-track);
   height: var(--ring-size, 100%);
-  left: var(--ring-left, 0);
-  top: var(--ring-top, 0);
+  left: 50%;
+  mask-image: radial-gradient(farthest-side, transparent calc(100% - var(--ring-width)), #000 calc(100% - var(--ring-width)));
+  top: 50%;
+  transform: translate3d(-50%, -50%, 0);
   transform-origin: 50% 50%;
   width: var(--ring-size, 100%);
+  -webkit-mask-image: radial-gradient(farthest-side, transparent calc(100% - var(--ring-width)), #000 calc(100% - var(--ring-width)));
   will-change: transform;
 }
 
 .orbit-ring.outer {
-  --ring-left: 8%;
+  --ring-color: rgba(255, 91, 57, 0.58);
   --ring-size: 86%;
-  --ring-top: 6%;
-  animation: orbit-ring-drift-outer 18s var(--motion-ease) infinite;
-  border-color: rgba(255, 91, 57, 0.36);
+  --ring-start: 18deg;
+  --ring-track: rgba(255, 91, 57, 0.16);
+  animation: orbit-ring-clockwise 30s linear infinite;
 }
 
 .orbit-ring.middle {
-  --ring-left: 17%;
+  --ring-color: rgba(116, 217, 170, 0.5);
   --ring-size: 62%;
-  --ring-top: 20%;
-  animation: orbit-ring-drift-middle 22s var(--motion-ease) infinite;
-  border-color: rgba(116, 217, 170, 0.28);
+  --ring-start: 108deg;
+  --ring-track: rgba(116, 217, 170, 0.14);
+  --ring-width: 2.5px;
+  animation: orbit-ring-counter 38s linear infinite;
 }
 
 .orbit-ring.inner {
-  --ring-left: 32%;
+  --ring-color: rgba(245, 239, 228, 0.34);
   --ring-size: 36%;
-  --ring-top: 34%;
-  animation: orbit-ring-drift-inner 26s var(--motion-ease) infinite;
-  border-color: rgba(245, 239, 228, 0.18);
+  --ring-start: 236deg;
+  --ring-track: rgba(245, 239, 228, 0.12);
+  animation: orbit-ring-clockwise 46s linear infinite reverse;
 }
 
 .orbit-ring::before {
@@ -2761,7 +2830,7 @@ td span {
 }
 
 .orbit-comet {
-  animation: orbit-comet-spin 3.6s linear infinite;
+  animation: orbit-comet-spin 16s linear infinite;
   inset: 2%;
   z-index: 2;
 }
@@ -2794,7 +2863,7 @@ td span {
 
 .orbit-comet.beta {
   animation-direction: reverse;
-  animation-duration: 4.8s;
+  animation-duration: 22s;
   inset: 24%;
 }
 
@@ -2861,7 +2930,7 @@ td span {
   gap: 9px;
   left: 28px;
   padding: 16px;
-  width: clamp(174px, calc(100% - 248px), 270px);
+  width: clamp(150px, calc(100% - 312px), 240px);
 }
 
 .payload-window span {
@@ -2920,7 +2989,7 @@ td span {
   bottom: 34px;
   gap: 8px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  right: 28px;
+  right: 64px;
   width: 184px;
   z-index: 2;
 }
@@ -3236,48 +3305,15 @@ td span {
   }
 }
 
-@keyframes orbit-ring-drift-outer {
-  0%,
-  100% {
-    transform: translate3d(-10px, 2px, 0) rotate(-2deg);
-  }
-
-  34% {
-    transform: translate3d(12px, -9px, 0) rotate(4deg);
-  }
-
-  68% {
-    transform: translate3d(4px, 11px, 0) rotate(-5deg);
+@keyframes orbit-ring-clockwise {
+  to {
+    transform: translate3d(-50%, -50%, 0) rotate(360deg);
   }
 }
 
-@keyframes orbit-ring-drift-middle {
-  0%,
-  100% {
-    transform: translate3d(8px, -6px, 0) rotate(3deg);
-  }
-
-  40% {
-    transform: translate3d(-12px, 10px, 0) rotate(-4deg);
-  }
-
-  74% {
-    transform: translate3d(15px, 4px, 0) rotate(6deg);
-  }
-}
-
-@keyframes orbit-ring-drift-inner {
-  0%,
-  100% {
-    transform: translate3d(-6px, -4px, 0) rotate(-4deg);
-  }
-
-  38% {
-    transform: translate3d(11px, 9px, 0) rotate(7deg);
-  }
-
-  72% {
-    transform: translate3d(-13px, 7px, 0) rotate(2deg);
+@keyframes orbit-ring-counter {
+  to {
+    transform: translate3d(-50%, -50%, 0) rotate(-360deg);
   }
 }
 
@@ -3298,25 +3334,26 @@ td span {
   }
 }
 
-@keyframes hero-white-sweep {
-  0%,
-  68% {
+@keyframes hero-meteor-pass {
+  0% {
     opacity: 0;
-    transform: translate3d(-46vw, 0, 0) skewX(-15deg);
+    transform: translate3d(-20vw, 0, 0) rotate(var(--meteor-angle));
   }
 
-  72% {
-    opacity: 0.82;
+  4%,
+  24% {
+    opacity: 0.96;
   }
 
-  84% {
-    opacity: 0.38;
-    transform: translate3d(130vw, 0, 0) skewX(-15deg);
+  32% {
+    opacity: 0.24;
+    transform: translate3d(146vw, 0, 0) rotate(var(--meteor-angle));
   }
 
+  38%,
   100% {
     opacity: 0;
-    transform: translate3d(130vw, 0, 0) skewX(-15deg);
+    transform: translate3d(146vw, 0, 0) rotate(var(--meteor-angle));
   }
 }
 
