@@ -5357,6 +5357,18 @@ td span {
   opacity: 0.76;
 }
 
+.rail-step-grid article.current {
+  background: rgba(255, 90, 61, 0.1);
+  border-color: rgba(255, 90, 61, 0.52);
+  box-shadow: inset 0 0 0 1px rgba(255, 90, 61, 0.18);
+  opacity: 1;
+}
+
+.rail-step-grid article.current::before {
+  background: #ff5a3d;
+  box-shadow: 0 0 18px rgba(255, 90, 61, 0.54);
+}
+
 .rail-step-grid article > span {
   width: 28px;
   height: 28px;

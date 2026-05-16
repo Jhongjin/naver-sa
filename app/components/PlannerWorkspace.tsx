@@ -447,6 +447,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 disabled: !canSaveHistory || activeSaveDraftState.status === "loading",
                 action: "save" as const
               };
+  const currentRailStep = railPrimaryAction.type === "link" ? "history" : railPrimaryAction.action;
   const setupSteps = [
     {
       label: "입력",
@@ -1082,7 +1083,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             </div>
           </div>
           <div className="rail-step-grid">
-            <article className={approvalSummary.approved > 0 ? "done" : "attention"}>
+            <article className={`${approvalSummary.approved > 0 ? "done" : "attention"} ${currentRailStep === "approve" ? "current" : ""}`}>
               <span>01</span>
               <strong>승인 확정</strong>
               <p>{approvalSummary.approved}건 승인, {approvalSummary.pending}건 대기</p>
@@ -1091,7 +1092,11 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 차단 제외 승인
               </button>
             </article>
-            <article className={executionConnectionApplied ? "done" : canScanAccount ? "attention" : "pending"}>
+            <article
+              className={`${executionConnectionApplied ? "done" : canScanAccount ? "attention" : "pending"} ${
+                currentRailStep === "scan" ? "current" : ""
+              }`}
+            >
               <span>02</span>
               <strong>계정 스캔</strong>
               <p>
@@ -1115,7 +1120,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
               </button>
             </article>
-            <article className={stageValidated ? "done" : canValidateDraft ? "attention" : "pending"}>
+            <article className={`${stageValidated ? "done" : canValidateDraft ? "attention" : "pending"} ${currentRailStep === "validate" ? "current" : ""}`}>
               <span>03</span>
               <strong>초안 검증</strong>
               <p>
@@ -1133,7 +1138,11 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 {activeStageDraftState.status === "loading" ? "검증 중" : "초안 검증"}
               </button>
             </article>
-            <article className={activeSaveDraftState.status === "success" ? "done" : canSaveHistory ? "attention" : "pending"}>
+            <article
+              className={`${activeSaveDraftState.status === "success" ? "done" : canSaveHistory ? "attention" : "pending"} ${
+                currentRailStep === "save" ? "current" : ""
+              }`}
+            >
               <span>04</span>
               <strong>이력 저장</strong>
               <p>
