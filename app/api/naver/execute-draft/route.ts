@@ -32,6 +32,7 @@ type ExecutionResponse = {
   history?: {
     saved: boolean;
     executionDraftId?: string;
+    stagedChangeCount?: number;
     warning?: string;
   };
 };
@@ -228,6 +229,18 @@ async function persistExecutionResults(input: {
     }
   }
 
+  const executedAt = new Date().toISOString();
+  const { data: stagedChanges, error: stagedChangeError } = await supabase
+    .from("staged_changes")
+    .update({
+      decision: input.succeeded ? "executed" : "failed",
+      executed_at: executedAt
+    })
+    .eq("planning_run_id", draft.planning_run_id)
+    .eq("decision", "approved")
+    .select("id");
+  const stagedChangeCount = stagedChanges?.length ?? 0;
+
   await supabase
     .from("execution_drafts")
     .update({
@@ -242,6 +255,7 @@ async function persistExecutionResults(input: {
     entity_id: draft.id,
     after_value: {
       resultCount: input.results.length,
+      stagedChangeCount,
       ok: input.succeeded
     },
     reason: "Protected test execution result was recorded."
@@ -249,7 +263,9 @@ async function persistExecutionResults(input: {
 
   return {
     saved: true,
-    executionDraftId: draft.id as string
+    executionDraftId: draft.id as string,
+    stagedChangeCount,
+    warning: stagedChangeError ? sanitizePersistenceError(stagedChangeError.message) : undefined
   };
 }
 
