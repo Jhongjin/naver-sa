@@ -84,6 +84,25 @@ function HistoryListContent() {
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [nextOffset, setNextOffset] = useState<number | null>(null);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const initialQuery = new URLSearchParams(window.location.search).get("q")?.trim();
+
+      if (initialQuery) {
+        setQuery(initialQuery);
+        setServerQuery(initialQuery);
+      }
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, []);
+
   const fetchHistory = useCallback(async (offset: number) => {
     const token = await getAccessToken();
 

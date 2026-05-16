@@ -313,6 +313,9 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
               <Link className="icon-button primary" href="/workspace">
                 워크스페이스 열기
               </Link>
+              <Link className="icon-button subtle" href={`/history?q=${encodeURIComponent(data.run.brandName)}`}>
+                같은 브랜드 이력
+              </Link>
               <a className="icon-button subtle" href={data.run.siteUrl} rel="noreferrer" target="_blank">
                 사이트 확인
               </a>
