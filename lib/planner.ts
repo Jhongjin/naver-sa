@@ -180,6 +180,12 @@ const groupRules: GroupRule[] = [
 
 const blockedTerms = ["무료", "중고", "알바", "도매", "짝퉁", "후기만", "반품", "수선"];
 const reviewTerms = ["저렴", "싼", "가격", "코트", "명품", "추천"];
+const textLimits = {
+  brandName: 80,
+  siteUrl: 240,
+  vertical: 100,
+  seedTerm: 80
+} as const;
 
 export const mardDefaultInput: PlannerInput = {
   brandName: "Mard",
@@ -261,9 +267,9 @@ export function createPlannerCsv(plan: PlannerPlan): string {
 
 function normalizeInput(input: PlannerInput): PlannerInput {
   return {
-    brandName: input.brandName.trim() || mardDefaultInput.brandName,
-    siteUrl: input.siteUrl.trim() || mardDefaultInput.siteUrl,
-    vertical: input.vertical.trim() || mardDefaultInput.vertical,
+    brandName: normalizeText(input.brandName, mardDefaultInput.brandName, textLimits.brandName),
+    siteUrl: normalizeText(input.siteUrl, mardDefaultInput.siteUrl, textLimits.siteUrl),
+    vertical: normalizeText(input.vertical, mardDefaultInput.vertical, textLimits.vertical),
     monthlyBudget: clampNumber(input.monthlyBudget, 100000, 10000000),
     maxBid: clampNumber(input.maxBid, 300, 5000),
     mode: input.mode,
@@ -302,7 +308,7 @@ function normalizeTerms(terms: string[]): string[] {
   const normalized: string[] = [];
 
   for (const term of terms) {
-    const trimmed = term.trim().replace(/\s+/g, " ");
+    const trimmed = term.trim().replace(/\s+/g, " ").slice(0, textLimits.seedTerm);
     const key = trimmed.toLowerCase();
 
     if (!trimmed || seen.has(key)) {
@@ -314,6 +320,12 @@ function normalizeTerms(terms: string[]): string[] {
   }
 
   return normalized;
+}
+
+function normalizeText(value: string, fallback: string, maxLength: number): string {
+  const normalized = value.trim().replace(/\s+/g, " ");
+
+  return (normalized || fallback).slice(0, maxLength);
 }
 
 function buildKeywordPlan(term: string, input: PlannerInput): KeywordPlan {
