@@ -14,6 +14,10 @@ for (const file of routeFiles) {
     failures.push(`${relativePath}: use jsonNoStore instead of NextResponse.json`);
   }
 
+  if (source.includes("NextResponse")) {
+    failures.push(`${relativePath}: keep NextResponse usage inside lib/http.ts`);
+  }
+
   if (!source.includes("jsonNoStore")) {
     failures.push(`${relativePath}: missing jsonNoStore no-cache response helper`);
   }
