@@ -375,6 +375,11 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     : isShoppingSearch && channelApplied
       ? "상품그룹 필요"
       : "미연결";
+  const naverReadinessTone = !naverReadiness ? "amber" : naverReadiness.ok ? "green" : "rose";
+  const naverReadinessValue = !naverReadiness ? "확인 중" : naverReadiness.ok ? "Ready" : "점검";
+  const naverReadinessCaption = naverReadiness?.ok
+    ? "서명 설정 완료"
+    : `환경변수 ${naverReadiness?.configuration.missingCount ?? "-"}개 확인`;
   const blockerTone = executionDraft.validation.blockerCount > 0 ? "rose" : "green";
   const approvalTone = approvalSummary.pending > 0 ? "amber" : "green";
   const approvalProgress =
@@ -1023,6 +1028,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             tone="blue"
           />
           <StatusTile label="집행 상태" value="Live off" caption="삭제도 금지" tone="green" />
+          <StatusTile
+            label="Naver API"
+            value={naverReadinessValue}
+            caption={naverReadinessCaption}
+            tone={naverReadinessTone}
+          />
         </section>
 
         <section className="execution-rail" aria-label="승인부터 저장까지 실행 순서">
