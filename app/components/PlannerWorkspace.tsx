@@ -38,7 +38,8 @@ import {
   createPlannerReport,
   summarizeApprovals,
   type ApprovalDecision,
-  type ApprovalDecisionMap
+  type ApprovalDecisionMap,
+  type ExecutionReportContext
 } from "@/lib/reporting";
 import { generateOptimizationRecommendations, type OptimizationSeverity } from "@/lib/optimization";
 
@@ -513,7 +514,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
   function downloadReport() {
     downloadTextFile(
-      createPlannerReport(plan, approvalDecisions),
+      createPlannerReport(plan, approvalDecisions, createExecutionReportContext()),
       `${slugFileName(plan.input.brandName)}-setup-report.md`,
       "text/markdown;charset=utf-8"
     );
@@ -521,10 +522,32 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
   function downloadExcelReport() {
     downloadTextFile(
-      createPlannerExcelReport(plan, approvalDecisions),
+      createPlannerExcelReport(plan, approvalDecisions, createExecutionReportContext()),
       `${slugFileName(plan.input.brandName)}-setup-report.xls`,
       "application/vnd.ms-excel;charset=utf-8"
     );
+  }
+
+  function createExecutionReportContext(): ExecutionReportContext {
+    return {
+      executionContext,
+      draft: {
+        draftId: executionDraft.draftId,
+        draftKey: executionDraft.draftKey,
+        generatedAt: executionDraft.generatedAt,
+        payloadCount: executionDraft.payloads.length,
+        canExecuteTest: executionDraft.validation.canExecuteTest,
+        blockerCount: executionDraft.validation.blockerCount,
+        warningCount: executionDraft.validation.warningCount
+      },
+      saved:
+        activeSaveDraftState.status === "success"
+          ? {
+              planningRunId: activeSaveDraftState.planningRunId,
+              executionDraftId: activeSaveDraftState.executionDraftId
+            }
+          : undefined
+    };
   }
 
   function printReport() {

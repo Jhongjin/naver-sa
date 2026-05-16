@@ -10,6 +10,29 @@ export type ApprovalSummary = {
   held: number;
 };
 
+export type ExecutionReportContext = {
+  executionContext?: {
+    campaignId?: string;
+    pcChannelId?: string;
+    mobileChannelId?: string;
+    shoppingChannelId?: string;
+    productGroupId?: string;
+  };
+  draft?: {
+    draftId: string;
+    draftKey: string;
+    generatedAt: string;
+    payloadCount: number;
+    canExecuteTest: boolean;
+    blockerCount: number;
+    warningCount: number;
+  };
+  saved?: {
+    planningRunId?: string;
+    executionDraftId?: string;
+  };
+};
+
 export function summarizeApprovals(changes: StagedChange[], decisions: ApprovalDecisionMap): ApprovalSummary {
   return changes.reduce(
     (summary, change) => {
@@ -37,7 +60,11 @@ export function createApprovalCsv(plan: PlannerPlan, decisions: ApprovalDecision
   return [header, ...rows].map((row) => row.map(escapeCsvCell).join(",")).join("\n");
 }
 
-export function createPlannerReport(plan: PlannerPlan, decisions: ApprovalDecisionMap): string {
+export function createPlannerReport(
+  plan: PlannerPlan,
+  decisions: ApprovalDecisionMap,
+  execution?: ExecutionReportContext
+): string {
   const approvalSummary = summarizeApprovals(plan.stagedChanges, decisions);
 
   return [
@@ -62,6 +89,7 @@ export function createPlannerReport(plan: PlannerPlan, decisions: ApprovalDecisi
     `- Approved: ${approvalSummary.approved}`,
     `- Held: ${approvalSummary.held}`,
     `- Pending: ${approvalSummary.pending}`,
+    ...createMarkdownExecutionContext(execution),
     "",
     ...plan.stagedChanges.flatMap((change) => [
       `### ${change.target}`,
@@ -105,7 +133,11 @@ export function createPlannerReport(plan: PlannerPlan, decisions: ApprovalDecisi
   ].join("\n");
 }
 
-export function createPlannerExcelReport(plan: PlannerPlan, decisions: ApprovalDecisionMap): string {
+export function createPlannerExcelReport(
+  plan: PlannerPlan,
+  decisions: ApprovalDecisionMap,
+  execution?: ExecutionReportContext
+): string {
   const approvalSummary = summarizeApprovals(plan.stagedChanges, decisions);
   const productLabel = plan.input.productType === "shoppingSearch" ? "Shopping Search Ads" : "Powerlink / Site Search Ads";
   const approvedRows = plan.stagedChanges.map((change) => [
@@ -168,7 +200,8 @@ export function createPlannerExcelReport(plan: PlannerPlan, decisions: ApprovalD
       ["Excluded keywords", plan.forecast.excludedKeywords],
       ["Ad groups", plan.forecast.adGroupCount],
       ["Expected clicks", formatNumber(plan.forecast.expectedClicks)],
-      ["Average CPC", formatWon(plan.forecast.avgCpc)]
+      ["Average CPC", formatWon(plan.forecast.avgCpc)],
+      ...createExcelExecutionRows(execution)
     ]),
     createHtmlTable("Approval Queue Summary", ["Decision", "Count"], [
       ["Approved", approvalSummary.approved],
@@ -207,6 +240,58 @@ export function createPlannerExcelReport(plan: PlannerPlan, decisions: ApprovalD
     "</body>",
     "</html>"
   ].join("\n");
+}
+
+function createMarkdownExecutionContext(execution: ExecutionReportContext | undefined): string[] {
+  if (!execution) {
+    return [];
+  }
+
+  const contextRows = [
+    ["Campaign ID", execution.executionContext?.campaignId],
+    ["PC channel ID", execution.executionContext?.pcChannelId],
+    ["Mobile channel ID", execution.executionContext?.mobileChannelId],
+    ["Shopping channel ID", execution.executionContext?.shoppingChannelId],
+    ["Product group ID", execution.executionContext?.productGroupId],
+    ["Draft ID", execution.draft?.draftId],
+    ["Draft key", execution.draft?.draftKey],
+    ["Draft generated at", execution.draft?.generatedAt],
+    ["Payload count", execution.draft ? String(execution.draft.payloadCount) : undefined],
+    ["Can execute test", execution.draft ? String(execution.draft.canExecuteTest) : undefined],
+    ["Blockers", execution.draft ? String(execution.draft.blockerCount) : undefined],
+    ["Warnings", execution.draft ? String(execution.draft.warningCount) : undefined],
+    ["Planning run ID", execution.saved?.planningRunId],
+    ["Execution draft ID", execution.saved?.executionDraftId]
+  ].filter((row): row is [string, string] => Boolean(row[1]));
+
+  if (contextRows.length === 0) {
+    return [];
+  }
+
+  return ["", "## Execution Context", "", ...contextRows.map(([label, value]) => `- ${label}: ${value}`)];
+}
+
+function createExcelExecutionRows(execution: ExecutionReportContext | undefined): Array<[string, string | number]> {
+  if (!execution) {
+    return [];
+  }
+
+  return [
+    ["Campaign ID", execution.executionContext?.campaignId],
+    ["PC channel ID", execution.executionContext?.pcChannelId],
+    ["Mobile channel ID", execution.executionContext?.mobileChannelId],
+    ["Shopping channel ID", execution.executionContext?.shoppingChannelId],
+    ["Product group ID", execution.executionContext?.productGroupId],
+    ["Draft ID", execution.draft?.draftId],
+    ["Draft key", execution.draft?.draftKey],
+    ["Draft generated at", execution.draft?.generatedAt],
+    ["Payload count", execution.draft?.payloadCount],
+    ["Can execute test", execution.draft ? String(execution.draft.canExecuteTest) : undefined],
+    ["Blockers", execution.draft?.blockerCount],
+    ["Warnings", execution.draft?.warningCount],
+    ["Planning run ID", execution.saved?.planningRunId],
+    ["Execution draft ID", execution.saved?.executionDraftId]
+  ].filter((row): row is [string, string | number] => row[1] !== undefined && row[1] !== "");
 }
 
 function escapeCsvCell(value: string): string {

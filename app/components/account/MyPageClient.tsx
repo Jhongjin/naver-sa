@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Building2, Clock3, DatabaseZap, FileClock, LogOut, ShieldCheck } from "lucide-react";
+import { ArrowRight, BadgeCheck, Building2, Clock3, DatabaseZap, FileClock, LogOut, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
@@ -246,7 +246,7 @@ function MyPageContent() {
         {historyRuns.length > 0 ? (
           <div className="history-list">
             {historyRuns.map((run) => (
-              <article className="history-item" key={run.id}>
+              <Link className="history-item history-item-link" href={`/history/${run.id}`} key={run.id}>
                 <div>
                   <span className="status-pill include">{productLabel(run.productType)}</span>
                   <strong>{run.brandName}</strong>
@@ -270,7 +270,11 @@ function MyPageContent() {
                     <dd>{run.executionDraft?.blockerCount ?? 0}건</dd>
                   </div>
                 </dl>
-              </article>
+                <span className="history-item-action">
+                  상세
+                  <ArrowRight size={14} />
+                </span>
+              </Link>
             ))}
           </div>
         ) : null}

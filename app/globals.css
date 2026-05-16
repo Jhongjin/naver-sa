@@ -3835,8 +3835,31 @@ td span {
   border-radius: 16px;
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(0, 1.1fr) minmax(420px, 1fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(420px, 1fr) auto;
   padding: 16px;
+}
+
+.history-item-link {
+  color: inherit;
+  position: relative;
+  text-decoration: none;
+  transition: background 180ms var(--motion-ease), border-color 180ms var(--motion-ease), transform 180ms var(--motion-ease);
+}
+
+.history-item-link:hover {
+  background: #ffffff;
+  border-color: rgba(15, 118, 110, 0.24);
+  transform: translateY(-1px);
+}
+
+.history-item-action {
+  align-items: center;
+  color: #0f766e;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 900;
+  gap: 4px;
+  justify-self: end;
 }
 
 .history-item strong,
@@ -3910,6 +3933,264 @@ td span {
   font-size: 13px;
   line-height: 1.5;
   margin-top: 6px;
+}
+
+.history-detail-page {
+  min-height: 100dvh;
+}
+
+.history-detail-hero {
+  padding-bottom: 24px;
+}
+
+.history-back-link {
+  align-items: center;
+  color: #0f766e;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 900;
+  gap: 6px;
+  margin-bottom: 22px;
+  text-decoration: none;
+}
+
+.history-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.history-detail-loading,
+.history-detail-empty,
+.history-detail-summary,
+.history-detail-grid {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1160px;
+}
+
+.history-detail-loading,
+.history-detail-empty {
+  align-items: stretch;
+  grid-template-columns: 1fr;
+}
+
+.history-detail-summary {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0 28px 12px;
+}
+
+.history-detail-summary article {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+}
+
+.history-detail-summary span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.history-detail-summary strong {
+  color: #0f172a;
+  font-size: 24px;
+}
+
+.history-detail-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  padding: 8px 28px 0;
+}
+
+.history-detail-grid.secondary {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  margin-bottom: 72px;
+  margin-top: 18px;
+}
+
+.history-detail-panel {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 20px;
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+}
+
+.history-detail-side {
+  display: grid;
+  gap: 18px;
+}
+
+.history-panel-title {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.history-panel-title svg {
+  color: #0f766e;
+}
+
+.history-panel-title h2 {
+  color: #0f172a;
+  font-size: 19px;
+  margin: 0;
+}
+
+.history-draft-meta {
+  display: grid;
+  gap: 8px;
+}
+
+.history-draft-meta code,
+.history-draft-meta > span:not(.status-pill) {
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 10px;
+  color: #334155;
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  padding: 10px;
+}
+
+.history-validation-grid,
+.history-info-list {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.history-validation-grid div,
+.history-info-list div {
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.history-validation-grid span,
+.history-info-list dt {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  margin: 0;
+}
+
+.history-validation-grid strong,
+.history-info-list dd {
+  color: #0f172a;
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+  margin: 7px 0 0;
+}
+
+.history-info-list {
+  grid-template-columns: 1fr;
+  margin: 0;
+}
+
+.history-issue-list {
+  border-radius: 14px;
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+}
+
+.history-issue-list.danger {
+  background: rgba(190, 18, 60, 0.08);
+  border: 1px solid rgba(190, 18, 60, 0.18);
+}
+
+.history-issue-list.warning {
+  background: rgba(180, 83, 9, 0.08);
+  border: 1px solid rgba(180, 83, 9, 0.18);
+}
+
+.history-issue-list strong {
+  color: #0f172a;
+}
+
+.history-issue-list span,
+.history-detail-empty-inline span {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.history-payload-list,
+.history-change-list,
+.history-keyword-list,
+.history-audit-list {
+  display: grid;
+  gap: 10px;
+}
+
+.history-payload-item,
+.history-change-list div,
+.history-keyword-list div,
+.history-audit-list div {
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.history-payload-item {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.history-payload-item strong,
+.history-change-list strong,
+.history-keyword-list strong,
+.history-audit-list strong {
+  color: #0f172a;
+  display: block;
+}
+
+.history-payload-item span:not(.status-pill),
+.history-payload-item em,
+.history-change-list p,
+.history-keyword-list span,
+.history-keyword-list em,
+.history-audit-list span,
+.history-audit-list em,
+.history-payload-list > span,
+.history-audit-list > span {
+  color: #64748b;
+  display: block;
+  font-size: 13px;
+  font-style: normal;
+  line-height: 1.45;
+  margin: 4px 0 0;
+}
+
+.history-detail-empty-inline {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 14px;
+  display: flex;
+  gap: 10px;
+  padding: 16px;
+}
+
+.history-detail-empty-inline svg {
+  color: #b45309;
 }
 
 .admin-toolbar {
@@ -4307,8 +4588,14 @@ td span {
   }
 
   .admin-filter-panel,
-  .history-item {
+  .history-item,
+  .history-detail-grid,
+  .history-detail-grid.secondary {
     grid-template-columns: 1fr;
+  }
+
+  .history-detail-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .flow-lanes article,
@@ -4496,6 +4783,22 @@ td span {
 
   .history-item dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .history-detail-summary,
+  .history-detail-grid {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .history-detail-summary,
+  .history-validation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-payload-item {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .role-actions {
