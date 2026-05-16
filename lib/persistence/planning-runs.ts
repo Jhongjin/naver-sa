@@ -103,17 +103,23 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
     avg_bid: group.avgBid,
     sample_ads: group.sampleAds
   }));
-  const stagedChangeRows = plan.stagedChanges.map((change) => ({
-    planning_run_id: planningRunId,
-    external_key: change.id,
-    entity_type: change.type,
-    target: change.target,
-    action: change.action,
-    risk: change.risk,
-    approval_required: change.approval === "승인 필요",
-    details: change.details,
-    decision: decisions[change.id] ?? "pending"
-  }));
+  const decisionSavedAt = new Date().toISOString();
+  const stagedChangeRows = plan.stagedChanges.map((change) => {
+    const decision = decisions[change.id] ?? "pending";
+
+    return {
+      planning_run_id: planningRunId,
+      external_key: change.id,
+      entity_type: change.type,
+      target: change.target,
+      action: change.action,
+      risk: change.risk,
+      approval_required: change.approval === "승인 필요",
+      details: change.details,
+      decision,
+      decided_at: decision === "pending" ? null : decisionSavedAt
+    };
+  });
   const decisionAuditRows = plan.stagedChanges.flatMap((change) => {
     const decision = decisions[change.id] ?? "pending";
 
