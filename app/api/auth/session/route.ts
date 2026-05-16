@@ -1,14 +1,14 @@
-import { NextResponse } from "next/server";
 import { verifyUserAccess } from "@/lib/auth-access";
+import { jsonNoStore } from "@/lib/http";
 
 export async function GET(request: Request) {
   const access = await verifyUserAccess(request);
 
   if (!access.ok) {
-    return NextResponse.json(access, { status: access.status });
+    return jsonNoStore(access, { status: access.status });
   }
 
-  return NextResponse.json({
+  return jsonNoStore({
     ok: true,
     role: access.state.role,
     mode: access.state.mode,

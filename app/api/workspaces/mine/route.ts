@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { verifyUserAccess } from "@/lib/auth-access";
+import { jsonNoStore } from "@/lib/http";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 type WorkspaceMemberRow = {
@@ -30,19 +30,19 @@ export async function GET(request: Request) {
   const access = await verifyUserAccess(request);
 
   if (!access.ok) {
-    return NextResponse.json(access, { status: access.status });
+    return jsonNoStore(access, { status: access.status });
   }
 
   const state = getSupabaseAdminState();
 
   if (!state.ready) {
-    return NextResponse.json({ ok: false, error: "Supabase admin environment is not configured." }, { status: 503 });
+    return jsonNoStore({ ok: false, error: "Supabase admin environment is not configured." }, { status: 503 });
   }
 
   const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
-    return NextResponse.json({ ok: false, error: "Supabase admin client is unavailable." }, { status: 503 });
+    return jsonNoStore({ ok: false, error: "Supabase admin client is unavailable." }, { status: 503 });
   }
 
   const { data: memberships, error: membershipsError } = await supabase
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
   const lookupError = membershipsError ?? legacyRunsByUserResult.error ?? legacyRunsByEmailResult.error;
 
   if (lookupError) {
-    return NextResponse.json({ ok: false, error: sanitizeError(lookupError.message) }, { status: 502 });
+    return jsonNoStore({ ok: false, error: sanitizeError(lookupError.message) }, { status: 502 });
   }
 
   const memberRows = (memberships ?? []) as WorkspaceMemberRow[];
@@ -81,7 +81,7 @@ export async function GET(request: Request) {
   ];
 
   if (workspaceIds.length === 0) {
-    return NextResponse.json({
+    return jsonNoStore({
       ok: true,
       workspaces: [],
       total: 0
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
   ]);
 
   if (workspacesResult.error || planningRunsResult.error) {
-    return NextResponse.json(
+    return jsonNoStore(
       { ok: false, error: sanitizeError(workspacesResult.error?.message ?? planningRunsResult.error?.message) },
       { status: 502 }
     );
@@ -150,7 +150,7 @@ export async function GET(request: Request) {
       return bDate - aDate;
     });
 
-  return NextResponse.json({
+  return jsonNoStore({
     ok: true,
     workspaces: response,
     total: response.length

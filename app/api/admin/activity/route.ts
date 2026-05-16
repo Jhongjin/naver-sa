@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { verifyUserAccess } from "@/lib/auth-access";
+import { jsonNoStore } from "@/lib/http";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 type PlanningRunActivityRow = {
@@ -43,19 +43,19 @@ export async function GET(request: Request) {
   const access = await verifyUserAccess(request, { requireAdmin: true });
 
   if (!access.ok) {
-    return NextResponse.json(access, { status: access.status });
+    return jsonNoStore(access, { status: access.status });
   }
 
   const state = getSupabaseAdminState();
 
   if (!state.ready) {
-    return NextResponse.json({ ok: false, error: "Supabase admin environment is not configured." }, { status: 503 });
+    return jsonNoStore({ ok: false, error: "Supabase admin environment is not configured." }, { status: 503 });
   }
 
   const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
-    return NextResponse.json({ ok: false, error: "Supabase admin client is unavailable." }, { status: 503 });
+    return jsonNoStore({ ok: false, error: "Supabase admin client is unavailable." }, { status: 503 });
   }
 
   const url = new URL(request.url);
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
     .limit(limit);
 
   if (runsError) {
-    return NextResponse.json({ ok: false, error: sanitizeError(runsError.message) }, { status: 502 });
+    return jsonNoStore({ ok: false, error: sanitizeError(runsError.message) }, { status: 502 });
   }
 
   const planningRuns = (runs ?? []) as PlanningRunActivityRow[];
@@ -79,7 +79,7 @@ export async function GET(request: Request) {
   ];
 
   if (runIds.length === 0) {
-    return NextResponse.json({
+    return jsonNoStore({
       ok: true,
       activities: [],
       summary: {
@@ -107,7 +107,7 @@ export async function GET(request: Request) {
   const lookupError = draftsResult.error ?? changesResult.error ?? workspacesResult.error;
 
   if (lookupError) {
-    return NextResponse.json({ ok: false, error: sanitizeError(lookupError.message) }, { status: 502 });
+    return jsonNoStore({ ok: false, error: sanitizeError(lookupError.message) }, { status: 502 });
   }
 
   const latestDraftByRun = new Map<string, ExecutionDraftActivityRow>();
@@ -158,7 +158,7 @@ export async function GET(request: Request) {
     };
   });
 
-  return NextResponse.json({
+  return jsonNoStore({
     ok: true,
     activities,
     summary: summarizeActivities(activities)

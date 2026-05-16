@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { verifyUserAccess } from "@/lib/auth-access";
+import { jsonNoStore } from "@/lib/http";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 type PlanningRunRow = {
@@ -51,13 +51,13 @@ export async function GET(request: Request) {
   const access = await verifyUserAccess(request);
 
   if (!access.ok) {
-    return NextResponse.json(access, { status: access.status });
+    return jsonNoStore(access, { status: access.status });
   }
 
   const state = getSupabaseAdminState();
 
   if (!state.ready) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         ok: false,
         error: "Supabase admin environment is not configured."
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
   const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
-    return NextResponse.json({ ok: false, error: "Supabase admin client is unavailable." }, { status: 503 });
+    return jsonNoStore({ ok: false, error: "Supabase admin client is unavailable." }, { status: 503 });
   }
 
   const url = new URL(request.url);
@@ -103,7 +103,7 @@ export async function GET(request: Request) {
   const { data: runs, error: runsError, count } = await runsQuery;
 
   if (runsError) {
-    return NextResponse.json({ ok: false, error: sanitizeError(runsError.message) }, { status: 502 });
+    return jsonNoStore({ ok: false, error: sanitizeError(runsError.message) }, { status: 502 });
   }
 
   const planningRuns = (runs ?? []) as PlanningRunRow[];
@@ -113,7 +113,7 @@ export async function GET(request: Request) {
   ];
 
   if (runIds.length === 0) {
-    return NextResponse.json({
+    return jsonNoStore({
       ok: true,
       runs: [],
       total: count ?? 0,
@@ -137,7 +137,7 @@ export async function GET(request: Request) {
   ]);
 
   if (draftsResult.error || changesResult.error || workspacesResult.error) {
-    return NextResponse.json(
+    return jsonNoStore(
       {
         ok: false,
         error: sanitizeError(draftsResult.error?.message ?? changesResult.error?.message ?? workspacesResult.error?.message)
@@ -231,7 +231,7 @@ export async function GET(request: Request) {
         ? offset + history.length
         : null;
 
-  return NextResponse.json({
+  return jsonNoStore({
     ok: true,
     runs: history,
     total: count ?? offset + history.length,
