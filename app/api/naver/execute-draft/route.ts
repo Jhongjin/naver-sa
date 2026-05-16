@@ -2,7 +2,7 @@ import {
   createNaverExecutionDraft,
   type NaverExecutionPayload
 } from "@/lib/execution-draft";
-import { jsonNoStore } from "@/lib/http";
+import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { requestNaverSearchAd } from "@/lib/naver-search-ad";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 import { generatePlannerPlan } from "@/lib/planner";
@@ -39,6 +39,10 @@ type ExecutionResponse = {
 type PersistableExecutionResult = ExecutionResponse["results"][number] & {
   response?: unknown;
 };
+
+export function GET() {
+  return methodNotAllowed(["POST"]);
+}
 
 export async function POST(request: Request) {
   const authResult = verifyAdminSecret(request);

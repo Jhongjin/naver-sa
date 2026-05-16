@@ -1,10 +1,14 @@
 import { createNaverExecutionDraft } from "@/lib/execution-draft";
-import { jsonNoStore } from "@/lib/http";
+import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { getNaverConfigState } from "@/lib/naver-search-ad";
 import { verifyUserAccess } from "@/lib/auth-access";
 import { generatePlannerPlan } from "@/lib/planner";
 import { coerceDecisions, coerceExecutionContext, coercePlannerInput, readJsonRecord } from "@/lib/planner-request";
 import { summarizeApprovals } from "@/lib/reporting";
+
+export function GET() {
+  return methodNotAllowed(["POST"]);
+}
 
 export async function POST(request: Request) {
   const access = await verifyUserAccess(request);

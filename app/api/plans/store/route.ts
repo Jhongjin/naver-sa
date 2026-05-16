@@ -1,6 +1,6 @@
 import { generatePlannerPlan } from "@/lib/planner";
 import { createNaverExecutionDraft } from "@/lib/execution-draft";
-import { jsonNoStore } from "@/lib/http";
+import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import {
   coerceDecisionNotes,
   coerceDecisions,
@@ -11,6 +11,10 @@ import {
 } from "@/lib/planner-request";
 import { savePlanningRun } from "@/lib/persistence/planning-runs";
 import { getSupabaseAdminState } from "@/lib/supabase-admin";
+
+export function GET() {
+  return methodNotAllowed(["POST"]);
+}
 
 export async function POST(request: Request) {
   const authResult = verifyAdminSecret(request);

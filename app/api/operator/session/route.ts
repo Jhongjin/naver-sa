@@ -1,4 +1,8 @@
-import { jsonNoStore } from "@/lib/http";
+import { jsonNoStore, methodNotAllowed } from "@/lib/http";
+
+export function GET() {
+  return methodNotAllowed(["POST"]);
+}
 
 export function POST() {
   return jsonNoStore({

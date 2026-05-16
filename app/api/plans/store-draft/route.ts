@@ -1,6 +1,6 @@
 import { createNaverExecutionDraft } from "@/lib/execution-draft";
 import { verifyUserAccess } from "@/lib/auth-access";
-import { jsonNoStore } from "@/lib/http";
+import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { generatePlannerPlan } from "@/lib/planner";
 import {
   coerceDecisionNotes,
@@ -12,6 +12,10 @@ import {
 } from "@/lib/planner-request";
 import { savePlanningRun } from "@/lib/persistence/planning-runs";
 import { getSupabaseAdminState } from "@/lib/supabase-admin";
+
+export function GET() {
+  return methodNotAllowed(["POST"]);
+}
 
 export async function POST(request: Request) {
   const access = await verifyUserAccess(request);
