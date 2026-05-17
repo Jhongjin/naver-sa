@@ -1072,6 +1072,16 @@ function AdminUsersContent() {
     downloadTextFile(createAdminAuditCsv(auditEvents), `naver-sa-admin-audit-${dateStamp}.csv`, "text/csv;charset=utf-8");
   }
 
+  function downloadFilteredUsersCsv() {
+    if (filteredUsers.length === 0) {
+      return;
+    }
+
+    const dateStamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+
+    downloadTextFile(createUsersCsv(filteredUsers), `naver-sa-users-${dateStamp}.csv`, "text/csv;charset=utf-8");
+  }
+
   return (
     <main className="account-page admin-page">
       <header className="account-header">
@@ -1834,6 +1844,10 @@ function AdminUsersContent() {
             </button>
           ))}
         </div>
+        <button className="icon-button subtle" disabled={filteredUsers.length === 0} type="button" onClick={downloadFilteredUsersCsv}>
+          <Download size={17} />
+          CSV
+        </button>
       </section>
 
       {message ? <p className="auth-message error admin-message">{message}</p> : null}
@@ -2112,6 +2126,41 @@ function createAdminAuditCsv(events: AdminAuditEventItem[]) {
       event.entityId ?? "",
       event.summary,
       event.reason ?? ""
+    ])
+  ];
+
+  return rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
+}
+
+function createUsersCsv(users: ManagedUser[]) {
+  const rows = [
+    [
+      "email",
+      "role",
+      "role_source",
+      "email_confirmed",
+      "display_name",
+      "company_name",
+      "workspaces",
+      "owned_workspaces",
+      "planning_runs",
+      "latest_planning_run_at",
+      "created_at",
+      "last_sign_in_at"
+    ],
+    ...users.map((user) => [
+      user.email ?? "",
+      user.role,
+      user.roleSource,
+      user.emailConfirmed ? "true" : "false",
+      user.displayName ?? "",
+      user.companyName ?? "",
+      user.workspaceCount,
+      user.ownedWorkspaceCount,
+      user.planningRunCount,
+      user.latestPlanningRunAt ?? "",
+      user.createdAt,
+      user.lastSignInAt ?? ""
     ])
   ];
 
