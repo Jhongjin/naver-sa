@@ -62,11 +62,11 @@ type HistoryDetailResponse = {
       }>;
     };
     createdBy: string | null;
-    createdByUserId: string | null;
+    createdByUserLinked: boolean;
     workspaceId: string | null;
     workspaceName: string | null;
     workspaceMode: "agency" | "advertiser" | null;
-    workspaceOwnerUserId: string | null;
+    workspaceOwnerMatchesCreator: boolean | null;
     createdAt: string;
     approvalSummary: {
       approved: number;
@@ -167,6 +167,7 @@ type HistoryDetailResponse = {
       }>;
     }>;
   }>;
+  internalUserIdsExcluded: true;
   auditEvents: Array<{
     id: string;
     event_type: string;
@@ -522,11 +523,11 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
               <div>
                 <span>저장자</span>
                 <strong>{data.run.createdBy ?? "미기록"}</strong>
-                <em>{data.run.createdByUserId ? "회원 세션 저장" : "레거시 저장"}</em>
+                <em>{data.run.createdByUserLinked ? "회원 세션 저장" : "레거시 저장"}</em>
               </div>
               <div>
                 <span>소유 맥락</span>
-                <strong>{ownerContextLabel(data.run.workspaceOwnerUserId, data.run.createdByUserId)}</strong>
+                <strong>{ownerContextLabel(data.run.workspaceOwnerMatchesCreator)}</strong>
                 <em>live/delete blocked</em>
               </div>
             </div>
@@ -1030,12 +1031,12 @@ function getShareResponseError(
   return "error" in response && response.error ? response.error : fallback;
 }
 
-function ownerContextLabel(ownerUserId: string | null, creatorUserId: string | null) {
-  if (!ownerUserId || !creatorUserId) {
+function ownerContextLabel(ownerMatchesCreator: boolean | null) {
+  if (ownerMatchesCreator === null) {
     return "이력 기반";
   }
 
-  return ownerUserId === creatorUserId ? "소유자 저장" : "멤버 저장";
+  return ownerMatchesCreator ? "소유자 저장" : "멤버 저장";
 }
 
 function executionContextRows(context: HistoryDetailResponse["executionDrafts"][number]["executionContext"]) {

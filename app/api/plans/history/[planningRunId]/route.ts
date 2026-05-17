@@ -389,14 +389,15 @@ export async function GET(request: Request, context: RouteContext) {
         operationRules: planningRun.operation_rules ?? []
       }),
       createdBy: planningRun.created_by,
-      createdByUserId: planningRun.created_by_user_id,
+      createdByUserLinked: Boolean(planningRun.created_by_user_id),
       workspaceId: planningRun.workspace_id,
       workspaceName: workspace?.name ?? null,
       workspaceMode: workspace?.mode ?? null,
-      workspaceOwnerUserId: workspace?.owner_user_id ?? null,
+      workspaceOwnerMatchesCreator: getWorkspaceOwnerMatchesCreator(workspace, planningRun),
       createdAt: planningRun.created_at,
       approvalSummary: summarizeChanges(changes)
     },
+    internalUserIdsExcluded: true,
     keywords: ((keywordsResult.data ?? []) as PlanningKeywordRow[]).map((keyword) => ({
       id: keyword.id,
       term: keyword.term,
@@ -492,6 +493,14 @@ export async function GET(request: Request, context: RouteContext) {
     })),
     auditEvents: auditResult.data ?? []
   });
+}
+
+function getWorkspaceOwnerMatchesCreator(workspace: WorkspaceRow | null, planningRun: PlanningRunRow): boolean | null {
+  if (!workspace?.owner_user_id || !planningRun.created_by_user_id) {
+    return null;
+  }
+
+  return workspace.owner_user_id === planningRun.created_by_user_id;
 }
 
 function summarizeChanges(changes: StagedChangeRow[]) {

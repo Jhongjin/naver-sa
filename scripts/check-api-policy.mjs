@@ -180,6 +180,26 @@ for (const file of routeFiles) {
     requireSourceCount(source, relativePath, "shareUrl", 1);
   }
 
+  if (relativePath === "app/api/plans/history/[planningRunId]/route.ts") {
+    requireSourceIncludes(source, relativePath, "verifyUserAccess(request)");
+    requireSourceIncludes(source, relativePath, "hasWorkspaceMembership");
+    requireSourceIncludes(source, relativePath, "internalUserIdsExcluded: true");
+    requireSourceIncludes(source, relativePath, "createdByUserLinked: Boolean(planningRun.created_by_user_id)");
+    requireSourceIncludes(source, relativePath, "workspaceOwnerMatchesCreator: getWorkspaceOwnerMatchesCreator(workspace, planningRun)");
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "createdByUserId:",
+      "history detail responses must not expose internal creator user ids"
+    );
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "workspaceOwnerUserId:",
+      "history detail responses must not expose internal workspace owner user ids"
+    );
+  }
+
   if (relativePath === "app/api/share/reports/[token]/route.ts") {
     requireSourceIncludes(source, relativePath, "isValidReportShareToken(token)");
     requireSourceIncludes(source, relativePath, "hashReportShareToken(token)");
@@ -404,6 +424,25 @@ function requireProjectSurfaceChecks() {
     myPageClientPath,
     "ownerUserId",
     "my page workspace UI must not type or render internal owner user ids"
+  );
+
+  const historyDetailClientPath = "app/components/history/HistoryDetailClient.tsx";
+  const historyDetailClientSource = readProjectFile(historyDetailClientPath);
+
+  requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "internalUserIdsExcluded");
+  requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "workspaceOwnerMatchesCreator");
+  requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "createdByUserLinked");
+  requireSourceExcludes(
+    historyDetailClientSource,
+    historyDetailClientPath,
+    "workspaceOwnerUserId",
+    "history detail UI must not type or render internal workspace owner user ids"
+  );
+  requireSourceExcludes(
+    historyDetailClientSource,
+    historyDetailClientPath,
+    "createdByUserId",
+    "history detail UI must not type or render internal creator user ids"
   );
 }
 
