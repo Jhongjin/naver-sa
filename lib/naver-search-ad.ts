@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 
 export type NaverSearchAdConfig = {
   baseUrl: string;
@@ -269,12 +270,6 @@ function sanitizeNaverError(value: string): string {
     return "Naver API request failed without response body.";
   }
 
-  const redactSensitiveFields = (message: string) =>
-    message
-      .replace(/api-key:\s*[^,\s}]+/gi, "api-key: [REDACTED]")
-      .replace(/customer-id:\s*[^,\s}]+/gi, "customer-id: [REDACTED]")
-      .replace(/("?(?:apiKey|api-key|x-api-key|secretKey|secret-key|customerId|customer-id)"?\s*[:=]\s*")([^"]+)(")/gi, "$1[REDACTED]$3");
-
   try {
     const parsed = JSON.parse(value) as unknown;
 
@@ -282,10 +277,10 @@ function sanitizeNaverError(value: string): string {
       const title = typeof parsed.title === "string" ? parsed.title : undefined;
       const message = typeof parsed.message === "string" ? parsed.message : undefined;
       const detail = typeof parsed.detail === "string" ? parsed.detail : undefined;
-      return redactSensitiveFields([title, message, detail].filter(Boolean).join(" - ")) || "Naver API request failed.";
+      return redactSensitiveErrorText([title, message, detail].filter(Boolean).join(" - "), "Naver API request failed.", 300);
     }
   } catch {
-    return redactSensitiveFields(value).slice(0, 300);
+    return redactSensitiveErrorText(value, "Naver API request failed.", 300);
   }
 
   return "Naver API request failed.";

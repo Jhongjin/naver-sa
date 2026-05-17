@@ -578,6 +578,24 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(errorRedactionCheckSource, errorRedactionCheckPath, "authorization: Bearer raw-token");
   requireSourceIncludes(errorRedactionCheckSource, errorRedactionCheckPath, "cookie: session=raw-cookie");
 
+  const naverSearchAdPath = "lib/naver-search-ad.ts";
+  const naverSearchAdSource = readProjectFile(naverSearchAdPath);
+
+  requireSourceIncludes(naverSearchAdSource, naverSearchAdPath, "redactSensitiveErrorText");
+  requireSourceIncludes(naverSearchAdSource, naverSearchAdPath, 'redactSensitiveErrorText(value, "Naver API request failed.", 300)');
+  requireSourceExcludes(
+    naverSearchAdSource,
+    naverSearchAdPath,
+    ".replace(/api-key",
+    "Naver API client errors must pass through shared sensitive text redaction"
+  );
+  requireSourceExcludes(
+    naverSearchAdSource,
+    naverSearchAdPath,
+    ".replace(/customer-id",
+    "Naver API client errors must pass through shared sensitive text redaction"
+  );
+
   const reportSharePath = "lib/report-share.ts";
   const reportShareSource = readProjectFile(reportSharePath);
 
