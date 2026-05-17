@@ -8,6 +8,7 @@ import {
 } from "@/lib/naver-search-ad";
 import { verifyUserAccess } from "@/lib/auth-access";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
+import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 export function POST() {
   return methodNotAllowed(["GET"]);
@@ -15,6 +16,7 @@ export function POST() {
 
 export async function GET(request: Request) {
   const access = await verifyUserAccess(request);
+  const url = new URL(request.url);
 
   if (!access.ok) {
     return jsonNoStore(access, { status: access.status });
@@ -46,6 +48,21 @@ export async function GET(request: Request) {
     campaigns: campaignsResult.ok ? null : campaignsResult.error,
     productGroups: productGroupsResult.ok ? null : productGroupsResult.error
   };
+  const channels = channelsResult.ok ? channelsResult.data.map(normalizeChannel) : [];
+  const campaigns = campaignsResult.ok ? campaignsResult.data : [];
+  const productGroups = productGroupsResult.ok ? productGroupsResult.data.map(normalizeProductGroup) : [];
+  const history = hasAnyData
+    ? await saveAccountSnapshotHistory({
+        userId: access.user.id,
+        actorEmail: access.user.email ?? null,
+        context: readSnapshotContext(url),
+        partial: hasAnyData && !allOk,
+        channels,
+        campaigns,
+        productGroups,
+        errors
+      })
+    : null;
 
   return jsonNoStore(
     {
@@ -53,9 +70,10 @@ export async function GET(request: Request) {
       partial: hasAnyData && !allOk,
       externalRequest: true,
       authAccess: access.state,
-      channels: channelsResult.ok ? channelsResult.data.map(normalizeChannel) : [],
-      campaigns: campaignsResult.ok ? campaignsResult.data : [],
-      productGroups: productGroupsResult.ok ? productGroupsResult.data.map(normalizeProductGroup) : [],
+      channels,
+      campaigns,
+      productGroups,
+      history,
       errors,
       error: hasAnyData ? null : summarizeSnapshotErrors(errors)
     },
@@ -90,6 +108,111 @@ function normalizeProductGroup(productGroup: NaverProductGroupSummary) {
   };
 }
 
+async function saveAccountSnapshotHistory(input: {
+  userId: string;
+  actorEmail: string | null;
+  context: ReturnType<typeof readSnapshotContext>;
+  partial: boolean;
+  channels: ReturnType<typeof normalizeChannel>[];
+  campaigns: unknown[];
+  productGroups: ReturnType<typeof normalizeProductGroup>[];
+  errors: Record<string, string | null>;
+}): Promise<
+  | {
+      saved: true;
+      id: string;
+      savedAt: string;
+      counts: {
+        channels: number;
+        campaigns: number;
+        productGroups: number;
+      };
+    }
+  | {
+      saved: false;
+      warning: string;
+    }
+> {
+  const state = getSupabaseAdminState();
+
+  if (!state.ready) {
+    return {
+      saved: false,
+      warning: "Supabase admin environment is not configured, so account snapshot history was not saved."
+    };
+  }
+
+  const supabase = getSupabaseAdminClient();
+
+  if (!supabase) {
+    return {
+      saved: false,
+      warning: "Supabase admin client is unavailable, so account snapshot history was not saved."
+    };
+  }
+
+  const createdAt = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("naver_account_snapshots")
+    .insert({
+      user_id: input.userId,
+      actor_email: input.actorEmail,
+      product_type: input.context.productType,
+      brand_name: input.context.brandName,
+      site_url: input.context.siteUrl,
+      partial: input.partial,
+      external_request: true,
+      channels: input.channels,
+      campaigns: input.campaigns,
+      product_groups: input.productGroups,
+      errors: input.errors,
+      summary: {
+        channels: input.channels.length,
+        campaigns: input.campaigns.length,
+        productGroups: input.productGroups.length
+      },
+      created_at: createdAt
+    })
+    .select("id,created_at")
+    .single();
+
+  if (error || !data) {
+    return {
+      saved: false,
+      warning: isMissingSnapshotTableError(error)
+        ? "Naver account snapshot history table is not installed yet, so the scan result was not saved."
+        : `Naver account snapshot history was not saved: ${sanitizeSnapshotError(error?.message)}`
+    };
+  }
+
+  return {
+    saved: true,
+    id: data.id as string,
+    savedAt: (data.created_at as string | null) ?? createdAt,
+    counts: {
+      channels: input.channels.length,
+      campaigns: input.campaigns.length,
+      productGroups: input.productGroups.length
+    }
+  };
+}
+
+function readSnapshotContext(url: URL) {
+  return {
+    productType: coerceProductType(url.searchParams.get("productType")),
+    brandName: stringParam(url.searchParams.get("brandName"), 140),
+    siteUrl: stringParam(url.searchParams.get("siteUrl"), 240)
+  };
+}
+
+function coerceProductType(value: string | null): "powerlink" | "shoppingSearch" | null {
+  return value === "powerlink" || value === "shoppingSearch" ? value : null;
+}
+
+function stringParam(value: string | null, maxLength: number): string | null {
+  return value?.trim() ? value.trim().slice(0, maxLength) : null;
+}
+
 function summarizeSnapshotErrors(errors: Record<string, string | null>): string {
   const failedScopes = Object.entries(errors)
     .filter(([, message]) => Boolean(message))
@@ -98,4 +221,27 @@ function summarizeSnapshotErrors(errors: Record<string, string | null>): string 
   return failedScopes.length > 0
     ? `Naver account snapshot failed for: ${failedScopes.join(", ")}.`
     : "Naver account snapshot failed.";
+}
+
+function isMissingSnapshotTableError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) {
+    return false;
+  }
+
+  return (
+    error.code === "42P01" ||
+    error.code === "PGRST205" ||
+    /naver_account_snapshots/i.test(error.message ?? "")
+  );
+}
+
+function sanitizeSnapshotError(message: string | undefined): string {
+  if (!message) {
+    return "Unknown persistence error.";
+  }
+
+  return message
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer [REDACTED]")
+    .replace(/apikey[=:]\s*[^,\s}]+/gi, "apikey=[REDACTED]")
+    .slice(0, 220);
 }

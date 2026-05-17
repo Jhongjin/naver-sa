@@ -2021,6 +2021,34 @@ td span {
   line-height: 1.4;
 }
 
+.snapshot-history-note {
+  border-radius: 8px;
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+}
+
+.snapshot-history-note.saved {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(15, 118, 110, 0.18);
+}
+
+.snapshot-history-note.warning {
+  background: rgba(180, 83, 9, 0.08);
+  border: 1px solid rgba(180, 83, 9, 0.2);
+}
+
+.snapshot-history-note strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.snapshot-history-note span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .channel-list {
   display: grid;
   gap: 8px;
@@ -5589,12 +5617,27 @@ td span {
   border-color: rgba(255, 176, 90, 0.24);
 }
 
+.execution-rail .snapshot-history-note.saved {
+  background: rgba(104, 211, 174, 0.1);
+  border-color: rgba(104, 211, 174, 0.22);
+}
+
+.execution-rail .snapshot-history-note.warning {
+  background: rgba(255, 176, 90, 0.1);
+  border-color: rgba(255, 176, 90, 0.24);
+}
+
 .execution-rail .snapshot-warning-list strong {
   color: #fffaf0;
 }
 
-.execution-rail .snapshot-warning-list span {
+.execution-rail .snapshot-warning-list span,
+.execution-rail .snapshot-history-note span {
   color: rgba(249, 244, 234, 0.7);
+}
+
+.execution-rail .snapshot-history-note strong {
+  color: #fffaf0;
 }
 
 .execution-rail .channel-item,

@@ -43,6 +43,7 @@ import {
   type ExecutionReportContext
 } from "@/lib/reporting";
 import { generateOptimizationRecommendations, type OptimizationSeverity } from "@/lib/optimization";
+import { formatKoreanDateTime } from "@/lib/formatters";
 
 type PlannerWorkspaceProps = {
   initialInput: PlannerInput;
@@ -118,6 +119,17 @@ type AccountSnapshotResponse = {
     campaigns?: string | null;
     productGroups?: string | null;
   };
+  history?: {
+    saved: boolean;
+    id?: string;
+    savedAt?: string;
+    warning?: string;
+    counts?: {
+      channels: number;
+      campaigns: number;
+      productGroups: number;
+    };
+  } | null;
   channels?: Array<{
     id: string;
     name: string;
@@ -866,7 +878,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     setAccountSnapshotState({ status: "loading" });
 
     try {
-      const response = await fetch("/api/naver/account-snapshot", {
+      const params = new URLSearchParams({
+        productType,
+        brandName,
+        siteUrl
+      });
+      const response = await fetch(`/api/naver/account-snapshot?${params.toString()}`, {
         headers: await authHeaders()
       });
       const data = (await response.json()) as AccountSnapshotResponse;
@@ -2069,6 +2086,16 @@ function AccountSnapshotNotice({
               {snapshotScopeLabel(scope)}: {message}
             </span>
           ))}
+        </div>
+      ) : null}
+      {state.response.history ? (
+        <div className={`snapshot-history-note ${state.response.history.saved ? "saved" : "warning"}`}>
+          <strong>{state.response.history.saved ? "스캔 이력 저장됨" : "스캔 이력 저장 보류"}</strong>
+          <span>
+            {state.response.history.saved
+              ? `${formatKoreanDateTime(state.response.history.savedAt ?? new Date().toISOString())} 기준으로 계정 스냅샷을 보관했습니다.`
+              : state.response.history.warning ?? "스캔 결과를 저장하지 못했습니다."}
+          </span>
         </div>
       ) : null}
       <div className="channel-list">

@@ -47,12 +47,23 @@ const requiredColumns = [
   }
 ];
 
+const optionalTables = [
+  {
+    name: "naver_account_snapshots",
+    feature: "Naver account snapshot history"
+  }
+];
+
 type TableReadiness = {
   name: string;
   present: boolean;
   rowCount: number | null;
   error: string | null;
   errorCode: string | null;
+};
+
+type OptionalTableReadiness = TableReadiness & {
+  feature: string;
 };
 
 type ColumnReadiness = {
@@ -69,6 +80,7 @@ type SupabaseReadinessReport = {
   connectivity: Awaited<ReturnType<typeof checkSupabaseConnectivity>>;
   auth: Awaited<ReturnType<typeof checkAuthAdminReadiness>>;
   tables: TableReadiness[];
+  optionalTables: OptionalTableReadiness[];
   columns: ColumnReadiness[];
   note?: string;
 };
@@ -117,6 +129,7 @@ async function collectSupabaseReadiness(): Promise<SupabaseReadinessReport> {
         userCountSample: null
       },
       tables: [],
+      optionalTables: [],
       columns: [],
       note: "Supabase admin environment is not configured."
     };
@@ -136,6 +149,7 @@ async function collectSupabaseReadiness(): Promise<SupabaseReadinessReport> {
         userCountSample: null
       },
       tables: [],
+      optionalTables: [],
       columns: [],
       note: "Supabase admin client is unavailable."
     };
@@ -174,6 +188,32 @@ async function collectSupabaseReadiness(): Promise<SupabaseReadinessReport> {
         error: "Skipped because the Supabase REST endpoint is not reachable.",
         errorCode: "CONNECTIVITY_UNREACHABLE"
       }));
+  const optionalTableReports = connectivity.reachable
+    ? await Promise.all(
+        optionalTables.map(async (table) => {
+          const { error, count } = await supabase.from(table.name).select("id", {
+            count: "exact",
+            head: true
+          });
+
+          return {
+            feature: table.feature,
+            name: table.name,
+            present: !error,
+            rowCount: error ? null : count,
+            error: error ? sanitizeSupabaseError(error.message) : null,
+            errorCode: error?.code ?? null
+          };
+        })
+      )
+    : optionalTables.map((table) => ({
+        feature: table.feature,
+        name: table.name,
+        present: false,
+        rowCount: null,
+        error: "Skipped because the Supabase REST endpoint is not reachable.",
+        errorCode: "CONNECTIVITY_UNREACHABLE"
+      }));
   const auth = connectivity.reachable
     ? await checkAuthAdminReadiness(supabase)
     : {
@@ -193,6 +233,7 @@ async function collectSupabaseReadiness(): Promise<SupabaseReadinessReport> {
     connectivity,
     auth,
     tables,
+    optionalTables: optionalTableReports,
     columns
   };
 }
@@ -224,6 +265,13 @@ function toPublicReadiness(report: SupabaseReadinessReport) {
       requiredColumnCount: requiredColumns.length,
       presentColumnCount
     },
+    optionalFeatures: report.optionalTables.map((table) => ({
+      feature: table.feature,
+      table: table.name,
+      ready: table.present,
+      rowCount: table.rowCount,
+      note: table.present ? null : "Optional table is not installed yet."
+    })),
     detail: "Append ?detail=1 with an admin session to inspect table-level diagnostics.",
     note: report.note ?? null
   };
