@@ -369,7 +369,7 @@ function AdminUsersContent() {
     "idle"
   );
   const [performanceMessage, setPerformanceMessage] = useState("");
-  const [performancePreviewIds, setPerformancePreviewIds] = useState("");
+  const [performancePreviewIds, setPerformancePreviewIds] = useState(readInitialPerformancePreviewIds);
   const [performancePreviewFrom, setPerformancePreviewFrom] = useState(defaultPreviewRange.from);
   const [performancePreviewTo, setPerformancePreviewTo] = useState(defaultPreviewRange.to);
   const [performancePreviewResult, setPerformancePreviewResult] = useState<PerformanceStatsPreviewResponse | null>(null);
@@ -387,6 +387,7 @@ function AdminUsersContent() {
   const [userStatusFilter, setUserStatusFilter] = useState<UserStatusFilter>("all");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
   const [activityLimit, setActivityLimit] = useState<ActivityLimit>(8);
+
   const summary = useMemo(
     () => ({
       total: users.length,
@@ -1771,6 +1772,17 @@ function getDefaultPerformancePreviewRange() {
     from: from.toISOString().slice(0, 10),
     to: to.toISOString().slice(0, 10)
   };
+}
+
+function readInitialPerformancePreviewIds() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const linkedPerformanceIds = params.get("performanceIds") ?? params.get("perfIds");
+
+  return linkedPerformanceIds ? parseEntityIds(linkedPerformanceIds).join(", ") : "";
 }
 
 function parseEntityIds(value: string) {

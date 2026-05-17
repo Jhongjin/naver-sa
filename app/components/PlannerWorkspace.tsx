@@ -2190,6 +2190,15 @@ function AccountSnapshotNotice({
                     {copiedValue === campaign.nccCampaignId ? "복사됨" : "ID 복사"}
                   </button>
                 ) : null}
+                {campaign.nccCampaignId ? (
+                  <Link
+                    className="icon-button subtle"
+                    href={`/admin/users?performanceIds=${encodeURIComponent(campaign.nccCampaignId)}`}
+                  >
+                    <BarChart3 size={17} />
+                    성과 조회
+                  </Link>
+                ) : null}
               </div>
             </div>
           ))
