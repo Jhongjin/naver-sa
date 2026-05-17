@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { getConfiguredAdminEmails, getUserRole, verifyUserAccess, type AppUserRole } from "@/lib/auth-access";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
@@ -515,9 +516,6 @@ function getRoleSource(user: User): "appMetadata" | "adminEmails" | "default" {
   return "default";
 }
 
-function sanitizeAdminError(message: string): string {
-  return message
-    .replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer [REDACTED]")
-    .replace(/apikey[=:]\s*[^,\s}]+/gi, "apikey=[REDACTED]")
-    .slice(0, 220);
+function sanitizeAdminError(message: string | undefined): string {
+  return redactSensitiveErrorText(message, "Admin user request failed.");
 }

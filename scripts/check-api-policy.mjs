@@ -213,6 +213,24 @@ for (const file of routeFiles) {
     requireSourceExcludes(source, relativePath, "shareUrl", "admin share-link registry must not reconstruct public URLs");
   }
 
+  if (relativePath === "app/api/admin/users/route.ts") {
+    requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
+    requireSourceIncludes(source, relativePath, "redactSensitiveErrorText");
+    requireSourceIncludes(source, relativePath, "sanitizeAdminError");
+    requireSourceExcludes(
+      source,
+      relativePath,
+      ".replace(/Bearer",
+      "admin user errors must pass through shared sensitive text redaction"
+    );
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "message?.slice",
+      "admin user errors must pass through shared sensitive text redaction"
+    );
+  }
+
   if (relativePath === "app/api/admin/audit-events/route.ts") {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
     requireSourceIncludes(source, relativePath, "rawValuesExcluded: true");
