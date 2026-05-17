@@ -106,10 +106,25 @@ export async function POST(request: Request) {
     return jsonNoStore({ ok: false, error: sanitizeAdminError(error.message) }, { status: 502 });
   }
 
+  const auditWarning = await writeAdminAuditEvent(admin, {
+    actor: access.user.email ?? access.user.id,
+    eventType: "admin.user.invited",
+    entityId: data.user?.id ?? email,
+    beforeValue: null,
+    afterValue: {
+      email,
+      displayName,
+      companyName,
+      inviteRequested: true
+    },
+    reason: "Administrator invited a workspace user."
+  });
+
   return jsonNoStore({
     ok: true,
     userId: data.user?.id ?? null,
-    email
+    email,
+    warnings: auditWarning ? [auditWarning] : []
   });
 }
 
@@ -158,10 +173,25 @@ export async function PATCH(request: Request) {
       return jsonNoStore({ ok: false, error: sanitizeAdminError(error.message) }, { status: 502 });
     }
 
+    const auditWarning = await writeAdminAuditEvent(admin, {
+      actor: access.user.email ?? access.user.id,
+      eventType: "admin.user.email_confirmed",
+      entityId: userId,
+      beforeValue: {
+        emailConfirmed: false
+      },
+      afterValue: {
+        email: existing.user.email ?? null,
+        emailConfirmed: true
+      },
+      reason: "Administrator manually confirmed a user email."
+    });
+
     return jsonNoStore({
       ok: true,
       userId,
-      emailConfirmed: true
+      emailConfirmed: true,
+      warnings: auditWarning ? [auditWarning] : []
     });
   }
 
@@ -217,10 +247,27 @@ export async function PATCH(request: Request) {
     return jsonNoStore({ ok: false, error: sanitizeAdminError(error.message) }, { status: 502 });
   }
 
+  const auditWarning = await writeAdminAuditEvent(admin, {
+    actor: access.user.email ?? access.user.id,
+    eventType: "admin.user.role_changed",
+    entityId: userId,
+    beforeValue: {
+      email: existing.user.email ?? null,
+      role: getUserRole(existing.user),
+      roleSource: getRoleSource(existing.user)
+    },
+    afterValue: {
+      email: existing.user.email ?? null,
+      role
+    },
+    reason: "Administrator changed a user role."
+  });
+
   return jsonNoStore({
     ok: true,
     userId,
-    role
+    role,
+    warnings: auditWarning ? [auditWarning] : []
   });
 }
 
@@ -253,6 +300,30 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
   } catch {
     return {};
   }
+}
+
+async function writeAdminAuditEvent(
+  admin: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  input: {
+    actor: string;
+    eventType: string;
+    entityId: string;
+    beforeValue: Record<string, unknown> | null;
+    afterValue: Record<string, unknown>;
+    reason: string;
+  }
+): Promise<string | null> {
+  const { error } = await admin.from("audit_events").insert({
+    event_type: input.eventType,
+    actor: input.actor,
+    entity_type: "auth_user",
+    entity_id: input.entityId,
+    before_value: input.beforeValue,
+    after_value: input.afterValue,
+    reason: input.reason
+  });
+
+  return error ? `Admin audit event was not saved: ${sanitizeAdminError(error.message)}` : null;
 }
 
 async function getUserActivitySummary(
