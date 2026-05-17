@@ -5308,6 +5308,12 @@ td span {
   line-height: 1.45;
 }
 
+.admin-performance-preview-result .icon-button {
+  justify-self: start;
+  min-height: 34px;
+  padding: 8px 10px;
+}
+
 .admin-performance-preview-result pre {
   color: rgba(245, 239, 228, 0.78);
   font-family: var(--font-mono);

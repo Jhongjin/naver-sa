@@ -1,7 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, AlertTriangle, FileClock, Network, RefreshCw, Search, ShieldCheck, UserCheck, UserCog, Users } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  Download,
+  FileClock,
+  Network,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  UserCheck,
+  UserCog,
+  Users
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
@@ -1010,6 +1022,18 @@ function AdminUsersContent() {
     });
   }
 
+  function downloadPerformancePreviewMarkdown() {
+    if (!performancePreviewResult) {
+      return;
+    }
+
+    downloadTextFile(
+      buildPerformancePreviewMarkdown(performancePreviewResult),
+      buildPerformancePreviewFileName(performancePreviewResult),
+      "text/markdown;charset=utf-8"
+    );
+  }
+
   return (
     <main className="account-page admin-page">
       <header className="account-header">
@@ -1348,6 +1372,10 @@ function AdminUsersContent() {
                   {performancePreviewResult.request.dateFrom} ~ {performancePreviewResult.request.dateTo} /{" "}
                   {performancePreviewResult.request.fields.join(", ")}
                 </small>
+                <button className="icon-button subtle compact" type="button" onClick={downloadPerformancePreviewMarkdown}>
+                  <Download size={15} />
+                  운영 메모
+                </button>
               </div>
               <pre>{performancePreviewJson}</pre>
             </section>
@@ -1907,7 +1935,94 @@ function countPreviewRows(value: unknown): number {
     return value.data.length;
   }
 
+  if (value && typeof value === "object" && "summaryStatResponse" in value) {
+    const response = value.summaryStatResponse;
+
+    if (response && typeof response === "object" && "data" in response && Array.isArray(response.data)) {
+      return response.data.length;
+    }
+  }
+
+  if (value && typeof value === "object" && "dailyStatResponse" in value) {
+    const response = value.dailyStatResponse;
+
+    if (response && typeof response === "object" && "data" in response && Array.isArray(response.data)) {
+      return response.data.length;
+    }
+  }
+
   return value ? 1 : 0;
+}
+
+function buildPerformancePreviewMarkdown(result: PerformanceStatsPreviewResponse) {
+  const historyText = result.history?.saved
+    ? `저장됨 (${result.history.id ?? "history id 없음"}, ${result.history.rowCount ?? 0} rows)`
+    : `저장 안 됨${result.history?.warning ? `: ${result.history.warning}` : ""}`;
+  const lines = [
+    "# Naver SA Performance Preview",
+    "",
+    `- 생성 시각: ${new Date().toISOString()}`,
+    `- 기간: ${result.request.dateFrom} ~ ${result.request.dateTo}`,
+    `- 연결 ID: ${result.request.entityCount}개`,
+    `- 필드: ${result.request.fields.join(", ")}`,
+    `- rows: ${countPreviewRows(result.stats)}`,
+    `- 이력 저장: ${historyText}`,
+    "- 안전 정책: read-only stats preview, live blocked, delete blocked, approval required",
+    "- 원본 stats JSON은 이 메모에 포함하지 않습니다.",
+    "",
+    "## Recommendations",
+    ""
+  ];
+
+  if (result.recommendations.length === 0) {
+    lines.push("- 추천 없음");
+  } else {
+    result.recommendations.forEach((recommendation, index) => {
+      lines.push(
+        `${index + 1}. [${recommendation.severity}] ${recommendation.title}`,
+        `   - ID: ${recommendation.entityId}`,
+        `   - 액션: ${performanceRecommendationActionLabel(recommendation.action)}`,
+        `   - 트리거: ${recommendation.trigger}`,
+        `   - 제안: ${recommendation.recommendation}`
+      );
+    });
+  }
+
+  lines.push("", "## Approval Draft Suggestions", "");
+
+  if (result.recommendationDrafts.length === 0) {
+    lines.push("- 승인 초안 없음");
+  } else {
+    result.recommendationDrafts.forEach((draft, index) => {
+      lines.push(
+        `${index + 1}. [${draft.risk}] ${draft.title}`,
+        `   - ID: ${draft.entityId}`,
+        `   - 액션: ${performanceRecommendationDraftActionLabel(draft.action)}`,
+        `   - 근거: ${draft.details}`,
+        `   - 초안: ${draft.suggestedChange}`,
+        `   - 가드레일: ${draft.guardrail}`
+      );
+    });
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function buildPerformancePreviewFileName(result: PerformanceStatsPreviewResponse) {
+  const dateStamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+
+  return `naver-sa-performance-preview-${result.request.dateFrom}-${result.request.dateTo}-${result.request.entityCount}ids-${dateStamp}.md`;
+}
+
+function downloadTextFile(content: string, fileName: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function activityFilterLabel(value: ActivityFilter) {
