@@ -169,6 +169,7 @@ Recent operational queue:
 - Admin audit events now support server-side group/event-type filtering, so ops-alert views can fetch relevant events directly instead of relying only on client-side filtering of the latest mixed events.
 - Performance sync cron heartbeat writes are now best-effort; a heartbeat audit insert failure does not fail an otherwise completed read-only cron run, and the response only exposes whether the heartbeat was recorded.
 - Admins now have a read-only report share-link registry that shows active, expired, revoked, and accessed link counts without exposing public tokens or token hashes. Share link creation and revocation also write token-free `ops.report_share.*` audit events on a best-effort basis.
+- Performance sync readiness now includes read-only ops backlog visibility: planned/failed cron-eligible counts, blocked/stale-ready counts, oldest cron-eligible plan, latest cron heartbeat, and latest sync alert.
 
 ## UX Direction
 

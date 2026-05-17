@@ -9,6 +9,26 @@ import {
 } from "@/lib/naver-performance-sync";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
+type PerformanceSyncStatus = "planned" | "blocked" | "ready" | "failed" | "completed";
+type SupabaseAdminClient = NonNullable<ReturnType<typeof getSupabaseAdminClient>>;
+
+type OldestCronEligibleRow = {
+  id: string;
+  scope: string;
+  status: "planned" | "failed";
+  requested_from: string;
+  requested_to: string;
+  created_at: string;
+};
+
+type AuditEventRow = {
+  event_type: string;
+  entity_id: string | null;
+  after_value: Record<string, unknown> | null;
+  reason: string | null;
+  created_at: string;
+};
+
 export function POST() {
   return methodNotAllowed(["GET"]);
 }
@@ -33,7 +53,9 @@ export async function GET(request: Request) {
   }
 
   const naver = getNaverConfigState();
-  const database = await checkPerformanceSyncTable();
+  const databaseCheck = await checkPerformanceSyncTable();
+  const { client: databaseClient, ...database } = databaseCheck;
+  const ops = databaseClient ? await loadPerformanceSyncOpsSummary(databaseClient) : null;
   const scheduler = getSchedulerReadiness();
   const ready = naver.ready && database.present && scheduler.ready;
 
@@ -48,6 +70,7 @@ export async function GET(request: Request) {
       customerIdPresent: naver.customerIdPresent
     },
     database,
+    ops,
     scheduler,
     docs: naverPerformanceDocs,
     safeguards: performanceSyncSafeguards,
@@ -102,7 +125,8 @@ async function checkPerformanceSyncTable() {
       present: false,
       rowCount: null,
       error: "Supabase admin environment is not configured.",
-      errorCode: "SUPABASE_ADMIN_NOT_CONFIGURED"
+      errorCode: "SUPABASE_ADMIN_NOT_CONFIGURED",
+      client: null
     };
   }
 
@@ -114,7 +138,8 @@ async function checkPerformanceSyncTable() {
       present: false,
       rowCount: null,
       error: "Supabase admin client is unavailable.",
-      errorCode: "SUPABASE_ADMIN_UNAVAILABLE"
+      errorCode: "SUPABASE_ADMIN_UNAVAILABLE",
+      client: null
     };
   }
 
@@ -128,8 +153,141 @@ async function checkPerformanceSyncTable() {
     present: !error,
     rowCount: error ? null : count,
     error: error ? sanitizeError(error.message) : null,
-    errorCode: error?.code ?? null
+    errorCode: error?.code ?? null,
+    client: error ? null : supabase
   };
+}
+
+async function loadPerformanceSyncOpsSummary(client: SupabaseAdminClient) {
+  const staleReadyBefore = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const statuses: PerformanceSyncStatus[] = ["planned", "blocked", "ready", "failed", "completed"];
+  const [statusCounts, oldestCronEligible, staleReady, latestCronHeartbeat, latestAlert] = await Promise.all([
+    countByStatus(client, statuses),
+    loadOldestCronEligiblePlan(client),
+    countStaleReadyPlans(client, staleReadyBefore),
+    loadLatestOpsEvent(client, ["ops.performance_sync.cron_checked"]),
+    loadLatestOpsEvent(client, [
+      "ops.performance_sync.failed",
+      "ops.performance_sync.blocked",
+      "ops.performance_sync.config_missing"
+    ])
+  ]);
+
+  return {
+    externalRequest: false,
+    backlog: {
+      statusCounts,
+      cronEligible: statusCounts.planned + statusCounts.failed,
+      staleReady,
+      staleReadyThresholdMinutes: 60,
+      oldestCronEligible
+    },
+    latestCronHeartbeat,
+    latestAlert
+  };
+}
+
+async function countByStatus(client: SupabaseAdminClient, statuses: PerformanceSyncStatus[]) {
+  const results = await Promise.all(
+    statuses.map(async (status) => {
+      const { count } = await client
+        .from(performanceSyncTableName)
+        .select("id", { count: "exact", head: true })
+        .eq("status", status);
+
+      return [status, count ?? 0] as const;
+    })
+  );
+
+  return Object.fromEntries(results) as Record<PerformanceSyncStatus, number>;
+}
+
+async function countStaleReadyPlans(client: SupabaseAdminClient, staleReadyBefore: string): Promise<number> {
+  const { count, error } = await client
+    .from(performanceSyncTableName)
+    .select("id", { count: "exact", head: true })
+    .eq("status", "ready")
+    .lt("updated_at", staleReadyBefore);
+
+  return error ? 0 : count ?? 0;
+}
+
+async function loadOldestCronEligiblePlan(client: SupabaseAdminClient) {
+  const { data, error } = await client
+    .from(performanceSyncTableName)
+    .select("id, scope, status, requested_from, requested_to, created_at")
+    .in("status", [...performanceSyncCronPolicy.targetStatuses])
+    .neq("scope", "masterReference")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  const row = data as OldestCronEligibleRow;
+
+  return {
+    id: row.id,
+    scope: row.scope,
+    status: row.status,
+    requestedFrom: row.requested_from,
+    requestedTo: row.requested_to,
+    createdAt: row.created_at
+  };
+}
+
+async function loadLatestOpsEvent(client: SupabaseAdminClient, eventTypes: string[]) {
+  const { data, error } = await client
+    .from("audit_events")
+    .select("event_type, entity_id, after_value, reason, created_at")
+    .in("event_type", eventTypes)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return toSafeOpsEvent(data as AuditEventRow);
+}
+
+function toSafeOpsEvent(event: AuditEventRow) {
+  const value = event.after_value ?? {};
+
+  return {
+    eventType: event.event_type,
+    entityId: event.entity_id,
+    createdAt: event.created_at,
+    reason: event.reason,
+    processed: readNumberOrNull(value.processed),
+    remainingAfter: readNumberOrNull(value.remainingAfter),
+    status: readScalar(value.status),
+    source: readScalar(value.source),
+    error: readString(value.error, 160)
+  };
+}
+
+function readNumberOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readScalar(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim().slice(0, 80);
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return null;
+}
+
+function readString(value: unknown, maxLength: number): string | null {
+  return typeof value === "string" && value.trim() ? sanitizeError(value).slice(0, maxLength) : null;
 }
 
 function sanitizeError(message: string | undefined): string {

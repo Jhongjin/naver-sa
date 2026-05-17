@@ -172,6 +172,45 @@ type PerformanceSyncReadinessResponse = {
     externalRequestOnSchedule: boolean;
     nextStep: string;
   };
+  ops?: {
+    externalRequest: false;
+    backlog: {
+      statusCounts: Record<"planned" | "blocked" | "ready" | "failed" | "completed", number>;
+      cronEligible: number;
+      staleReady: number;
+      staleReadyThresholdMinutes: number;
+      oldestCronEligible: {
+        id: string;
+        scope: "powerlinkDailyStats" | "shoppingKeywordDailyStats" | "masterReference";
+        status: "planned" | "failed";
+        requestedFrom: string;
+        requestedTo: string;
+        createdAt: string;
+      } | null;
+    };
+    latestCronHeartbeat: {
+      eventType: string;
+      entityId: string | null;
+      createdAt: string;
+      reason: string | null;
+      processed: number | null;
+      remainingAfter: number | null;
+      status: string | null;
+      source: string | null;
+      error: string | null;
+    } | null;
+    latestAlert: {
+      eventType: string;
+      entityId: string | null;
+      createdAt: string;
+      reason: string | null;
+      processed: number | null;
+      remainingAfter: number | null;
+      status: string | null;
+      source: string | null;
+      error: string | null;
+    } | null;
+  } | null;
   safeguards: {
     externalRequest: false;
     readOnlyStatsOnly: boolean;
@@ -680,6 +719,11 @@ function AdminUsersContent() {
       cronConfigured: performanceReadiness?.scheduler?.automaticCronConfigured ?? false,
       cronSecretPresent: performanceReadiness?.scheduler?.cronSecretPresent ?? false,
       rowCount: performanceReadiness?.database.rowCount ?? 0,
+      cronEligible: performanceReadiness?.ops?.backlog.cronEligible ?? 0,
+      failed: performanceReadiness?.ops?.backlog.statusCounts.failed ?? 0,
+      staleReady: performanceReadiness?.ops?.backlog.staleReady ?? 0,
+      latestCronAt: performanceReadiness?.ops?.latestCronHeartbeat?.createdAt ?? null,
+      latestAlertAt: performanceReadiness?.ops?.latestAlert?.createdAt ?? null,
       blocked,
       planned
     };
@@ -1798,12 +1842,14 @@ function AdminUsersContent() {
           <article>
             <span>계획 이력</span>
             <strong>{performanceSummary.rowCount}건</strong>
-            <small>최근 dry-run 계획을 저장하고 추적합니다.</small>
+            <small>
+              예약 대상 {performanceSummary.cronEligible}건 / failed {performanceSummary.failed}건
+            </small>
           </article>
           <article>
             <span>차단 계획</span>
             <strong>{performanceSummary.blocked}건</strong>
-            <small>연결 ID 또는 범위 보정이 필요한 항목입니다.</small>
+            <small>stale ready {performanceSummary.staleReady}건 / planned {performanceSummary.planned}건</small>
           </article>
           <article className={performanceSummary.schedulerReady ? "ok" : "needs-check"}>
             <span>예약 실행</span>
@@ -1816,11 +1862,20 @@ function AdminUsersContent() {
               {performanceSummary.cronSecretPresent ? "CRON_SECRET 등록됨" : "CRON_SECRET 확인 필요"} /{" "}
               {performanceReadiness?.scheduler?.targetStatuses?.join(", ") ?? "planned, failed"}
             </small>
+            <small>
+              최근 cron{" "}
+              {performanceSummary.latestCronAt ? formatKoreanDateTime(performanceSummary.latestCronAt) : "기록 없음"}
+            </small>
           </article>
           <article>
             <span>안전 가드</span>
             <strong>live off</strong>
-            <small>external job creation, deletion, mutation 모두 차단</small>
+            <small>
+              external job creation, deletion, mutation 모두 차단
+              {performanceSummary.latestAlertAt
+                ? ` / 최근 알림 ${formatKoreanDateTime(performanceSummary.latestAlertAt)}`
+                : ""}
+            </small>
           </article>
         </div>
         <form
