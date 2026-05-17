@@ -531,6 +531,12 @@ function requireCsvExportSafety(source, relativePath, startMarker, endMarker, la
 }
 
 function requireProjectSurfaceChecks() {
+  const packagePath = "package.json";
+  const packageSource = readProjectFile(packagePath);
+
+  requireSourceIncludes(packageSource, packagePath, '"lint:error-redaction": "node scripts/check-error-redaction.mjs"');
+  requireSourceIncludes(packageSource, packagePath, "npm run lint:error-redaction");
+
   const persistencePath = "lib/persistence/planning-runs.ts";
   const persistenceSource = readProjectFile(persistencePath);
 
@@ -561,6 +567,16 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(errorRedactionSource, errorRedactionPath, "redactSensitiveOptionalText");
   requireSourceIncludes(errorRedactionSource, errorRedactionPath, "Bearer [REDACTED]");
   requireSourceIncludes(errorRedactionSource, errorRedactionPath, "authorization|cookie");
+
+  const errorRedactionCheckPath = "scripts/check-error-redaction.mjs";
+  const errorRedactionCheckSource = readProjectFile(errorRedactionCheckPath);
+
+  requireSourceIncludes(errorRedactionCheckSource, errorRedactionCheckPath, "transpileModule");
+  requireSourceIncludes(errorRedactionCheckSource, errorRedactionCheckPath, "redactSensitiveErrorText");
+  requireSourceIncludes(errorRedactionCheckSource, errorRedactionCheckPath, "redactSensitiveOptionalText");
+  requireSourceIncludes(errorRedactionCheckSource, errorRedactionCheckPath, "access_token=access-123");
+  requireSourceIncludes(errorRedactionCheckSource, errorRedactionCheckPath, "authorization: Bearer raw-token");
+  requireSourceIncludes(errorRedactionCheckSource, errorRedactionCheckPath, "cookie: session=raw-cookie");
 
   const reportSharePath = "lib/report-share.ts";
   const reportShareSource = readProjectFile(reportSharePath);
