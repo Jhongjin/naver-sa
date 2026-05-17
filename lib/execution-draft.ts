@@ -54,6 +54,7 @@ export type NaverExecutionDraft = {
   generatedAt: string;
   brandName: string;
   approvedChangeCount: number;
+  context: NaverExecutionContext;
   payloads: NaverExecutionPayload[];
   validation: NaverExecutionValidation;
   blocked: {
@@ -199,6 +200,7 @@ export function createNaverExecutionDraft(
     generatedAt,
     brandName: plan.input.brandName,
     approvedChangeCount: approvedIds.size,
+    context: normalizeExecutionContext(context),
     payloads,
     validation,
     blocked: {
@@ -314,6 +316,32 @@ function defaultSafety() {
     deleteBlocked: true,
     requiresHumanApproval: true
   } as const;
+}
+
+function normalizeExecutionContext(context: NaverExecutionContext): NaverExecutionContext {
+  const normalized: NaverExecutionContext = {};
+
+  for (const [key, value] of Object.entries(context) as Array<[keyof NaverExecutionContext, unknown]>) {
+    if (key === "adgroupIdsByName" && value && typeof value === "object" && !Array.isArray(value)) {
+      const adgroupIdsByName = Object.fromEntries(
+        Object.entries(value)
+          .filter((entry): entry is [string, string] => typeof entry[1] === "string" && Boolean(entry[1].trim()))
+          .map(([name, id]) => [name.slice(0, 140), id.trim().slice(0, 140)])
+      );
+
+      if (Object.keys(adgroupIdsByName).length > 0) {
+        normalized.adgroupIdsByName = adgroupIdsByName;
+      }
+
+      continue;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      normalized[key] = value.trim().slice(0, 140) as never;
+    }
+  }
+
+  return normalized;
 }
 
 function resolveAdgroupReference(

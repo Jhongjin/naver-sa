@@ -1,4 +1,5 @@
 import { verifyUserAccess } from "@/lib/auth-access";
+import type { NaverExecutionContext } from "@/lib/execution-draft";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
@@ -104,6 +105,7 @@ type ExecutionDraftRow = {
     warnings?: Array<{ code: string; payloadId?: string; message: string }>;
   } | null;
   blocked: unknown;
+  execution_context?: Record<string, unknown> | null;
   generated_at: string;
   created_at: string;
 };
@@ -210,6 +212,20 @@ export async function GET(request: Request, context: RouteContext) {
     workspace = (workspaceData ?? null) as WorkspaceRow | null;
   }
 
+  const executionContextSupport = await hasExecutionDraftContextSupport(supabase);
+  const executionDraftSelect = [
+    "id",
+    "draft_key",
+    "draft_id",
+    "brand_name",
+    "approved_change_count",
+    "status",
+    "validation",
+    "blocked",
+    ...(executionContextSupport ? ["execution_context"] : []),
+    "generated_at",
+    "created_at"
+  ].join(", ");
   const [keywordsResult, adGroupsResult, changesResult, draftsResult, auditResult] = await Promise.all([
     supabase
       .from("planning_keywords")
@@ -234,7 +250,7 @@ export async function GET(request: Request, context: RouteContext) {
       .order("created_at", { ascending: true }),
     supabase
       .from("execution_drafts")
-      .select("id, draft_key, draft_id, brand_name, approved_change_count, status, validation, blocked, generated_at, created_at")
+      .select(executionDraftSelect)
       .eq("planning_run_id", planningRun.id)
       .order("created_at", { ascending: false }),
     supabase
@@ -252,7 +268,7 @@ export async function GET(request: Request, context: RouteContext) {
     return jsonNoStore({ ok: false, error: sanitizeError(lookupError.message) }, { status: 502 });
   }
 
-  const drafts = (draftsResult.data ?? []) as ExecutionDraftRow[];
+  const drafts = ((draftsResult.data ?? []) as unknown) as ExecutionDraftRow[];
   const draftIds = drafts.map((draft) => draft.id);
   const [payloadsResult, resultsResult] =
     draftIds.length > 0
@@ -377,6 +393,8 @@ export async function GET(request: Request, context: RouteContext) {
       status: draft.status,
       validation: draft.validation,
       blocked: draft.blocked,
+      executionContext: toExecutionContext(draft.execution_context ?? null),
+      executionContextCaptured: executionContextSupport,
       generatedAt: draft.generated_at,
       createdAt: draft.created_at,
       payloads: payloads
@@ -453,6 +471,54 @@ async function hasWorkspaceMembership(
   }
 
   return Boolean(data);
+}
+
+async function hasExecutionDraftContextSupport(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
+): Promise<boolean> {
+  const { error } = await supabase.from("execution_drafts").select("id,execution_context", {
+    head: true
+  });
+
+  return !error;
+}
+
+function toExecutionContext(value: Record<string, unknown> | null): NaverExecutionContext {
+  if (!value) {
+    return {};
+  }
+
+  const context: NaverExecutionContext = {};
+  const stringKeys = [
+    "campaignId",
+    "pcChannelId",
+    "mobileChannelId",
+    "shoppingChannelId",
+    "productGroupId",
+    "productGroupBusinessChannelId"
+  ] as const;
+
+  for (const key of stringKeys) {
+    const field = value[key];
+
+    if (typeof field === "string" && field.trim()) {
+      context[key] = field.trim().slice(0, 140);
+    }
+  }
+
+  const adgroupIdsByName = value.adgroupIdsByName;
+
+  if (adgroupIdsByName && typeof adgroupIdsByName === "object" && !Array.isArray(adgroupIdsByName)) {
+    const entries = Object.entries(adgroupIdsByName)
+      .filter((entry): entry is [string, string] => typeof entry[1] === "string" && Boolean(entry[1].trim()))
+      .map(([name, id]) => [name.slice(0, 140), id.trim().slice(0, 140)]);
+
+    if (entries.length > 0) {
+      context.adgroupIdsByName = Object.fromEntries(entries);
+    }
+  }
+
+  return context;
 }
 
 function createDraftPayloadResultKey(executionDraftId: string, payloadKey: string): string {

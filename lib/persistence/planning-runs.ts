@@ -1,7 +1,7 @@
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { PlannerPlan } from "@/lib/planner";
 import type { ApprovalDecisionMap, ApprovalDecisionNoteMap } from "@/lib/reporting";
-import type { NaverExecutionDraft } from "@/lib/execution-draft";
+import type { NaverExecutionContext, NaverExecutionDraft } from "@/lib/execution-draft";
 
 export type SavePlanningRunInput = {
   plan: PlannerPlan;
@@ -349,22 +349,22 @@ async function saveExecutionDraft(input: {
   actor?: string;
 }): Promise<{ ok: true; executionDraftId: string } | { ok: false; error: string }> {
   const { supabase, draft } = input;
+  const contextSupport = await getExecutionDraftContextSupport(supabase);
+  const draftRow = {
+    planning_run_id: input.planningRunId,
+    draft_key: draft.draftKey,
+    draft_id: draft.draftId,
+    brand_name: draft.brandName,
+    approved_change_count: draft.approvedChangeCount,
+    status: draft.validation.canExecuteTest ? "ready" : "blocked",
+    validation: draft.validation,
+    blocked: draft.blocked,
+    generated_at: draft.generatedAt,
+    ...(contextSupport ? { execution_context: sanitizeExecutionContext(draft.context) } : {})
+  };
   const { data: executionDraft, error: draftError } = await supabase
     .from("execution_drafts")
-    .upsert(
-      {
-        planning_run_id: input.planningRunId,
-        draft_key: draft.draftKey,
-        draft_id: draft.draftId,
-        brand_name: draft.brandName,
-        approved_change_count: draft.approvedChangeCount,
-        status: draft.validation.canExecuteTest ? "ready" : "blocked",
-        validation: draft.validation,
-        blocked: draft.blocked,
-        generated_at: draft.generatedAt
-      },
-      { onConflict: "draft_key" }
-    )
+    .upsert(draftRow, { onConflict: "draft_key" })
     .select("id")
     .single();
 
@@ -429,6 +429,7 @@ async function saveExecutionDraft(input: {
     after_value: {
       draftKey: draft.draftKey,
       draftId: draft.draftId,
+      contextCaptured: contextSupport,
       payloadCount: draft.payloads.length,
       validation: draft.validation
     },
@@ -439,6 +440,42 @@ async function saveExecutionDraft(input: {
     ok: true,
     executionDraftId
   };
+}
+
+async function getExecutionDraftContextSupport(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
+): Promise<boolean> {
+  const { error } = await supabase.from("execution_drafts").select("id,execution_context", {
+    head: true
+  });
+
+  return !error;
+}
+
+function sanitizeExecutionContext(context: NaverExecutionContext): NaverExecutionContext {
+  const sanitized: NaverExecutionContext = {};
+
+  for (const [key, value] of Object.entries(context) as Array<[keyof NaverExecutionContext, unknown]>) {
+    if (key === "adgroupIdsByName" && value && typeof value === "object" && !Array.isArray(value)) {
+      const adgroupIdsByName = Object.fromEntries(
+        Object.entries(value)
+          .filter((entry): entry is [string, string] => typeof entry[1] === "string" && Boolean(entry[1].trim()))
+          .map(([name, id]) => [name.slice(0, 140), id.trim().slice(0, 140)])
+      );
+
+      if (Object.keys(adgroupIdsByName).length > 0) {
+        sanitized.adgroupIdsByName = adgroupIdsByName;
+      }
+
+      continue;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      sanitized[key] = value.trim().slice(0, 140) as never;
+    }
+  }
+
+  return sanitized;
 }
 
 function sanitizeSupabaseError(message: string | undefined): string {

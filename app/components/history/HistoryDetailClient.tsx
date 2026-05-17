@@ -96,6 +96,16 @@ type HistoryDetailResponse = {
       blockers?: Array<{ code: string; payloadId?: string; message: string }>;
       warnings?: Array<{ code: string; payloadId?: string; message: string }>;
     } | null;
+    executionContext: {
+      campaignId?: string;
+      pcChannelId?: string;
+      mobileChannelId?: string;
+      shoppingChannelId?: string;
+      productGroupId?: string;
+      productGroupBusinessChannelId?: string;
+      adgroupIdsByName?: Record<string, string>;
+    };
+    executionContextCaptured: boolean;
     generatedAt: string;
     createdAt: string;
     payloads: Array<{
@@ -271,6 +281,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
   }, [getAccessToken, planningRunId]);
 
   const latestDraft = data?.executionDrafts[0];
+  const latestExecutionContextRows = useMemo(() => executionContextRows(latestDraft?.executionContext ?? {}), [latestDraft]);
   const approvalAuditEvents = useMemo(
     () => data?.auditEvents.filter((event) => event.event_type.startsWith("staged_change.")) ?? [],
     [data]
@@ -581,6 +592,20 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                       <strong>{formatKoreanDateTime(latestDraft.generatedAt)}</strong>
                     </div>
                   </div>
+                  {latestExecutionContextRows.length > 0 ? (
+                    <dl className="history-info-list execution-context-list">
+                      {latestExecutionContextRows.map(([label, value]) => (
+                        <div key={label}>
+                          <dt>{label}</dt>
+                          <dd>{value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  ) : latestDraft.executionContextCaptured ? (
+                    <p className="history-context-empty">이 draft는 별도 실행 연결값 없이 저장되었습니다.</p>
+                  ) : (
+                    <p className="history-context-empty">실행 연결값 컬럼이 아직 적용되지 않은 이력입니다.</p>
+                  )}
                   <IssueList title="차단 항목" items={latestDraft.validation?.blockers ?? []} tone="danger" />
                   <IssueList title="경고 항목" items={latestDraft.validation?.warnings ?? []} tone="warning" />
                   <div className="history-payload-list">
@@ -904,6 +929,20 @@ function ownerContextLabel(ownerUserId: string | null, creatorUserId: string | n
   return ownerUserId === creatorUserId ? "소유자 저장" : "멤버 저장";
 }
 
+function executionContextRows(context: HistoryDetailResponse["executionDrafts"][number]["executionContext"]) {
+  const rows: Array<[string, string]> = [
+    ["Campaign ID", context.campaignId ?? ""],
+    ["PC channel ID", context.pcChannelId ?? ""],
+    ["Mobile channel ID", context.mobileChannelId ?? ""],
+    ["Shopping channel ID", context.shoppingChannelId ?? ""],
+    ["Product group ID", context.productGroupId ?? ""],
+    ["Product group channel ID", context.productGroupBusinessChannelId ?? ""]
+  ].filter((row): row is [string, string] => Boolean(row[1]));
+  const adgroupCount = context.adgroupIdsByName ? Object.keys(context.adgroupIdsByName).length : 0;
+
+  return adgroupCount > 0 ? [...rows, ["Existing ad group map", `${adgroupCount}개`]] : rows;
+}
+
 function decisionLabel(decision: string) {
   const labels: Record<string, string> = {
     approved: "승인",
@@ -972,6 +1011,7 @@ function buildHistoryDetailUrl(planningRunId: string) {
 function buildHistoryMemoMarkdown(data: HistoryDetailResponse) {
   const latestDraft = data.executionDrafts[0];
   const validation = latestDraft?.validation;
+  const contextRows = latestDraft ? executionContextRows(latestDraft.executionContext) : [];
   const lines = [
     "# Naver SA Saved Operation Memo",
     "",
@@ -998,6 +1038,9 @@ function buildHistoryMemoMarkdown(data: HistoryDetailResponse) {
           validation?.canExecuteTest ? "yes" : "no"
         }\n- Blockers: ${validation?.blockerCount ?? 0}\n- Warnings: ${validation?.warningCount ?? 0}`
       : "- No execution draft saved.",
+    ...(contextRows.length > 0
+      ? ["", "## Execution Context", "", ...contextRows.map(([label, value]) => `- ${label}: ${value}`)]
+      : []),
     "",
     "## Top Keywords",
     "",

@@ -173,6 +173,7 @@ Recent operational queue:
 - Live Naver account inventory scans now require Supabase Auth admin access because they use the configured account credentials. Non-admin members can still save planning history but cannot trigger the external account snapshot route.
 - Performance stats preview now preserves the requested stats scope in the response and saved sync history, so Shopping Search plan re-runs are no longer recorded as generic Powerlink previews.
 - API and performance safety verification now asserts the sensitive share-link and performance-sync invariants: admin share registries cannot query token hashes or rebuild public URLs, public reports must keep raw payload/audit redaction markers, performance previews must preserve scope while avoiding raw stats persistence, and readiness must strip the internal Supabase client before returning JSON.
+- Execution drafts can now persist the operator-selected execution context, including campaign, channel, and Shopping Search product-group linkage IDs, so saved history can show which safe connection values were used when the staged payload was prepared. The app remains backward-compatible while the optional `execution_drafts.execution_context` migration is rolling out.
 
 ## UX Direction
 

@@ -4689,6 +4689,20 @@ td span {
   margin: 0;
 }
 
+.execution-context-list {
+  margin-top: 12px;
+}
+
+.history-context-empty {
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 12px;
+  color: #64748b;
+  font-size: 12px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+}
+
 .history-issue-list {
   border-radius: 14px;
   display: grid;

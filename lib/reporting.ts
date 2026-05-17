@@ -18,6 +18,7 @@ export type ExecutionReportContext = {
     mobileChannelId?: string;
     shoppingChannelId?: string;
     productGroupId?: string;
+    productGroupBusinessChannelId?: string;
   };
   draft?: {
     draftId: string;
@@ -263,6 +264,7 @@ function createMarkdownExecutionContext(execution: ExecutionReportContext | unde
     ["Mobile channel ID", execution.executionContext?.mobileChannelId],
     ["Shopping channel ID", execution.executionContext?.shoppingChannelId],
     ["Product group ID", execution.executionContext?.productGroupId],
+    ["Product group channel ID", execution.executionContext?.productGroupBusinessChannelId],
     ["Draft ID", execution.draft?.draftId],
     ["Draft key", execution.draft?.draftKey],
     ["Draft generated at", execution.draft?.generatedAt],
@@ -292,6 +294,7 @@ function createExcelExecutionRows(execution: ExecutionReportContext | undefined)
     ["Mobile channel ID", execution.executionContext?.mobileChannelId],
     ["Shopping channel ID", execution.executionContext?.shoppingChannelId],
     ["Product group ID", execution.executionContext?.productGroupId],
+    ["Product group channel ID", execution.executionContext?.productGroupBusinessChannelId],
     ["Draft ID", execution.draft?.draftId],
     ["Draft key", execution.draft?.draftKey],
     ["Draft generated at", execution.draft?.generatedAt],

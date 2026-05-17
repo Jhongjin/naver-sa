@@ -74,6 +74,14 @@ const optionalTables = [
   }
 ];
 
+const optionalColumns = [
+  {
+    table: "execution_drafts",
+    column: "execution_context",
+    feature: "Execution draft context history"
+  }
+];
+
 type TableReadiness = {
   name: string;
   present: boolean;
@@ -94,6 +102,10 @@ type ColumnReadiness = {
   errorCode: string | null;
 };
 
+type OptionalColumnReadiness = ColumnReadiness & {
+  feature: string;
+};
+
 type SupabaseReadinessReport = {
   ok: boolean;
   state: ReturnType<typeof getSupabaseAdminState>;
@@ -102,6 +114,7 @@ type SupabaseReadinessReport = {
   tables: TableReadiness[];
   optionalTables: OptionalTableReadiness[];
   columns: ColumnReadiness[];
+  optionalColumns: OptionalColumnReadiness[];
   note?: string;
 };
 
@@ -151,6 +164,7 @@ async function collectSupabaseReadiness(): Promise<SupabaseReadinessReport> {
       tables: [],
       optionalTables: [],
       columns: [],
+      optionalColumns: [],
       note: "Supabase admin environment is not configured."
     };
   }
@@ -171,6 +185,7 @@ async function collectSupabaseReadiness(): Promise<SupabaseReadinessReport> {
       tables: [],
       optionalTables: [],
       columns: [],
+      optionalColumns: [],
       note: "Supabase admin client is unavailable."
     };
   }
@@ -234,6 +249,19 @@ async function collectSupabaseReadiness(): Promise<SupabaseReadinessReport> {
         error: "Skipped because the Supabase REST endpoint is not reachable.",
         errorCode: "CONNECTIVITY_UNREACHABLE"
       }));
+  const optionalColumnReports = connectivity.reachable
+    ? await Promise.all(
+        optionalColumns.map(async (column) => ({
+          ...(await checkColumnPresence(supabase, column)),
+          feature: column.feature
+        }))
+      )
+    : optionalColumns.map((column) => ({
+        ...column,
+        present: false,
+        error: "Skipped because the Supabase REST endpoint is not reachable.",
+        errorCode: "CONNECTIVITY_UNREACHABLE"
+      }));
   const auth = connectivity.reachable
     ? await checkAuthAdminReadiness(supabase)
     : {
@@ -254,7 +282,8 @@ async function collectSupabaseReadiness(): Promise<SupabaseReadinessReport> {
     auth,
     tables,
     optionalTables: optionalTableReports,
-    columns
+    columns,
+    optionalColumns: optionalColumnReports
   };
 }
 
@@ -285,13 +314,24 @@ function toPublicReadiness(report: SupabaseReadinessReport) {
       requiredColumnCount: requiredColumns.length,
       presentColumnCount
     },
-    optionalFeatures: report.optionalTables.map((table) => ({
-      feature: table.feature,
-      table: table.name,
-      ready: table.present,
-      rowCount: table.rowCount,
-      note: table.present ? null : "Optional table is not installed yet."
-    })),
+    optionalFeatures: [
+      ...report.optionalTables.map((table) => ({
+        feature: table.feature,
+        table: table.name,
+        column: null,
+        ready: table.present,
+        rowCount: table.rowCount,
+        note: table.present ? null : "Optional table is not installed yet."
+      })),
+      ...report.optionalColumns.map((column) => ({
+        feature: column.feature,
+        table: column.table,
+        column: column.column,
+        ready: column.present,
+        rowCount: null,
+        note: column.present ? null : "Optional column is not installed yet."
+      }))
+    ],
     detail: "Append ?detail=1 with an admin session to inspect table-level diagnostics.",
     note: report.note ?? null
   };
