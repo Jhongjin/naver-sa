@@ -269,12 +269,44 @@ type PerformanceStatsPreviewResponse = {
     timeIncrement: "allDays";
   };
   stats: unknown;
+  recommendations: PerformanceRecommendationItem[];
+  recommendationSummary: {
+    total: number;
+    bySeverity: {
+      low: number;
+      medium: number;
+      high: number;
+    };
+    byAction: Record<string, number>;
+  };
   history?: {
     saved: boolean;
     id?: string;
     rowCount?: number;
     warning?: string;
   };
+};
+
+type PerformanceRecommendationItem = {
+  id: string;
+  entityId: string;
+  severity: "low" | "medium" | "high";
+  action: "increaseBidCandidate" | "decreaseBidCandidate" | "holdAndInspect" | "creativeReview" | "keepLearning";
+  title: string;
+  trigger: string;
+  recommendation: string;
+  metricSummary: {
+    impressions: number;
+    clicks: number;
+    cost: number;
+    ctr: number | null;
+    cpc: number | null;
+    avgRank: number | null;
+    conversions: number;
+    revenue: number;
+  };
+  automationLevel: "Level 1 Review" | "Level 2 Staged";
+  safeDraftOnly: true;
 };
 
 type OperationalHealth = {
@@ -1256,6 +1288,32 @@ function AdminUsersContent() {
               <pre>{performancePreviewJson}</pre>
             </section>
           ) : null}
+          {performancePreviewResult?.recommendations.length ? (
+            <section className="admin-performance-recommendations" aria-label="성과 기반 운영 추천">
+              <div>
+                <span>recommendations</span>
+                <strong>{performancePreviewResult.recommendationSummary.total}개 추천</strong>
+                <small>
+                  high {performancePreviewResult.recommendationSummary.bySeverity.high} / medium{" "}
+                  {performancePreviewResult.recommendationSummary.bySeverity.medium} / low{" "}
+                  {performancePreviewResult.recommendationSummary.bySeverity.low}
+                </small>
+              </div>
+              <div>
+                {performancePreviewResult.recommendations.map((recommendation) => (
+                  <article className={recommendation.severity} key={recommendation.id}>
+                    <span className={`status-pill ${recommendation.severity === "high" ? "review" : "include"}`}>
+                      {performanceRecommendationActionLabel(recommendation.action)}
+                    </span>
+                    <strong>{recommendation.title}</strong>
+                    <p>{recommendation.entityId}</p>
+                    <small>{recommendation.trigger}</small>
+                    <em>{recommendation.recommendation}</em>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
         </form>
         {performanceStatus === "loading" ? (
           <div className="admin-activity-empty">
@@ -1772,6 +1830,18 @@ function performanceScopeLabel(value: PerformanceSyncPlanItem["scope"]) {
     powerlinkDailyStats: "파워링크 일별 성과",
     shoppingKeywordDailyStats: "쇼핑검색 키워드 성과",
     masterReference: "마스터 기준 데이터"
+  };
+
+  return labels[value];
+}
+
+function performanceRecommendationActionLabel(value: PerformanceRecommendationItem["action"]) {
+  const labels = {
+    increaseBidCandidate: "상향 후보",
+    decreaseBidCandidate: "하향 후보",
+    holdAndInspect: "점검",
+    creativeReview: "소재 검토",
+    keepLearning: "관찰"
   };
 
   return labels[value];

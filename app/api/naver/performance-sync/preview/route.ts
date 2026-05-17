@@ -7,6 +7,11 @@ import {
   performanceSyncSafeguards,
   performanceSyncTableName
 } from "@/lib/naver-performance-sync";
+import {
+  generatePerformanceRecommendations,
+  summarizePerformanceRecommendations,
+  type PerformanceRecommendation
+} from "@/lib/performance-recommendations";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 export function GET() {
@@ -81,11 +86,14 @@ export async function POST(request: Request) {
     );
   }
 
+  const recommendations = generatePerformanceRecommendations(result.data);
+  const recommendationSummary = summarizePerformanceRecommendations(recommendations);
   const history = await savePerformancePreviewHistory({
     userId: access.user.id,
     actorEmail: access.user.email ?? null,
     preview,
-    stats: result.data
+    stats: result.data,
+    recommendations
   });
 
   return jsonNoStore({
@@ -100,6 +108,8 @@ export async function POST(request: Request) {
       timeIncrement: preview.timeIncrement
     },
     stats: result.data,
+    recommendations,
+    recommendationSummary,
     history,
     safeguards: performanceSyncSafeguards
   });
@@ -110,6 +120,7 @@ async function savePerformancePreviewHistory(input: {
   actorEmail: string | null;
   preview: ReturnType<typeof createPerformanceStatsPreviewRequest>;
   stats: unknown;
+  recommendations: PerformanceRecommendation[];
 }): Promise<
   | {
       saved: true;
@@ -159,6 +170,8 @@ async function savePerformancePreviewHistory(input: {
         entityCount: input.preview.entityIds.length,
         fieldCount: input.preview.fields.length,
         rowCount,
+        recommendationCount: input.recommendations.length,
+        recommendationSummary: summarizePerformanceRecommendations(input.recommendations),
         timeIncrement: input.preview.timeIncrement,
         storedRawStats: false
       }
@@ -191,7 +204,23 @@ function countStatsRows(value: unknown): number {
     return value.data.length;
   }
 
+  if (value && typeof value === "object" && "summaryStatResponse" in value && isRecord(value.summaryStatResponse)) {
+    const data = value.summaryStatResponse.data;
+
+    return Array.isArray(data) ? data.length : 0;
+  }
+
+  if (value && typeof value === "object" && "dailyStatResponse" in value && isRecord(value.dailyStatResponse)) {
+    const data = value.dailyStatResponse.data;
+
+    return Array.isArray(data) ? data.length : 0;
+  }
+
   return value ? 1 : 0;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function isMissingTableError(error: { code?: string; message?: string } | null): boolean {
