@@ -159,6 +159,11 @@ for (const file of routeFiles) {
 
   if (relativePath === "app/api/supabase/readiness/route.ts") {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
+    requireSourceIncludes(source, relativePath, "toSafeSupabaseAdminState");
+    requireSourceIncludes(source, relativePath, "environmentVariableNamesExcluded: true");
+    requireSourceIncludes(source, relativePath, "supabaseUrlExcluded: true");
+    requireSourceIncludes(source, relativePath, "missingCount: state.missing.length");
+    requireSourceIncludes(source, relativePath, "endpointExcluded: true");
     requireSourceIncludes(source, relativePath, "optionalFeatures");
     requireSourceIncludes(source, relativePath, "planning_product_groups");
     requireSourceIncludes(source, relativePath, "shopping_linkage");
@@ -172,6 +177,9 @@ for (const file of routeFiles) {
       "rowCount: table.rowCount",
       "public Supabase readiness must not expose optional table row counts"
     );
+    requireSourceExcludes(source, relativePath, "missing: state.missing", "Supabase readiness must not return env var names");
+    requireSourceExcludes(source, relativePath, "host: state.url.host", "Supabase readiness must not return Supabase URL host");
+    requireSourceExcludes(source, relativePath, "\n      endpoint,", "Supabase readiness must not return Supabase REST endpoint URL");
     requireSharedErrorRedaction(
       source,
       relativePath,

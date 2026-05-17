@@ -133,7 +133,7 @@ type OptionalColumnReadiness = ColumnReadiness & {
 
 type SupabaseReadinessReport = {
   ok: boolean;
-  state: ReturnType<typeof getSupabaseAdminState>;
+  state: ReturnType<typeof toSafeSupabaseAdminState>;
   connectivity: Awaited<ReturnType<typeof checkSupabaseConnectivity>>;
   auth: Awaited<ReturnType<typeof checkAuthAdminReadiness>>;
   tables: TableReadiness[];
@@ -173,12 +173,13 @@ export async function GET(request: Request) {
 
 async function collectSupabaseReadiness(): Promise<SupabaseReadinessReport> {
   const state = getSupabaseAdminState();
+  const safeState = toSafeSupabaseAdminState(state);
   const connectivity = await checkSupabaseConnectivity(state.url);
 
   if (!state.ready) {
     return {
       ok: false,
-      state,
+      state: safeState,
       connectivity,
       auth: {
         checked: false,
@@ -199,7 +200,7 @@ async function collectSupabaseReadiness(): Promise<SupabaseReadinessReport> {
   if (!supabase) {
     return {
       ok: false,
-      state,
+      state: safeState,
       connectivity,
       auth: {
         checked: false,
@@ -302,7 +303,7 @@ async function collectSupabaseReadiness(): Promise<SupabaseReadinessReport> {
       auth.adminApiReachable &&
       tables.every((table) => table.present) &&
       columns.every((column) => column.present),
-    state,
+    state: safeState,
     connectivity,
     auth,
     tables,
@@ -319,6 +320,8 @@ function toPublicReadiness(report: SupabaseReadinessReport) {
   return {
     ok: report.ok,
     ready: report.ok,
+    environmentVariableNamesExcluded: true,
+    supabaseUrlExcluded: true,
     environment: {
       configured: report.state.ready,
       urlPresent: report.state.url.present,
@@ -362,6 +365,19 @@ function toPublicReadiness(report: SupabaseReadinessReport) {
   };
 }
 
+function toSafeSupabaseAdminState(state: ReturnType<typeof getSupabaseAdminState>) {
+  return {
+    ready: state.ready,
+    environmentVariableNamesExcluded: true,
+    supabaseUrlExcluded: true,
+    missingCount: state.missing.length,
+    url: {
+      present: state.url.present,
+      valid: state.url.valid
+    }
+  };
+}
+
 async function checkAuthAdminReadiness(supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>) {
   const { data, error } = await supabase.auth.admin.listUsers({
     page: 1,
@@ -398,6 +414,7 @@ async function checkSupabaseConnectivity(url: SupabaseUrlState) {
       checked: false,
       reachable: false,
       endpoint: null,
+      endpointExcluded: true,
       status: null,
       statusText: null,
       error: "Supabase URL is not valid.",
@@ -422,7 +439,8 @@ async function checkSupabaseConnectivity(url: SupabaseUrlState) {
     return {
       checked: true,
       reachable: true,
-      endpoint,
+      endpoint: null,
+      endpointExcluded: true,
       status: response.status,
       statusText: response.statusText,
       error: null,
@@ -435,7 +453,8 @@ async function checkSupabaseConnectivity(url: SupabaseUrlState) {
     return {
       checked: true,
       reachable: false,
-      endpoint,
+      endpoint: null,
+      endpointExcluded: true,
       status: null,
       statusText: null,
       error: sanitizeSupabaseError(getErrorMessage(error)),
