@@ -22,6 +22,7 @@ type PerformanceSyncPlanRow = {
   entity_ids: string[] | null;
   fields: string[] | null;
   warnings: string[] | null;
+  result_summary: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabase.client
     .from(performanceSyncTableName)
     .select(
-      "id, actor_email, product_type, brand_name, site_url, scope, requested_from, requested_to, status, external_request, read_only_endpoint, entity_ids, fields, warnings, created_at"
+      "id, actor_email, product_type, brand_name, site_url, scope, requested_from, requested_to, status, external_request, read_only_endpoint, entity_ids, fields, warnings, result_summary, created_at"
     )
     .order("created_at", { ascending: false })
     .limit(8);
@@ -209,8 +210,24 @@ function toPublicPlan(row: PerformanceSyncPlanRow) {
     entityIds: row.entity_ids ?? [],
     fields: row.fields ?? [],
     warnings: row.warnings ?? [],
+    resultSummary: normalizeResultSummary(row.result_summary),
     createdAt: row.created_at
   };
+}
+
+function normalizeResultSummary(value: Record<string, unknown> | null) {
+  return {
+    entityCount: readNumber(value?.entityCount),
+    fieldCount: readNumber(value?.fieldCount),
+    rowCount: readNumber(value?.rowCount),
+    recommendationCount: readNumber(value?.recommendationCount),
+    storedRawStats: value?.storedRawStats === true,
+    message: typeof value?.message === "string" ? value.message : null
+  };
+}
+
+function readNumber(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 function sanitizeError(message: string | undefined): string {

@@ -248,6 +248,14 @@ type PerformanceSyncPlanItem = {
   entityIds: string[];
   fields: string[];
   warnings: string[];
+  resultSummary: {
+    entityCount: number;
+    fieldCount: number;
+    rowCount: number;
+    recommendationCount: number;
+    storedRawStats: boolean;
+    message: string | null;
+  };
   createdAt: string;
 };
 
@@ -1342,6 +1350,7 @@ function AdminUsersContent() {
                     {plan.actorEmail ?? "unknown"} / {formatKoreanDateTime(plan.createdAt)}
                   </p>
                   {plan.warnings.length > 0 ? <small>{plan.warnings[0]}</small> : null}
+                  {plan.resultSummary.message ? <small>{plan.resultSummary.message}</small> : null}
                 </div>
                 <dl>
                   <div>
@@ -1356,7 +1365,13 @@ function AdminUsersContent() {
                   </div>
                   <div>
                     <dt>연결 ID</dt>
-                    <dd>{plan.entityIds.length}개</dd>
+                    <dd>{plan.resultSummary.entityCount || plan.entityIds.length}개</dd>
+                  </div>
+                  <div>
+                    <dt>추천</dt>
+                    <dd>
+                      {plan.resultSummary.rowCount} rows / {plan.resultSummary.recommendationCount}개
+                    </dd>
                   </div>
                 </dl>
               </article>
