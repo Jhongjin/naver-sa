@@ -425,6 +425,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     approvedCount: approvalSummary.approved,
     channelApplied: executionConnectionApplied,
     stageValidated,
+    historySaved: activeSaveDraftState.status === "success",
     canRequestProtectedExecution,
     blockerCount: executionDraft.validation.blockerCount,
     channelStatus: appliedChannel?.inspectStatus,
@@ -2514,6 +2515,7 @@ type NextActionInput = {
   approvedCount: number;
   channelApplied: boolean;
   stageValidated: boolean;
+  historySaved: boolean;
   canRequestProtectedExecution: boolean;
   blockerCount: number;
   channelStatus?: string | null;
@@ -2522,6 +2524,15 @@ type NextActionInput = {
 
 function getNextAction(input: NextActionInput) {
   const isShoppingSearch = input.productType === "shoppingSearch";
+
+  if (input.historySaved) {
+    return {
+      title: "승인 상태와 전송 초안 이력이 저장됐습니다",
+      description: "저장된 planning run에서 승인 로그, payload 초안, 차단/경고 내역을 다시 확인할 수 있습니다.",
+      status: "저장 완료",
+      tone: "success"
+    };
+  }
 
   if (input.approvedCount === 0) {
     return {
