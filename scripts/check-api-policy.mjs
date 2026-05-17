@@ -70,6 +70,39 @@ for (const file of routeFiles) {
     );
   }
 
+  if (relativePath === "app/api/operator/session/route.ts") {
+    requireSourceIncludes(source, relativePath, 'methodNotAllowed(["POST"])');
+    requireSourceIncludes(source, relativePath, "OPERATOR_ENDPOINT_DEPRECATED");
+    requireSourceIncludes(source, relativePath, "This legacy operator endpoint has moved to /api/auth/session.");
+    requireSourceIncludes(source, relativePath, "/api/auth/session");
+    requireSourceIncludes(source, relativePath, "{ status: 410 }");
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "verifyUserAccess",
+      "legacy operator endpoint must stay deprecated instead of becoming a second auth surface"
+    );
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "capabilities:",
+      "legacy operator endpoint must not return session capabilities"
+    );
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "userId:",
+      "legacy operator endpoint must not return user identity"
+    );
+  }
+
+  if (relativePath === "app/api/auth/session/route.ts") {
+    requireSourceIncludes(source, relativePath, "verifyUserAccess(request)");
+    requireSourceIncludes(source, relativePath, 'liveCampaignActivation: "blocked"');
+    requireSourceIncludes(source, relativePath, 'productionDeletion: "blocked"');
+    requireSourceIncludes(source, relativePath, 'externalWriteExecution: "test-route-only"');
+  }
+
   if (relativePath === "app/api/naver/performance-sync/cron/route.ts") {
     requireSourceIncludes(source, relativePath, "authorization !== `Bearer ${cronSecret}`");
     requireSourceIncludes(source, relativePath, "heartbeatRecorded");
