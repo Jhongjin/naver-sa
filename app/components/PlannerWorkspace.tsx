@@ -183,6 +183,7 @@ type AccountSnapshotState =
     }
   | {
       status: "success";
+      fingerprint: string;
       response: AccountSnapshotResponse;
     }
   | {
@@ -350,10 +351,18 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     () => JSON.stringify({ input, decisions: approvalDecisions, executionContext }),
     [approvalDecisions, executionContext, input]
   );
+  const accountSnapshotFingerprint = useMemo(
+    () => JSON.stringify({ productType, brandName: brandName.trim(), siteUrl: siteUrl.trim() }),
+    [brandName, productType, siteUrl]
+  );
   const saveFingerprint = useMemo(
     () => JSON.stringify({ input, decisions: approvalDecisions, decisionNotes: approvalNotes, executionContext }),
     [approvalDecisions, approvalNotes, executionContext, input]
   );
+  const activeAccountSnapshotState =
+    accountSnapshotState.status === "success" && accountSnapshotState.fingerprint !== accountSnapshotFingerprint
+      ? ({ status: "idle" } as const)
+      : accountSnapshotState;
   const activeStageDraftState =
     stageDraftState.status !== "idle" && stageDraftState.fingerprint !== executionFingerprint
       ? ({ status: "idle" } as const)
@@ -394,8 +403,8 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const productGroupApplied = isShoppingSearch ? Boolean(productGroupId) : true;
   const executionConnectionApplied = channelApplied && productGroupApplied;
   const appliedChannel =
-    accountSnapshotState.status === "success"
-      ? accountSnapshotState.response.channels?.find((channel) =>
+    activeAccountSnapshotState.status === "success"
+      ? activeAccountSnapshotState.response.channels?.find((channel) =>
           isShoppingSearch ? channel.id === shoppingChannelId : channel.id === pcChannelId
         )
       : undefined;
@@ -459,10 +468,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         : !executionConnectionApplied
           ? {
               type: "button" as const,
-              label: accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔",
+              label: activeAccountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔",
               helper: isShoppingSearch ? "쇼핑몰 채널과 상품그룹 후보를 불러옵니다." : "사이트 비즈채널 후보를 불러옵니다.",
               icon: "scan" as const,
-              disabled: !canScanAccount || accountSnapshotState.status === "loading",
+              disabled: !canScanAccount || activeAccountSnapshotState.status === "loading",
               action: "scan" as const
             }
           : !stageValidated
@@ -910,6 +919,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     }
 
     accountScanInFlight.current = true;
+    const requestedFingerprint = accountSnapshotFingerprint;
     setAccountSnapshotState({ status: "loading" });
 
     try {
@@ -927,7 +937,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         throw new Error(data.error ?? "계정 스캔에 실패했습니다.");
       }
 
-      setAccountSnapshotState({ status: "success", response: data });
+      setAccountSnapshotState({ status: "success", fingerprint: requestedFingerprint, response: data });
     } catch (error) {
       setAccountSnapshotState({
         status: "error",
@@ -1175,12 +1185,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
               </p>
               <button
                 className="icon-button subtle"
-                disabled={!canScanAccount || accountSnapshotState.status === "loading"}
+                disabled={!canScanAccount || activeAccountSnapshotState.status === "loading"}
                 type="button"
                 onClick={loadAccountSnapshot}
               >
                 <Search size={17} />
-                {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
+                {activeAccountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
               </button>
             </article>
             <article
@@ -1236,7 +1246,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             <MemberSessionNotice email={memberEmail} />
             <AccountSnapshotNotice
               productType={productType}
-              state={accountSnapshotState}
+              state={activeAccountSnapshotState}
               onApplyChannel={applyBusinessChannel}
               onApplyCampaign={applyCampaign}
               onApplyProductGroup={applyProductGroup}
