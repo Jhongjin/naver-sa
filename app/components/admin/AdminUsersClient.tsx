@@ -1097,6 +1097,20 @@ function AdminUsersContent() {
     );
   }
 
+  function downloadFilteredActivitiesCsv() {
+    if (filteredActivities.length === 0) {
+      return;
+    }
+
+    const dateStamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+
+    downloadTextFile(
+      createAdminActivitiesCsv(filteredActivities),
+      `naver-sa-admin-activities-${activityFilter}-${dateStamp}.csv`,
+      "text/csv;charset=utf-8"
+    );
+  }
+
   function downloadAdminAuditCsv() {
     if (auditEvents.length === 0) {
       return;
@@ -1797,6 +1811,15 @@ function AdminUsersContent() {
                 </button>
               ))}
             </div>
+            <button
+              className="icon-button subtle"
+              disabled={filteredActivities.length === 0}
+              type="button"
+              onClick={downloadFilteredActivitiesCsv}
+            >
+              <Download size={17} />
+              CSV
+            </button>
             <Link className="icon-button subtle" href="/history">
               <Activity size={17} />
               전체 이력
@@ -2261,6 +2284,49 @@ function createPerformancePlansCsv(plans: PerformanceSyncPlanItem[]) {
       plan.readOnlyEndpoint,
       plan.warnings.join("; "),
       plan.resultSummary.message ?? ""
+    ])
+  ];
+
+  return rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
+}
+
+function createAdminActivitiesCsv(activities: AdminActivityItem[]) {
+  const rows = [
+    [
+      "planning_run_id",
+      "brand_name",
+      "workspace_name",
+      "product_type",
+      "mode",
+      "vertical",
+      "created_by",
+      "created_at",
+      "approved",
+      "held",
+      "pending",
+      "blocked",
+      "draft_status",
+      "draft_approved_changes",
+      "draft_blockers",
+      "draft_warnings"
+    ],
+    ...activities.map((activity) => [
+      activity.id,
+      activity.brandName,
+      activity.workspaceName ?? "",
+      activity.productType,
+      activity.mode,
+      activity.vertical,
+      activity.createdBy ?? "",
+      activity.createdAt,
+      activity.approvalSummary.approved,
+      activity.approvalSummary.held,
+      activity.approvalSummary.pending,
+      activity.approvalSummary.blocked,
+      activity.executionDraft?.status ?? "",
+      activity.executionDraft?.approvedChangeCount ?? "",
+      activity.executionDraft?.blockerCount ?? "",
+      activity.executionDraft?.warningCount ?? ""
     ])
   ];
 
