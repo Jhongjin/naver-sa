@@ -253,6 +253,7 @@ type PerformanceSyncPlanItem = {
     fieldCount: number;
     rowCount: number;
     recommendationCount: number;
+    recommendationDraftCount: number;
     storedRawStats: boolean;
     message: string | null;
   };
@@ -287,6 +288,20 @@ type PerformanceStatsPreviewResponse = {
     };
     byAction: Record<string, number>;
   };
+  recommendationDrafts: PerformanceRecommendationDraftItem[];
+  recommendationDraftSummary: {
+    total: number;
+    byRisk: {
+      low: number;
+      medium: number;
+      high: number;
+    };
+    byAction: Record<string, number>;
+    approvalRequired: true;
+    safeDraftOnly: true;
+    liveBlocked: true;
+    deleteBlocked: true;
+  };
   history?: {
     saved: boolean;
     id?: string;
@@ -315,6 +330,23 @@ type PerformanceRecommendationItem = {
   };
   automationLevel: "Level 1 Review" | "Level 2 Staged";
   safeDraftOnly: true;
+};
+
+type PerformanceRecommendationDraftItem = {
+  id: string;
+  sourceRecommendationId: string;
+  entityId: string;
+  entityType: "naverSearchAdPerformanceEntity";
+  action: "reviewBidIncrease" | "reviewBidDecrease" | "inspectDelivery" | "reviewCreative" | "keepLearning";
+  title: string;
+  details: string;
+  suggestedChange: string;
+  guardrail: string;
+  risk: "low" | "medium" | "high";
+  approvalRequired: true;
+  safeDraftOnly: true;
+  liveBlocked: true;
+  deleteBlocked: true;
 };
 
 type OperationalHealth = {
@@ -1323,6 +1355,34 @@ function AdminUsersContent() {
               </div>
             </section>
           ) : null}
+          {performancePreviewResult?.recommendationDrafts.length ? (
+            <section className="admin-performance-drafts" aria-label="성과 추천 승인 초안">
+              <div>
+                <span>approval drafts</span>
+                <strong>{performancePreviewResult.recommendationDraftSummary.total}개 안전 초안</strong>
+                <small>
+                  high {performancePreviewResult.recommendationDraftSummary.byRisk.high} / medium{" "}
+                  {performancePreviewResult.recommendationDraftSummary.byRisk.medium} / low{" "}
+                  {performancePreviewResult.recommendationDraftSummary.byRisk.low}
+                </small>
+                <small>live blocked / delete blocked / 승인 필수</small>
+              </div>
+              <div>
+                {performancePreviewResult.recommendationDrafts.map((draft) => (
+                  <article className={draft.risk} key={draft.id}>
+                    <span className={`status-pill ${draft.risk === "high" ? "review" : "include"}`}>
+                      {performanceRecommendationDraftActionLabel(draft.action)}
+                    </span>
+                    <strong>{draft.title}</strong>
+                    <p>{draft.entityId}</p>
+                    <small>{draft.details}</small>
+                    <em>{draft.suggestedChange}</em>
+                    <code>{draft.guardrail}</code>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
         </form>
         {performanceStatus === "loading" ? (
           <div className="admin-activity-empty">
@@ -1371,7 +1431,8 @@ function AdminUsersContent() {
                   <div>
                     <dt>추천</dt>
                     <dd>
-                      {plan.resultSummary.rowCount} rows / {plan.resultSummary.recommendationCount}개
+                      {plan.resultSummary.rowCount} rows / 추천 {plan.resultSummary.recommendationCount}개 / 초안{" "}
+                      {plan.resultSummary.recommendationDraftCount}개
                     </dd>
                   </div>
                 </dl>
@@ -1869,6 +1930,18 @@ function performanceRecommendationActionLabel(value: PerformanceRecommendationIt
     holdAndInspect: "점검",
     creativeReview: "소재 검토",
     keepLearning: "관찰"
+  };
+
+  return labels[value];
+}
+
+function performanceRecommendationDraftActionLabel(value: PerformanceRecommendationDraftItem["action"]) {
+  const labels = {
+    reviewBidIncrease: "입찰 상향 검토",
+    reviewBidDecrease: "입찰 하향 검토",
+    inspectDelivery: "송출 점검",
+    reviewCreative: "소재 검토",
+    keepLearning: "관찰 유지"
   };
 
   return labels[value];

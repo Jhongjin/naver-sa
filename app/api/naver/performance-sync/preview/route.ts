@@ -8,9 +8,12 @@ import {
   performanceSyncTableName
 } from "@/lib/naver-performance-sync";
 import {
+  generatePerformanceRecommendationDrafts,
   generatePerformanceRecommendations,
+  summarizePerformanceRecommendationDrafts,
   summarizePerformanceRecommendations,
-  type PerformanceRecommendation
+  type PerformanceRecommendation,
+  type PerformanceRecommendationDraft
 } from "@/lib/performance-recommendations";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
@@ -88,12 +91,15 @@ export async function POST(request: Request) {
 
   const recommendations = generatePerformanceRecommendations(result.data);
   const recommendationSummary = summarizePerformanceRecommendations(recommendations);
+  const recommendationDrafts = generatePerformanceRecommendationDrafts(recommendations);
+  const recommendationDraftSummary = summarizePerformanceRecommendationDrafts(recommendationDrafts);
   const history = await savePerformancePreviewHistory({
     userId: access.user.id,
     actorEmail: access.user.email ?? null,
     preview,
     stats: result.data,
-    recommendations
+    recommendations,
+    recommendationDrafts
   });
 
   return jsonNoStore({
@@ -110,6 +116,8 @@ export async function POST(request: Request) {
     stats: result.data,
     recommendations,
     recommendationSummary,
+    recommendationDrafts,
+    recommendationDraftSummary,
     history,
     safeguards: performanceSyncSafeguards
   });
@@ -121,6 +129,7 @@ async function savePerformancePreviewHistory(input: {
   preview: ReturnType<typeof createPerformanceStatsPreviewRequest>;
   stats: unknown;
   recommendations: PerformanceRecommendation[];
+  recommendationDrafts: PerformanceRecommendationDraft[];
 }): Promise<
   | {
       saved: true;
@@ -172,6 +181,8 @@ async function savePerformancePreviewHistory(input: {
         rowCount,
         recommendationCount: input.recommendations.length,
         recommendationSummary: summarizePerformanceRecommendations(input.recommendations),
+        recommendationDraftCount: input.recommendationDrafts.length,
+        recommendationDraftSummary: summarizePerformanceRecommendationDrafts(input.recommendationDrafts),
         timeIncrement: input.preview.timeIncrement,
         storedRawStats: false
       }

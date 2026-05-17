@@ -5399,6 +5399,98 @@ td span {
   color: #334155;
 }
 
+.admin-performance-drafts {
+  background: #111713;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 14px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(180px, 0.3fr) minmax(0, 1fr);
+  padding: 14px;
+}
+
+.admin-performance-drafts > div:first-child {
+  align-content: start;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(245, 239, 228, 0.12);
+  border-radius: 12px;
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+}
+
+.admin-performance-drafts > div:first-child span {
+  color: #6ee7b7;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-performance-drafts > div:first-child strong {
+  color: #fffaf0;
+  font-size: 18px;
+}
+
+.admin-performance-drafts > div:first-child small {
+  color: rgba(245, 239, 228, 0.68);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.admin-performance-drafts > div:last-child {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-performance-drafts article {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(245, 239, 228, 0.12);
+  border-radius: 12px;
+  display: grid;
+  gap: 6px;
+  padding: 13px;
+}
+
+.admin-performance-drafts article.high {
+  border-color: rgba(255, 90, 55, 0.34);
+}
+
+.admin-performance-drafts article.medium {
+  border-color: rgba(217, 119, 6, 0.28);
+}
+
+.admin-performance-drafts article strong {
+  color: #fffaf0;
+  font-size: 15px;
+  margin-top: 2px;
+}
+
+.admin-performance-drafts article p,
+.admin-performance-drafts article small,
+.admin-performance-drafts article em,
+.admin-performance-drafts article code {
+  color: rgba(245, 239, 228, 0.7);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 750;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.admin-performance-drafts article em {
+  color: #d1fae5;
+}
+
+.admin-performance-drafts article code {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  color: rgba(245, 239, 228, 0.78);
+  font-family: var(--font-sans);
+  padding: 8px;
+}
+
 .admin-performance-list {
   display: grid;
   gap: 10px;
@@ -6438,6 +6530,8 @@ td span {
   .admin-performance-preview-result,
   .admin-performance-recommendations,
   .admin-performance-recommendations > div:last-child,
+  .admin-performance-drafts,
+  .admin-performance-drafts > div:last-child,
   .rail-step-grid,
   .execution-flow-guide {
     grid-template-columns: 1fr;

@@ -7,6 +7,13 @@ export type PerformanceRecommendationAction =
   | "creativeReview"
   | "keepLearning";
 
+export type PerformanceRecommendationDraftAction =
+  | "reviewBidIncrease"
+  | "reviewBidDecrease"
+  | "inspectDelivery"
+  | "reviewCreative"
+  | "keepLearning";
+
 export type PerformanceRecommendation = {
   id: string;
   entityId: string;
@@ -27,6 +34,23 @@ export type PerformanceRecommendation = {
   };
   automationLevel: "Level 1 Review" | "Level 2 Staged";
   safeDraftOnly: true;
+};
+
+export type PerformanceRecommendationDraft = {
+  id: string;
+  sourceRecommendationId: string;
+  entityId: string;
+  entityType: "naverSearchAdPerformanceEntity";
+  action: PerformanceRecommendationDraftAction;
+  title: string;
+  details: string;
+  suggestedChange: string;
+  guardrail: string;
+  risk: PerformanceRecommendationSeverity;
+  approvalRequired: true;
+  safeDraftOnly: true;
+  liveBlocked: true;
+  deleteBlocked: true;
 };
 
 type StatsRecord = Record<string, unknown>;
@@ -55,6 +79,37 @@ export function summarizePerformanceRecommendations(recommendations: Performance
         high: 0
       },
       byAction: {} as Record<PerformanceRecommendationAction, number>
+    }
+  );
+}
+
+export function generatePerformanceRecommendationDrafts(
+  recommendations: PerformanceRecommendation[]
+): PerformanceRecommendationDraft[] {
+  return recommendations.map(toRecommendationDraft);
+}
+
+export function summarizePerformanceRecommendationDrafts(drafts: PerformanceRecommendationDraft[]) {
+  return drafts.reduce(
+    (summary, draft) => {
+      summary.total += 1;
+      summary.byRisk[draft.risk] += 1;
+      summary.byAction[draft.action] = (summary.byAction[draft.action] ?? 0) + 1;
+
+      return summary;
+    },
+    {
+      total: 0,
+      byRisk: {
+        low: 0,
+        medium: 0,
+        high: 0
+      },
+      byAction: {} as Record<PerformanceRecommendationDraftAction, number>,
+      approvalRequired: true,
+      safeDraftOnly: true,
+      liveBlocked: true,
+      deleteBlocked: true
     }
   );
 }
@@ -191,6 +246,72 @@ function makeRecommendation(input: {
     automationLevel: input.automationLevel,
     safeDraftOnly: true
   };
+}
+
+function toRecommendationDraft(recommendation: PerformanceRecommendation): PerformanceRecommendationDraft {
+  const policy = getDraftPolicy(recommendation);
+
+  return {
+    id: `performance-draft-${recommendation.id}`,
+    sourceRecommendationId: recommendation.id,
+    entityId: recommendation.entityId,
+    entityType: "naverSearchAdPerformanceEntity",
+    action: policy.action,
+    title: policy.title,
+    details: recommendation.trigger,
+    suggestedChange: policy.suggestedChange,
+    guardrail: policy.guardrail,
+    risk: recommendation.severity,
+    approvalRequired: true,
+    safeDraftOnly: true,
+    liveBlocked: true,
+    deleteBlocked: true
+  };
+}
+
+function getDraftPolicy(recommendation: PerformanceRecommendation): {
+  action: PerformanceRecommendationDraftAction;
+  title: string;
+  suggestedChange: string;
+  guardrail: string;
+} {
+  switch (recommendation.action) {
+    case "increaseBidCandidate":
+      return {
+        action: "reviewBidIncrease",
+        title: "입찰 상향 검토 초안",
+        suggestedChange: "성과 조건을 다시 확인한 뒤 입찰 5~10% 상향 후보로 승인 큐에 올립니다.",
+        guardrail: "월 예산, 최대 입찰가, 계정 스캔 연결이 모두 확인되기 전에는 전송 초안을 만들지 않습니다."
+      };
+    case "decreaseBidCandidate":
+      return {
+        action: "reviewBidDecrease",
+        title: "입찰 하향 검토 초안",
+        suggestedChange: "검색어 리포트와 제외어 후보를 먼저 확인한 뒤 입찰 10~15% 하향 후보로 검토합니다.",
+        guardrail: "삭제 대신 pause/off 또는 입찰 조정 후보만 다루며, 라이브 변경은 계속 차단합니다."
+      };
+    case "holdAndInspect":
+      return {
+        action: "inspectDelivery",
+        title: "송출 점검 초안",
+        suggestedChange: "비즈채널, 캠페인/광고그룹 상태, 심사 상태를 계정 스캔과 대조합니다.",
+        guardrail: "Naver mutation 없이 read-only 스캔 결과와 운영자 승인만 요구합니다."
+      };
+    case "creativeReview":
+      return {
+        action: "reviewCreative",
+        title: "소재/검색어 검토 초안",
+        suggestedChange: "소재 문구, 키워드 의도, 제외어 후보를 승인 큐에서 재검토합니다.",
+        guardrail: "새 소재 생성은 초안까지만 허용하고 자동 등록은 막습니다."
+      };
+    case "keepLearning":
+      return {
+        action: "keepLearning",
+        title: "관찰 유지 초안",
+        suggestedChange: "다음 read-only preview까지 관찰군으로 유지하고 변화량 비교 대상으로 표시합니다.",
+        guardrail: "성과 표본이 충분해질 때까지 입찰/소재 변경 초안을 생성하지 않습니다."
+      };
+  }
 }
 
 function extractStatsRows(value: unknown): StatsRecord[] {

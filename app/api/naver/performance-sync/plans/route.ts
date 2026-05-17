@@ -221,6 +221,7 @@ function normalizeResultSummary(value: Record<string, unknown> | null) {
     fieldCount: readNumber(value?.fieldCount),
     rowCount: readNumber(value?.rowCount),
     recommendationCount: readNumber(value?.recommendationCount),
+    recommendationDraftCount: readNumber(value?.recommendationDraftCount),
     storedRawStats: value?.storedRawStats === true,
     message: typeof value?.message === "string" ? value.message : null
   };
