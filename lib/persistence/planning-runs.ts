@@ -23,6 +23,8 @@ export type SavePlanningRunResult =
   | {
       ok: false;
       error: string;
+      planningRunId?: string;
+      warnings?: string[];
     };
 
 export async function savePlanningRun(input: SavePlanningRunInput): Promise<SavePlanningRunResult> {
@@ -211,9 +213,28 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
   const error = keywordResult.error ?? adGroupResult.error ?? stagedChangeResult.error ?? auditResult.error;
 
   if (error) {
+    const sanitizedError = sanitizeSupabaseError(error.message);
+    await recordPlanningSaveFailure(supabase, {
+      workspaceId,
+      planningRunId,
+      actor: input.createdBy,
+      stage: "core_child_history",
+      error: sanitizedError,
+      details: {
+        keywordRows: keywordRows.length,
+        adGroupRows: adGroupRows.length,
+        stagedChangeRows: stagedChangeRows.length,
+        auditAttempted: true
+      }
+    });
+
     return {
       ok: false,
-      error: sanitizeSupabaseError(error.message)
+      planningRunId,
+      error: sanitizedError,
+      warnings: [
+        "A planning run row may exist, but one or more core child-history writes failed. Review ops.planning_save.failed before re-saving."
+      ]
     };
   }
 
@@ -381,6 +402,38 @@ async function getOrCreateWorkspace(input: {
     ok: true,
     workspaceId: workspace.id as string
   };
+}
+
+async function recordPlanningSaveFailure(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  input: {
+    workspaceId: string;
+    planningRunId: string;
+    actor?: string;
+    stage: string;
+    error: string;
+    details: Record<string, unknown>;
+  }
+): Promise<void> {
+  try {
+    await supabase.from("audit_events").insert({
+      workspace_id: input.workspaceId,
+      planning_run_id: input.planningRunId,
+      event_type: "ops.planning_save.failed",
+      actor: input.actor,
+      entity_type: "planning_run",
+      entity_id: input.planningRunId,
+      after_value: {
+        partial: true,
+        stage: input.stage,
+        error: input.error,
+        ...input.details
+      },
+      reason: "Planning run core child-history persistence failed after the parent row was created."
+    });
+  } catch {
+    // Failure visibility is best-effort and must not mask the original persistence error.
+  }
 }
 
 async function getStagedChangeDecisionMetadataSupport(

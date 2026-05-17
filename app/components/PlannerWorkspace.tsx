@@ -939,12 +939,13 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             executionDraftId?: string;
             warnings?: string[];
           }
-        | { ok?: false; error?: string; missing?: string[] };
+        | { ok?: false; error?: string; planningRunId?: string; warnings?: string[]; missing?: string[] };
 
       if (!response.ok || data.ok !== true) {
         const missing = "missing" in data && data.missing?.length ? ` (${data.missing.join(", ")})` : "";
+        const partialRun = "planningRunId" in data && data.planningRunId ? ` / partial run ${data.planningRunId}` : "";
         const message = "error" in data ? data.error : undefined;
-        throw new Error(`${message ?? "저장에 실패했습니다."}${missing}`);
+        throw new Error(`${message ?? "저장에 실패했습니다."}${missing}${partialRun}`);
       }
 
       const savedDraft = activeStageDraftState.status === "success" ? activeStageDraftState.response.draft : executionDraft;

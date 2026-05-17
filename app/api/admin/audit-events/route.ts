@@ -138,6 +138,14 @@ function summarizeAuditEvent(eventType: string, value: Record<string, unknown> |
         .join(" / ");
     }
 
+    if (eventType === "ops.planning_save.failed") {
+      const stage = stringValue(value?.stage);
+      const partial = value?.partial === true ? "partial run" : null;
+      const error = stringValue(value?.error);
+
+      return [partial, stage, error].filter(Boolean).join(" / ");
+    }
+
     const error = stringValue(value?.error);
     const warning = Array.isArray(value?.warnings) ? stringValue(value.warnings[0]) : null;
     const status = scalarValue(value?.status);

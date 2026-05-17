@@ -3090,6 +3090,7 @@ function adminEventLabel(value: string) {
     "admin.user.role_changed": "권한 변경",
     "ops.report_share.created": "공유 생성",
     "ops.report_share.revoked": "공유 폐기",
+    "ops.planning_save.failed": "저장 실패",
     "ops.performance_sync.blocked": "Sync 차단",
     "ops.performance_sync.cron_checked": "Cron 확인",
     "ops.performance_sync.config_missing": "설정 경고",
