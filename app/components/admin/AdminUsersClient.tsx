@@ -284,6 +284,9 @@ type PerformanceSyncPlansResponse = {
   plans: PerformanceSyncPlanItem[];
 };
 
+type PerformancePlanStatusFilter = "all" | PerformanceSyncPlanItem["status"];
+type PerformancePlanScopeFilter = "all" | PerformanceSyncPlanItem["scope"];
+
 type PerformanceStatsPreviewResponse = {
   ok: true;
   externalRequest: true;
@@ -423,6 +426,8 @@ function AdminUsersContent() {
   const [performancePreviewFrom, setPerformancePreviewFrom] = useState(defaultPreviewRange.from);
   const [performancePreviewTo, setPerformancePreviewTo] = useState(defaultPreviewRange.to);
   const [performancePreviewResult, setPerformancePreviewResult] = useState<PerformanceStatsPreviewResponse | null>(null);
+  const [performancePlanStatusFilter, setPerformancePlanStatusFilter] = useState<PerformancePlanStatusFilter>("all");
+  const [performancePlanScopeFilter, setPerformancePlanScopeFilter] = useState<PerformancePlanScopeFilter>("all");
   const [operationalHealth, setOperationalHealth] = useState<OperationalHealth | null>(null);
   const [healthStatus, setHealthStatus] = useState<"idle" | "loading" | "error">("loading");
   const [healthMessage, setHealthMessage] = useState("");
@@ -565,6 +570,16 @@ function AdminUsersContent() {
       planned
     };
   }, [performancePlans, performanceReadiness]);
+  const filteredPerformancePlans = useMemo(
+    () =>
+      performancePlans.filter((plan) => {
+        const matchesStatus = performancePlanStatusFilter === "all" || plan.status === performancePlanStatusFilter;
+        const matchesScope = performancePlanScopeFilter === "all" || plan.scope === performancePlanScopeFilter;
+
+        return matchesStatus && matchesScope;
+      }),
+    [performancePlanScopeFilter, performancePlanStatusFilter, performancePlans]
+  );
   const performancePreviewJson = useMemo(() => {
     if (!performancePreviewResult) {
       return "";
@@ -1068,6 +1083,20 @@ function AdminUsersContent() {
     );
   }
 
+  function downloadPerformancePlansCsv() {
+    if (filteredPerformancePlans.length === 0) {
+      return;
+    }
+
+    const dateStamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+
+    downloadTextFile(
+      createPerformancePlansCsv(filteredPerformancePlans),
+      `naver-sa-performance-plans-${dateStamp}.csv`,
+      "text/csv;charset=utf-8"
+    );
+  }
+
   function downloadAdminAuditCsv() {
     if (auditEvents.length === 0) {
       return;
@@ -1337,6 +1366,15 @@ function AdminUsersContent() {
           <div className="admin-performance-actions">
             <button
               className="icon-button subtle"
+              disabled={filteredPerformancePlans.length === 0}
+              type="button"
+              onClick={downloadPerformancePlansCsv}
+            >
+              <Download size={17} />
+              CSV
+            </button>
+            <button
+              className="icon-button subtle"
               disabled={performanceStatus === "loading"}
               type="button"
               onClick={loadPerformanceSyncStatus}
@@ -1497,6 +1535,37 @@ function AdminUsersContent() {
             </section>
           ) : null}
         </form>
+        <div className="admin-performance-filters" aria-label="성과 sync 계획 필터">
+          <label>
+            <span>상태</span>
+            <select
+              value={performancePlanStatusFilter}
+              onChange={(event) => setPerformancePlanStatusFilter(event.target.value as PerformancePlanStatusFilter)}
+            >
+              <option value="all">전체 상태</option>
+              <option value="planned">계획됨</option>
+              <option value="blocked">차단</option>
+              <option value="ready">준비</option>
+              <option value="failed">실패</option>
+              <option value="completed">완료</option>
+            </select>
+          </label>
+          <label>
+            <span>범위</span>
+            <select
+              value={performancePlanScopeFilter}
+              onChange={(event) => setPerformancePlanScopeFilter(event.target.value as PerformancePlanScopeFilter)}
+            >
+              <option value="all">전체 범위</option>
+              <option value="powerlinkDailyStats">파워링크 일별 성과</option>
+              <option value="shoppingKeywordDailyStats">쇼핑검색 키워드 성과</option>
+              <option value="masterReference">마스터 기준 데이터</option>
+            </select>
+          </label>
+          <small>
+            {filteredPerformancePlans.length}/{performancePlans.length}건 표시
+          </small>
+        </div>
         {performanceStatus === "loading" ? (
           <div className="admin-activity-empty">
             <span className="skeleton-line wide" />
@@ -1511,9 +1580,16 @@ function AdminUsersContent() {
             <span>dry-run 저장으로 DB와 안전 가드 동작을 먼저 확인할 수 있습니다.</span>
           </div>
         ) : null}
-        {performancePlans.length > 0 ? (
+        {performanceStatus !== "loading" && performancePlans.length > 0 && filteredPerformancePlans.length === 0 ? (
+          <div className="admin-activity-empty">
+            <Activity size={20} />
+            <strong>필터에 맞는 성과 sync 계획이 없습니다</strong>
+            <span>상태 또는 범위 필터를 조정해 주세요.</span>
+          </div>
+        ) : null}
+        {filteredPerformancePlans.length > 0 ? (
           <div className="admin-performance-list">
-            {performancePlans.map((plan) => (
+            {filteredPerformancePlans.map((plan) => (
               <article className={plan.status === "blocked" ? "blocked" : ""} key={plan.id}>
                 <div>
                   <span className={`status-pill ${plan.status === "blocked" ? "review" : "include"}`}>
@@ -2140,6 +2216,51 @@ function createAdminAuditCsv(events: AdminAuditEventItem[]) {
       event.entityId ?? "",
       event.summary,
       event.reason ?? ""
+    ])
+  ];
+
+  return rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
+}
+
+function createPerformancePlansCsv(plans: PerformanceSyncPlanItem[]) {
+  const rows = [
+    [
+      "created_at",
+      "status",
+      "scope",
+      "product_type",
+      "brand_name",
+      "site_url",
+      "actor_email",
+      "requested_from",
+      "requested_to",
+      "entity_count",
+      "fields",
+      "row_count",
+      "recommendations",
+      "recommendation_drafts",
+      "read_only_endpoint",
+      "warnings",
+      "result_message"
+    ],
+    ...plans.map((plan) => [
+      plan.createdAt,
+      plan.status,
+      plan.scope,
+      plan.productType ?? "",
+      plan.brandName ?? "",
+      plan.siteUrl ?? "",
+      plan.actorEmail ?? "",
+      plan.requestedFrom,
+      plan.requestedTo,
+      plan.resultSummary.entityCount || plan.entityIds.length,
+      plan.fields.join("; "),
+      plan.resultSummary.rowCount,
+      plan.resultSummary.recommendationCount,
+      plan.resultSummary.recommendationDraftCount,
+      plan.readOnlyEndpoint,
+      plan.warnings.join("; "),
+      plan.resultSummary.message ?? ""
     ])
   ];
 
