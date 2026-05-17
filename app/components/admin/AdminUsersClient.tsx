@@ -31,6 +31,12 @@ type UsersResponse = {
   total: number;
 };
 
+type InviteResponse = {
+  ok: true;
+  userId: string | null;
+  email: string;
+};
+
 type AdminActivityItem = {
   id: string;
   workspaceName: string | null;
@@ -110,6 +116,11 @@ function AdminUsersContent() {
   const [activityStatus, setActivityStatus] = useState<"idle" | "loading" | "error">("loading");
   const [naverCheckStatus, setNaverCheckStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [naverCheckMessage, setNaverCheckMessage] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteCompany, setInviteCompany] = useState("");
+  const [inviteStatus, setInviteStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [inviteMessage, setInviteMessage] = useState("");
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "member">("all");
@@ -287,6 +298,53 @@ function AdminUsersContent() {
     await loadUsers();
   }
 
+  async function inviteUser() {
+    const email = inviteEmail.trim();
+
+    if (!email) {
+      setInviteStatus("error");
+      setInviteMessage("초대할 이메일을 입력해 주세요.");
+      return;
+    }
+
+    setInviteStatus("loading");
+    setInviteMessage("");
+    const token = await getAccessToken();
+
+    if (!token) {
+      setInviteStatus("error");
+      setInviteMessage("로그인이 필요합니다.");
+      return;
+    }
+
+    const response = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        email,
+        displayName: inviteName,
+        companyName: inviteCompany
+      })
+    });
+    const data = (await response.json().catch(() => ({}))) as InviteResponse | { ok?: false; error?: string };
+
+    if (!response.ok || data.ok !== true) {
+      setInviteStatus("error");
+      setInviteMessage("error" in data && data.error ? data.error : "회원 초대 요청을 완료하지 못했습니다.");
+      return;
+    }
+
+    setInviteStatus("success");
+    setInviteMessage(`${data.email}로 초대 메일을 요청했습니다.`);
+    setInviteEmail("");
+    setInviteName("");
+    setInviteCompany("");
+    await loadUsers();
+  }
+
   async function runNaverReadinessCheck() {
     setNaverCheckStatus("loading");
     setNaverCheckMessage("");
@@ -358,6 +416,62 @@ function AdminUsersContent() {
             새로고침
           </button>
         </div>
+      </section>
+
+      <section className="account-panel admin-invite-panel" aria-label="회원 초대">
+        <div>
+          <UserCheck size={22} />
+          <strong>회원 초대</strong>
+          <span>승인 흐름을 사용할 팀원을 이메일로 초대하고 가입 후 권한을 관리합니다.</span>
+        </div>
+        <form
+          className="admin-invite-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            inviteUser().catch(() => {
+              setInviteStatus("error");
+              setInviteMessage("회원 초대 요청을 완료하지 못했습니다.");
+            });
+          }}
+        >
+          <label>
+            <span>이메일</span>
+            <input
+              autoComplete="email"
+              placeholder="member@company.com"
+              type="email"
+              value={inviteEmail}
+              onChange={(event) => setInviteEmail(event.target.value)}
+            />
+          </label>
+          <label>
+            <span>이름</span>
+            <input
+              autoComplete="name"
+              placeholder="담당자 이름"
+              value={inviteName}
+              onChange={(event) => setInviteName(event.target.value)}
+            />
+          </label>
+          <label>
+            <span>회사명</span>
+            <input
+              autoComplete="organization"
+              placeholder="회사 또는 브랜드"
+              value={inviteCompany}
+              onChange={(event) => setInviteCompany(event.target.value)}
+            />
+          </label>
+          <button className="icon-button primary" disabled={inviteStatus === "loading"} type="submit">
+            <UserCheck size={17} />
+            {inviteStatus === "loading" ? "초대 중" : "초대 보내기"}
+          </button>
+          {inviteMessage ? (
+            <em className={`admin-check-result ${inviteStatus === "success" ? "success" : "error"}`}>
+              {inviteMessage}
+            </em>
+          ) : null}
+        </form>
       </section>
 
       <section className="admin-summary-grid" aria-label="회원 요약">

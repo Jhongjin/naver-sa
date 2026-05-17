@@ -17,8 +17,8 @@ type PlanningRunActivityRow = {
   created_at: string;
 };
 
-export function POST() {
-  return methodNotAllowed(["GET", "PATCH"]);
+export function DELETE() {
+  return methodNotAllowed(["GET", "POST", "PATCH"]);
 }
 
 export async function GET(request: Request) {
@@ -70,6 +70,46 @@ export async function GET(request: Request) {
     ok: true,
     users,
     total: users.length
+  });
+}
+
+export async function POST(request: Request) {
+  const access = await verifyUserAccess(request, { requireAdmin: true });
+
+  if (!access.ok) {
+    return jsonNoStore(access, { status: access.status });
+  }
+
+  const admin = getAdminClientOrResponse();
+
+  if (admin instanceof Response) {
+    return admin;
+  }
+
+  const body = await readJson(request);
+  const email = normalizeEmail(body.email);
+  const displayName = stringBodyValue(body.displayName);
+  const companyName = stringBodyValue(body.companyName);
+
+  if (!email) {
+    return jsonNoStore({ ok: false, error: "A valid email is required." }, { status: 400 });
+  }
+
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+    data: {
+      ...(displayName ? { display_name: displayName } : {}),
+      ...(companyName ? { company_name: companyName } : {})
+    }
+  });
+
+  if (error) {
+    return jsonNoStore({ ok: false, error: sanitizeAdminError(error.message) }, { status: 502 });
+  }
+
+  return jsonNoStore({
+    ok: true,
+    userId: data.user?.id ?? null,
+    email
   });
 }
 
@@ -371,6 +411,19 @@ function addRunActivity(
 
 function stringMetadata(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function stringBodyValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, 120) : null;
+}
+
+function normalizeEmail(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const email = value.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
 }
 
 function getRoleSource(user: User): "appMetadata" | "adminEmails" | "default" {

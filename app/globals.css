@@ -4806,6 +4806,65 @@ td span {
   justify-content: flex-end;
 }
 
+.admin-invite-panel {
+  align-items: stretch;
+  grid-template-columns: minmax(260px, 0.68fr) minmax(0, 1.32fr);
+}
+
+.admin-invite-panel > div:first-child {
+  align-content: start;
+  display: grid;
+  gap: 7px;
+}
+
+.admin-invite-form {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+}
+
+.admin-invite-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.admin-invite-form label span {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.admin-invite-form input {
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  border-radius: 12px;
+  color: #0f172a;
+  min-height: 44px;
+  min-width: 0;
+  outline: 0;
+  padding: 10px 12px;
+  transition:
+    background 180ms var(--motion-ease),
+    border-color 180ms var(--motion-ease),
+    box-shadow 180ms var(--motion-ease);
+}
+
+.admin-invite-form input:focus {
+  background: #ffffff;
+  border-color: rgba(15, 118, 110, 0.44);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.11);
+}
+
+.admin-invite-form .icon-button {
+  min-height: 44px;
+}
+
+.admin-invite-form .admin-check-result {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
 .admin-check-result {
   display: block;
   font-size: 12px;
@@ -5482,7 +5541,9 @@ td span {
   .account-header,
   .landing-section-heading,
   .account-panel,
-  .admin-toolbar {
+  .admin-toolbar,
+  .admin-invite-panel,
+  .admin-invite-form {
     grid-template-columns: 1fr;
   }
 
