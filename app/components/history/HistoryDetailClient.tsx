@@ -236,28 +236,32 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
       return;
     }
 
-    const blob = new Blob(
-      [
-        JSON.stringify(
-          {
-            planningRunId: data.run.id,
-            draftKey: latestDraft.draftKey,
-            draftId: latestDraft.draftId,
-            payloads: latestDraft.payloads
-          },
-          null,
-          2
-        )
-      ],
-      { type: "application/json;charset=utf-8" }
+    downloadTextFile(
+      JSON.stringify(
+        {
+          planningRunId: data.run.id,
+          draftKey: latestDraft.draftKey,
+          draftId: latestDraft.draftId,
+          payloads: latestDraft.payloads
+        },
+        null,
+        2
+      ),
+      `${safeFileName(data.run.brandName)}-saved-payloads.json`,
+      "application/json;charset=utf-8"
     );
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+  }
 
-    link.href = url;
-    link.download = `${safeFileName(data.run.brandName)}-saved-payloads.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+  function downloadHistoryMemo() {
+    if (!data) {
+      return;
+    }
+
+    downloadTextFile(
+      buildHistoryMemoMarkdown(data),
+      `${safeFileName(data.run.brandName)}-history-memo.md`,
+      "text/markdown;charset=utf-8"
+    );
   }
 
   return (
@@ -333,6 +337,18 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
               <button className="icon-button subtle" type="button" onClick={() => copyReference("planning-run-id", data.run.id)}>
                 <Copy size={15} />
                 {copiedReference === "planning-run-id" ? "복사됨" : "Run ID"}
+              </button>
+              <button
+                className="icon-button subtle"
+                type="button"
+                onClick={() => copyReference("detail-link", buildHistoryDetailUrl(planningRunId))}
+              >
+                <Copy size={15} />
+                {copiedReference === "detail-link" ? "복사됨" : "내부 링크"}
+              </button>
+              <button className="icon-button subtle" type="button" onClick={downloadHistoryMemo}>
+                <Download size={15} />
+                운영 메모
               </button>
               <a className="icon-button subtle" href={data.run.siteUrl} rel="noreferrer" target="_blank">
                 사이트 확인
@@ -671,6 +687,77 @@ function formatPayloadJson(payload: HistoryDetailResponse["executionDrafts"][num
     null,
     2
   );
+}
+
+function buildHistoryDetailUrl(planningRunId: string) {
+  if (typeof window === "undefined") {
+    return `/history/${planningRunId}`;
+  }
+
+  return `${window.location.origin}/history/${planningRunId}`;
+}
+
+function buildHistoryMemoMarkdown(data: HistoryDetailResponse) {
+  const latestDraft = data.executionDrafts[0];
+  const validation = latestDraft?.validation;
+  const lines = [
+    "# Naver SA Saved Operation Memo",
+    "",
+    `- Planning run: ${data.run.id}`,
+    `- Brand: ${data.run.brandName}`,
+    `- Product: ${productTypeLabel(data.run.productType)}`,
+    `- Vertical: ${data.run.vertical}`,
+    `- Created: ${data.run.createdAt}`,
+    `- Workspace: ${data.run.workspaceName ?? "not recorded"}`,
+    `- Saved by: ${data.run.createdBy ?? "not recorded"}`,
+    `- Detail link: ${buildHistoryDetailUrl(data.run.id)}`,
+    "",
+    "## Approval Summary",
+    "",
+    `- Approved: ${data.run.approvalSummary.approved}`,
+    `- Held: ${data.run.approvalSummary.held}`,
+    `- Pending: ${data.run.approvalSummary.pending}`,
+    `- Blocked: ${data.run.approvalSummary.blocked}`,
+    "",
+    "## Execution Draft",
+    "",
+    latestDraft
+      ? `- Status: ${draftStatusLabel(latestDraft.status)}\n- Draft ID: ${latestDraft.draftId}\n- Payloads: ${latestDraft.payloads.length}\n- Can execute test: ${
+          validation?.canExecuteTest ? "yes" : "no"
+        }\n- Blockers: ${validation?.blockerCount ?? 0}\n- Warnings: ${validation?.warningCount ?? 0}`
+      : "- No execution draft saved.",
+    "",
+    "## Top Keywords",
+    "",
+    ...data.keywords.slice(0, 12).map((keyword) => `- ${keyword.term} (${keyword.adGroupName}) / bid ${keyword.bid}`),
+    "",
+    "## Recent Audit Events",
+    "",
+    ...(data.auditEvents.length > 0
+      ? data.auditEvents
+          .slice(0, 10)
+          .map((event) => `- ${event.created_at} / ${event.event_type} / ${event.actor ?? event.reason ?? "not recorded"}`)
+      : ["- No audit events saved."]),
+    "",
+    "## Safety",
+    "",
+    "- Live execution: blocked in MVP",
+    "- Delete execution: blocked in MVP",
+    "- This memo excludes raw payload body data; download Payload JSON separately when needed."
+  ];
+
+  return lines.join("\n");
+}
+
+function downloadTextFile(content: string, fileName: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function safeFileName(value: string) {

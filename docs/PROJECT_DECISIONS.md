@@ -143,6 +143,7 @@ Recent operational queue:
 - Performance preview results can be re-run from saved history rows and exported as Markdown operating notes without including raw stats JSON.
 - Admin performance sync plans can be filtered by status/scope and exported as CSV for operating review.
 - Performance sync readiness now exposes scheduler state, but automatic cron execution remains off until target IDs, cadence, and failure notification policy are confirmed.
+- Saved history detail supports authenticated internal link copy and Markdown operating memo export without embedding raw payload bodies.
 - API route files explicitly export common method handlers so unsupported methods return no-store 405 responses instead of Next.js default cacheable responses.
 - Production verification after each queue checks `/api/health`, `/api/supabase/readiness`, and the relevant protected API route for no-store authentication/method behavior.
 
