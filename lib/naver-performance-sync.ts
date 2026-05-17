@@ -59,6 +59,15 @@ export type PerformanceSyncPlan = PerformanceSyncPlanInput & {
   warnings: string[];
 };
 
+export type PerformanceStatsPreviewRequest = {
+  entityIds: string[];
+  fields: string[];
+  dateFrom: string;
+  dateTo: string;
+  timeIncrement: "allDays";
+  warnings: string[];
+};
+
 const allowedStatFields = new Set([
   "impCnt",
   "clkCnt",
@@ -135,6 +144,41 @@ export function createPerformanceSyncPlan(input: {
         ? "GET /master-reports"
         : "GET /api/stats{?ids,fields,timeRange,datePreset,timeIncrement,breakdown}",
     status: warnings.length > 0 ? "blocked" : "planned",
+    warnings
+  };
+}
+
+export function createPerformanceStatsPreviewRequest(input: {
+  entityIds?: unknown;
+  fields?: unknown;
+  dateFrom?: unknown;
+  dateTo?: unknown;
+}): PerformanceStatsPreviewRequest {
+  const requestedDateFrom = coerceDate(input.dateFrom);
+  const requestedDateTo = coerceDate(input.dateTo);
+  const [dateFrom, dateTo, dateOrderWarning] = normalizeDateRange(requestedDateFrom, requestedDateTo);
+  const entityIds = coerceEntityIds(input.entityIds).slice(0, 10);
+  const fields = coerceFields(input.fields, "powerlinkDailyStats").slice(0, 8);
+  const warnings: string[] = [];
+
+  if (dateOrderWarning) {
+    warnings.push(dateOrderWarning);
+  }
+
+  if (entityIds.length === 0) {
+    warnings.push("Naver stats preview에는 최소 1개의 campaign/ad group/keyword/ad ID가 필요합니다.");
+  }
+
+  if (countDays(dateFrom, dateTo) > 31) {
+    warnings.push("Naver stats preview는 한 번에 최대 31일 범위로 제한합니다.");
+  }
+
+  return {
+    entityIds,
+    fields,
+    dateFrom,
+    dateTo,
+    timeIncrement: "allDays",
     warnings
   };
 }
