@@ -44,12 +44,21 @@ import {
 } from "@/lib/reporting";
 import { generateOptimizationRecommendations, type OptimizationSeverity } from "@/lib/optimization";
 import { formatKoreanDateTime } from "@/lib/formatters";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 
 type PlannerWorkspaceProps = {
   initialInput: PlannerInput;
 };
 
 const currencyFormatter = new Intl.NumberFormat("ko-KR");
+
+function visiblePlannerError(message: string | null | undefined, fallback: string) {
+  return redactSensitiveErrorText(message, fallback);
+}
+
+function visibleCaughtPlannerError(error: unknown, fallback: string) {
+  return visiblePlannerError(error instanceof Error ? error.message : undefined, fallback);
+}
 
 type NaverReadiness = {
   ok: boolean;
@@ -893,7 +902,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       const data = (await response.json()) as StageDraftResponse | { ok?: boolean; error?: string };
 
       if (!response.ok || !data.ok) {
-        throw new Error("error" in data && data.error ? data.error : "초안 검증에 실패했습니다.");
+        throw new Error(visiblePlannerError("error" in data ? data.error : undefined, "초안 검증에 실패했습니다."));
       }
 
       setStageDraftState({ status: "success", fingerprint: executionFingerprint, response: data as StageDraftResponse });
@@ -901,7 +910,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       setStageDraftState({
         status: "error",
         fingerprint: executionFingerprint,
-        message: error instanceof Error ? error.message : "초안 검증에 실패했습니다."
+        message: visibleCaughtPlannerError(error, "초안 검증에 실패했습니다.")
       });
     } finally {
       stageRequestInFlight.current = false;
@@ -944,8 +953,8 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       if (!response.ok || data.ok !== true) {
         const missing = "missing" in data && data.missing?.length ? ` (${data.missing.join(", ")})` : "";
         const partialRun = "planningRunId" in data && data.planningRunId ? ` / partial run ${data.planningRunId}` : "";
-        const message = "error" in data ? data.error : undefined;
-        throw new Error(`${message ?? "저장에 실패했습니다."}${missing}${partialRun}`);
+        const message = visiblePlannerError("error" in data ? data.error : undefined, "저장에 실패했습니다.");
+        throw new Error(`${message}${missing}${partialRun}`);
       }
 
       const savedDraft = activeStageDraftState.status === "success" ? activeStageDraftState.response.draft : executionDraft;
@@ -966,7 +975,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       setSaveDraftState({
         status: "error",
         fingerprint: saveFingerprint,
-        message: error instanceof Error ? error.message : "저장에 실패했습니다."
+        message: visibleCaughtPlannerError(error, "저장에 실패했습니다.")
       });
     } finally {
       saveRequestInFlight.current = false;
@@ -995,14 +1004,14 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       const data = (await response.json()) as AccountSnapshotResponse;
 
       if (!response.ok || !data.ok) {
-        throw new Error(data.error ?? "계정 스캔에 실패했습니다.");
+        throw new Error(visiblePlannerError(data.error, "계정 스캔에 실패했습니다."));
       }
 
       setAccountSnapshotState({ status: "success", fingerprint: requestedFingerprint, response: data });
     } catch (error) {
       setAccountSnapshotState({
         status: "error",
-        message: error instanceof Error ? error.message : "계정 스캔에 실패했습니다."
+        message: visibleCaughtPlannerError(error, "계정 스캔에 실패했습니다.")
       });
     } finally {
       accountScanInFlight.current = false;

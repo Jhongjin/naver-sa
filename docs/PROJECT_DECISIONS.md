@@ -194,6 +194,7 @@ Recent operational queue:
 - Naver Search Ad client error sanitization now uses the shared sensitive-text redaction helper instead of a local key/customer regex, keeping external API failure messages on the same masking path as route and audit errors.
 - Naver Search Ad client fetches now explicitly use `cache: "no-store"` so live read-only account and stats checks are never served from a framework fetch cache.
 - Login/signup form errors now pass through the shared sensitive-text redaction helper before display, and API policy verification guards against raw Supabase Auth error messages being rendered directly.
+- Workspace stage/save/account-scan errors now pass through the shared sensitive-text redaction helper before display, with API policy checks guarding against raw client error messages.
 - Admin audit event responses now keep raw `before_value` excluded and sanitize all reason/summary text before it reaches the UI or CSV export.
 - Account snapshot history now explicitly marks raw Naver inventory arrays as excluded and locks the non-admin view to the authenticated user's own snapshots.
 - Workspace membership responses now compute ownership server-side and exclude internal owner user UUIDs from the My Page API/UI.

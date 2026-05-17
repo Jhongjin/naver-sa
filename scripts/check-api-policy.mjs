@@ -890,6 +890,9 @@ function requireProjectSurfaceChecks() {
   );
 
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "WORKSPACE_DRAFT_STORAGE_PREFIX");
+  requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "redactSensitiveErrorText");
+  requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "visiblePlannerError");
+  requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "visibleCaughtPlannerError");
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, 'fetch("/api/naver/readiness", { cache: "no-store" })');
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, 'fetch(`/api/naver/account-snapshot?${params.toString()}`, {\n        cache: "no-store"');
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "window.localStorage.setItem(workspaceDraftStorageKey, JSON.stringify(snapshot))");
@@ -903,6 +906,24 @@ function requireProjectSurfaceChecks() {
   requireSourceExcludes(localDraftSnapshot, plannerWorkspacePath, "accessToken", "local draft storage must not persist auth tokens");
   requireSourceExcludes(localDraftSnapshot, plannerWorkspacePath, "authorization", "local draft storage must not persist authorization headers");
   requireSourceExcludes(localDraftSnapshot, plannerWorkspacePath, "session", "local draft storage must not persist auth sessions");
+  requireSourceExcludes(
+    plannerWorkspaceSource,
+    plannerWorkspacePath,
+    "message: error instanceof Error ? error.message",
+    "workspace visible errors must be redacted before display"
+  );
+  requireSourceExcludes(
+    plannerWorkspaceSource,
+    plannerWorkspacePath,
+    "throw new Error(data.error ??",
+    "workspace API errors must be redacted before display"
+  );
+  requireSourceExcludes(
+    plannerWorkspaceSource,
+    plannerWorkspacePath,
+    "const message = \"error\" in data ? data.error : undefined",
+    "workspace API errors must be redacted before display"
+  );
 
   const historyDetailApiPath = "app/api/plans/history/[planningRunId]/route.ts";
   const historyDetailApiSource = readProjectFile(historyDetailApiPath);
