@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  Copy,
   DatabaseZap,
   Download,
   FileClock,
@@ -89,6 +90,7 @@ function HistoryListContent() {
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [filtersReady, setFiltersReady] = useState(false);
+  const [copiedFilterLink, setCopiedFilterLink] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -373,6 +375,16 @@ function HistoryListContent() {
     setDateFilter("all");
   }
 
+  async function copyFilterLink() {
+    if (typeof window === "undefined" || !navigator.clipboard) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(window.location.href);
+    setCopiedFilterLink(true);
+    window.setTimeout(() => setCopiedFilterLink(false), 1500);
+  }
+
   return (
     <main className="account-page history-browser-page">
       <header className="account-header">
@@ -402,6 +414,14 @@ function HistoryListContent() {
           >
             <RefreshCw size={17} />
             새로고침
+          </button>
+          <button
+            className="icon-button subtle"
+            type="button"
+            onClick={copyFilterLink}
+          >
+            <Copy size={17} />
+            {copiedFilterLink ? "링크 복사됨" : "필터 링크"}
           </button>
           <button
             className="icon-button subtle"
