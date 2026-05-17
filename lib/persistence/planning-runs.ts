@@ -1,3 +1,4 @@
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { PlannerPlan } from "@/lib/planner";
 import type { ApprovalDecisionMap, ApprovalDecisionNoteMap } from "@/lib/reporting";
@@ -603,7 +604,7 @@ function sanitizeExecutionContext(context: NaverExecutionContext): NaverExecutio
 }
 
 function sanitizeSupabaseError(message: string | undefined): string {
-  return message?.slice(0, 300) || "Supabase persistence failed.";
+  return redactSensitiveErrorText(message, "Supabase persistence failed.", 300);
 }
 
 function formatPayloadPersistenceError(error: { code?: string; message?: string; details?: string | null }): string {

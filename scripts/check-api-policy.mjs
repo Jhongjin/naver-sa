@@ -421,6 +421,14 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(persistenceSource, persistencePath, "industry_template");
   requireSourceIncludes(persistenceSource, persistencePath, "benchmark_features");
   requireSourceIncludes(persistenceSource, persistencePath, "operation_rules");
+  requireSourceIncludes(persistenceSource, persistencePath, "redactSensitiveErrorText");
+  requireSourceIncludes(persistenceSource, persistencePath, "sanitizeSupabaseError(message");
+  requireSourceExcludes(
+    persistenceSource,
+    persistencePath,
+    "message?.slice(0, 300)",
+    "planning persistence errors must pass through shared sensitive text redaction"
+  );
 
   const errorRedactionPath = "lib/error-redaction.ts";
   const errorRedactionSource = readProjectFile(errorRedactionPath);

@@ -192,6 +192,7 @@ Recent operational queue:
 - Saved history detail now maps audit rows to safe display fields and excludes raw audit `before_value`/`after_value` payloads from the UI response.
 - Public health responses now include explicit markers that secret and environment variable names are excluded, with static checks enforcing aggregate-only env reporting.
 - Shared error redaction now covers workspace/history/admin-activity lookup failures, masking bearer tokens, API keys, auth headers, cookies, and token-like query values.
+- Planning persistence warnings and failure audit events now use the shared sensitive error redaction helper before surfacing Supabase errors.
 
 ## UX Direction
 
