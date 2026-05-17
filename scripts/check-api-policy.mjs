@@ -61,6 +61,10 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "heartbeatRecorded");
     requireSourceIncludes(source, relativePath, "catch {");
   }
+
+  if (relativePath === "app/api/naver/account-snapshot/route.ts") {
+    requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
+  }
 }
 
 if (failures.length > 0) {

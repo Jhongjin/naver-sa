@@ -63,6 +63,20 @@ type NaverReadiness = {
   writeExecution: string;
 };
 
+type WorkspaceSessionAccess = {
+  ok: true;
+  role: "member" | "admin";
+  email: string | null;
+  capabilities: {
+    canReadAccountInventory: boolean;
+    canSaveDraftHistory: boolean;
+    canCreateTestEntities: boolean;
+    canActivateLiveCampaigns: boolean;
+    canDeleteProductionData: boolean;
+    canManageUsers: boolean;
+  };
+};
+
 type StageDraftResponse = {
   ok: boolean;
   dryRun: boolean;
@@ -280,6 +294,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   );
   const [draftSavedAt, setDraftSavedAt] = useState(initialDraftSnapshot?.savedAt ?? "");
   const [naverReadiness, setNaverReadiness] = useState<NaverReadiness | null>(null);
+  const [sessionAccess, setSessionAccess] = useState<WorkspaceSessionAccess | null>(null);
   const [stageDraftState, setStageDraftState] = useState<StageDraftState>({ status: "idle" });
   const [saveDraftState, setSaveDraftState] = useState<SaveDraftState>({ status: "idle" });
   const [accountSnapshotState, setAccountSnapshotState] = useState<AccountSnapshotState>({ status: "idle" });
@@ -412,7 +427,8 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const stageHasBlockers = stageValidated && activeStageDraftState.response.draft.validation.blockerCount > 0;
   const canRequestProtectedExecution =
     stageValidated && activeStageDraftState.response.draft.validation.canExecuteTest && executionConnectionApplied;
-  const canScanAccount = approvalSummary.approved > 0;
+  const canReadAccountInventory = sessionAccess?.capabilities.canReadAccountInventory ?? false;
+  const canScanAccount = approvalSummary.approved > 0 && canReadAccountInventory;
   const canValidateDraft = approvalSummary.approved > 0 && executionConnectionApplied;
   const canSaveHistory = stageValidated;
   const modeLabel = mode === "agency" ? "대행사 모드" : "광고주 모드";
@@ -469,7 +485,11 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
           ? {
               type: "button" as const,
               label: activeAccountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔",
-              helper: isShoppingSearch ? "쇼핑몰 채널과 상품그룹 후보를 불러옵니다." : "사이트 비즈채널 후보를 불러옵니다.",
+              helper: !canReadAccountInventory
+                ? "관리자 권한으로만 Naver 계정 스캔을 실행할 수 있습니다."
+                : isShoppingSearch
+                  ? "쇼핑몰 채널과 상품그룹 후보를 불러옵니다."
+                  : "사이트 비즈채널 후보를 불러옵니다.",
               icon: "scan" as const,
               disabled: !canScanAccount || activeAccountSnapshotState.status === "loading",
               action: "scan" as const
@@ -640,6 +660,45 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    getAccessToken()
+      .then((token) => {
+        if (!token) {
+          return null;
+        }
+
+        return fetch("/api/auth/session", {
+          cache: "no-store",
+          headers: {
+            authorization: `Bearer ${token}`
+          }
+        });
+      })
+      .then(async (response) => {
+        if (!active || !response?.ok) {
+          return null;
+        }
+
+        return (await response.json()) as WorkspaceSessionAccess;
+      })
+      .then((data) => {
+        if (active && data?.ok) {
+          setSessionAccess(data);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setSessionAccess(null);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [getAccessToken, user?.id]);
 
   function plannerDownloadFileName(input: PlannerInput, kind: string, extension: string) {
     const dateStamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
@@ -1179,7 +1238,9 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                     : "채널이 적용되었습니다"
                   : isShoppingSearch && channelApplied
                     ? "상품그룹을 조회하고 적용합니다"
-                  : canScanAccount
+                  : !canReadAccountInventory
+                    ? "관리자 권한으로 계정 스캔 가능"
+                    : canScanAccount
                     ? "Naver 채널을 조회하고 적용합니다"
                     : "먼저 승인할 항목을 선택하세요"}
               </p>

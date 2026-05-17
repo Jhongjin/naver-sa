@@ -36,7 +36,7 @@ export function DELETE() {
 }
 
 export async function GET(request: Request) {
-  const access = await verifyUserAccess(request);
+  const access = await verifyUserAccess(request, { requireAdmin: true });
   const url = new URL(request.url);
 
   if (!access.ok) {

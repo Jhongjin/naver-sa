@@ -105,7 +105,7 @@ export async function verifyUserAccess(
 
 export function getAuthCapabilities(role: AppUserRole): AuthCapabilities {
   return {
-    canReadAccountInventory: true,
+    canReadAccountInventory: role === "admin",
     canSaveDraftHistory: true,
     canCreateTestEntities: false,
     canActivateLiveCampaigns: false,
