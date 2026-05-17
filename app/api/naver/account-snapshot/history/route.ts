@@ -92,6 +92,7 @@ export async function GET(request: Request) {
         installed: false,
         snapshots: [],
         rawInventoryExcluded: true,
+        internalUserIdsExcluded: true,
         scopeEnforced: true,
         total: 0,
         limit,
@@ -110,6 +111,7 @@ export async function GET(request: Request) {
     installed: true,
     snapshots: rows.map((row, index) => toSnapshotHistoryItem(row, findComparisonRow(rows, index))),
     rawInventoryExcluded: true,
+    internalUserIdsExcluded: true,
     scopeEnforced: true,
     total: count ?? data?.length ?? 0,
     limit,
@@ -124,7 +126,6 @@ function toSnapshotHistoryItem(row: AccountSnapshotRow, comparisonRow: AccountSn
 
   return {
     id: row.id,
-    userId: row.user_id,
     actorEmail: row.actor_email,
     productType: row.product_type,
     brandName: row.brand_name,

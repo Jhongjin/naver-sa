@@ -260,7 +260,6 @@ type NaverPublicReadinessResponse = {
 
 type AccountSnapshotHistoryItem = {
   id: string;
-  userId: string;
   actorEmail: string | null;
   productType: "powerlink" | "shoppingSearch" | null;
   brandName: string | null;
@@ -296,6 +295,7 @@ type AccountSnapshotHistoryResponse = {
   installed: boolean;
   snapshots: AccountSnapshotHistoryItem[];
   rawInventoryExcluded: true;
+  internalUserIdsExcluded: true;
   scopeEnforced: true;
   total: number;
   limit: number;

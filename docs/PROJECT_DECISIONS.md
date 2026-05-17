@@ -195,6 +195,7 @@ Recent operational queue:
 - Naver Search Ad client fetches now explicitly use `cache: "no-store"` so live read-only account and stats checks are never served from a framework fetch cache.
 - Naver readiness responses now expose only public-safe configuration counts and explicit exclusion flags instead of raw config state, env var names, or configured base URL.
 - Account snapshot and plan-store misconfiguration responses now expose only missing counts and exclusion flags instead of raw Naver/Supabase env var names.
+- Account snapshot history responses now exclude internal user UUIDs while preserving actor email labels, scope enforcement, and raw inventory exclusion markers.
 - Supabase readiness detail now sanitizes admin environment state and connectivity diagnostics, excluding raw env names and Supabase REST endpoint URLs while keeping counts and status checks.
 - Login/signup form errors now pass through the shared sensitive-text redaction helper before display, and API policy verification guards against raw Supabase Auth error messages being rendered directly.
 - Admin dashboard visible errors now pass through the shared sensitive-text redaction helper before display, including user, audit, share-link, Naver readiness, and performance sync panels.

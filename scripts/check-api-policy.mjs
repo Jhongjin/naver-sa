@@ -251,6 +251,7 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, 'access.state.role !== "admin"');
     requireSourceIncludes(source, relativePath, 'query = query.eq("user_id", access.user.id)');
     requireSourceIncludes(source, relativePath, "rawInventoryExcluded: true");
+    requireSourceIncludes(source, relativePath, "internalUserIdsExcluded: true");
     requireSourceIncludes(source, relativePath, "scopeEnforced: true");
     requireSharedErrorRedaction(
       source,
@@ -266,6 +267,12 @@ for (const file of routeFiles) {
       "\nfunction findComparisonRow"
     );
 
+    requireSourceExcludes(
+      snapshotHistoryItem,
+      relativePath,
+      "userId: row.user_id",
+      "account snapshot history responses must not expose internal user ids"
+    );
     requireSourceExcludes(
       snapshotHistoryItem,
       relativePath,
@@ -689,6 +696,7 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(adminClientSource, adminClientPath, "activityLinkageFilterLabel");
   requireSourceIncludes(adminClientSource, adminClientPath, "최근 활동 쇼핑 linkage 필터");
   requireSourceIncludes(adminClientSource, adminClientPath, "internalCreatorUserIdsExcluded");
+  requireSourceIncludes(adminClientSource, adminClientPath, "internalUserIdsExcluded");
   requireSourceIncludes(adminClientSource, adminClientPath, 'event.eventType.startsWith("ops.")');
   requireSourceIncludes(adminClientSource, adminClientPath, "ops.report_share.created");
   requireSourceIncludes(adminClientSource, adminClientPath, "ops.report_share.revoked");
@@ -712,6 +720,12 @@ function requireProjectSurfaceChecks() {
     adminClientPath,
     "createdByUserId",
     "admin activity UI must not type or render internal creator user ids"
+  );
+  requireSourceExcludes(
+    adminClientSource,
+    adminClientPath,
+    "userId: string;\n  actorEmail",
+    "admin snapshot history UI must not type internal snapshot user ids"
   );
   requireSourceExcludes(
     adminClientSource,
