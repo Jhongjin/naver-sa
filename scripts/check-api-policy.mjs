@@ -43,6 +43,18 @@ for (const file of routeFiles) {
       failures.push(`${relativePath}: missing explicit ${method} handler; avoid Next.js default cacheable method responses`);
     }
   }
+
+  if (relativePath === "app/api/naver/execute-draft/route.ts") {
+    requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
+    requireSourceIncludes(source, relativePath, "loadReadyExecutionDraft(draft.draftKey)");
+    requireSourceIncludes(source, relativePath, "EXECUTION_ALREADY_RECORDED");
+    requireSourceOrder(source, relativePath, "loadReadyExecutionDraft(draft.draftKey)", "requestNaverSearchAd<unknown>");
+  }
+
+  if (relativePath === "app/api/plans/store/route.ts") {
+    requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
+    requireSourceIncludes(source, relativePath, "createdByUserId = access.user.id");
+  }
 }
 
 if (failures.length > 0) {
@@ -67,4 +79,19 @@ function findRouteFiles(directory) {
 
     return entry.isFile() && entry.name === "route.ts" ? [entryPath] : [];
   });
+}
+
+function requireSourceIncludes(source, relativePath, expected) {
+  if (!source.includes(expected)) {
+    failures.push(`${relativePath}: missing required policy guard: ${expected}`);
+  }
+}
+
+function requireSourceOrder(source, relativePath, before, after) {
+  const beforeIndex = source.indexOf(before);
+  const afterIndex = source.indexOf(after);
+
+  if (beforeIndex === -1 || afterIndex === -1 || beforeIndex > afterIndex) {
+    failures.push(`${relativePath}: ${before} must appear before ${after}`);
+  }
 }

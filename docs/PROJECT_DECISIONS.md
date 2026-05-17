@@ -163,6 +163,7 @@ Recent operational queue:
 - Shopping Search product groups applied from account scans now carry their linked business channel into execution context; staged drafts block mismatched shopping channel/product-group pairs and warn when linkage was manually typed rather than scan-verified.
 - Saved history detail now maps execution results by `execution_draft_id + payload_key`, preventing results from different drafts in the same planning run from appearing under the wrong payload.
 - Account scan candidates are now fingerprinted by product type, brand, and site URL in the workspace UI; stale scan results are hidden after those inputs change so operators do not apply candidates from a different context.
+- API policy verification now asserts protected test execution keeps admin auth, saved-ready-draft lookup, duplicate-result blocking, and pre-Naver-call ordering in place.
 
 ## UX Direction
 
