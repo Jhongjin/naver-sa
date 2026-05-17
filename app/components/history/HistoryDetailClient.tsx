@@ -111,6 +111,7 @@ type HistoryDetailResponse = {
       safety: unknown;
       results: Array<{
         id: string;
+        executionDraftId: string | null;
         ok: boolean;
         status: number;
         target: string;

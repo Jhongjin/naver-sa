@@ -286,12 +286,17 @@ export async function GET(request: Request, context: RouteContext) {
 
   const payloads = (payloadsResult.data ?? []) as ExecutionPayloadRow[];
   const results = (resultsResult.data ?? []) as ExecutionResultRow[];
-  const resultsByPayloadKey = new Map<string, ExecutionResultRow[]>();
+  const resultsByDraftPayloadKey = new Map<string, ExecutionResultRow[]>();
 
   for (const result of results) {
-    const current = resultsByPayloadKey.get(result.payload_key) ?? [];
+    if (!result.execution_draft_id) {
+      continue;
+    }
+
+    const resultKey = createDraftPayloadResultKey(result.execution_draft_id, result.payload_key);
+    const current = resultsByDraftPayloadKey.get(resultKey) ?? [];
     current.push(result);
-    resultsByPayloadKey.set(result.payload_key, current);
+    resultsByDraftPayloadKey.set(resultKey, current);
   }
 
   const changes = (changesResult.data ?? []) as StagedChangeRow[];
@@ -388,8 +393,9 @@ export async function GET(request: Request, context: RouteContext) {
           body: payload.body,
           safety: payload.safety,
           createdAt: payload.created_at,
-          results: resultsByPayloadKey.get(payload.payload_key)?.map((result) => ({
+          results: resultsByDraftPayloadKey.get(createDraftPayloadResultKey(draft.id, payload.payload_key))?.map((result) => ({
             id: result.id,
+            executionDraftId: result.execution_draft_id,
             ok: result.ok,
             status: result.status,
             target: result.target,
@@ -447,6 +453,10 @@ async function hasWorkspaceMembership(
   }
 
   return Boolean(data);
+}
+
+function createDraftPayloadResultKey(executionDraftId: string, payloadKey: string): string {
+  return `${executionDraftId}:${payloadKey}`;
 }
 
 function sanitizeError(message: string | undefined): string {
