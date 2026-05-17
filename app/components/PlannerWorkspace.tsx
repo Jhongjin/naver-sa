@@ -276,6 +276,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   const [approvalNotes, setApprovalNotes] = useState<ApprovalDecisionNoteMap>(
     initialDraftSnapshot?.decisionNotes ?? {}
   );
+  const [draftSavedAt, setDraftSavedAt] = useState(initialDraftSnapshot?.savedAt ?? "");
   const [naverReadiness, setNaverReadiness] = useState<NaverReadiness | null>(null);
   const [stageDraftState, setStageDraftState] = useState<StageDraftState>({ status: "idle" });
   const [saveDraftState, setSaveDraftState] = useState<SaveDraftState>({ status: "idle" });
@@ -418,8 +419,8 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     plan.stagedChanges.length === 0
       ? 100
       : Math.round((approvalSummary.approved / plan.stagedChanges.length) * 100);
-  const draftStatusLabel = initialDraftSnapshot
-    ? `임시저장 복구 ${formatShortDateTime(initialDraftSnapshot.savedAt)}`
+  const draftStatusLabel = draftSavedAt
+    ? `${initialDraftSnapshot ? "복구 후 자동저장" : "자동저장"} ${formatShortDateTime(draftSavedAt)}`
     : "임시저장 활성";
   const nextAction = getNextAction({
     approvedCount: approvalSummary.approved,
@@ -589,9 +590,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       return;
     }
 
+    const savedAt = new Date().toISOString();
     const snapshot: WorkspaceDraftSnapshot = {
       version: 1,
-      savedAt: new Date().toISOString(),
+      savedAt,
       input,
       decisions: approvalDecisions,
       decisionNotes: approvalNotes,
@@ -599,6 +601,9 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     };
 
     window.localStorage.setItem(workspaceDraftStorageKey, JSON.stringify(snapshot));
+    const timer = window.setTimeout(() => setDraftSavedAt(savedAt), 0);
+
+    return () => window.clearTimeout(timer);
   }, [approvalDecisions, approvalNotes, executionContext, input, user?.id, workspaceDraftStorageKey]);
 
   useEffect(() => {
