@@ -185,6 +185,7 @@ Recent operational queue:
 - Public Supabase readiness now redacts optional feature row counts; detailed row-count diagnostics stay behind admin-gated `?detail=1`.
 - Report-share and performance-sync error sanitizers now use the shared sensitive-text redaction helper, so Bearer tokens, API keys, cookies, and token-like query values are masked consistently before errors reach responses, stored summaries, or ops audit text.
 - Naver account snapshot, protected test execution, performance sync plan/preview/readiness, and Supabase readiness routes now use the same shared error redaction helper, and performance sync plan summaries re-mask stored error/message text before returning it to the admin UI.
+- API policy verification now guards admin/history CSV export builders against token hashes, share URLs, idempotency keys, payload ids, internal user ids, raw audit values, and auth header/cookie strings.
 - Admin audit event responses now keep raw `before_value` excluded and sanitize all reason/summary text before it reaches the UI or CSV export.
 - Account snapshot history now explicitly marks raw Naver inventory arrays as excluded and locks the non-admin view to the authenticated user's own snapshots.
 - Workspace membership responses now compute ownership server-side and exclude internal owner user UUIDs from the My Page API/UI.

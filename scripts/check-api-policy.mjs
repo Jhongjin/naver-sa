@@ -481,6 +481,38 @@ function requireSharedErrorRedaction(source, relativePath, sanitizerName, reason
   requireSourceExcludes(source, relativePath, ".slice(0, 220)", reason);
 }
 
+function requireCsvExportSafety(source, relativePath, startMarker, endMarker, label) {
+  const csvSource = getSourceSegment(source, relativePath, startMarker, endMarker);
+  const forbiddenSurfaces = [
+    ["token_hash", "token hashes"],
+    ["tokenHash", "token hashes"],
+    ["hashReportShareToken", "token hash rebuilds"],
+    ["shareUrl", "public share URLs"],
+    ["idempotency_key", "idempotency keys"],
+    ["idempotencyKey", "idempotency keys"],
+    ["payload_id", "payload ids"],
+    ["payloadId", "payload ids"],
+    ["createdByUserId", "internal creator user ids"],
+    ["ownerUserId", "internal owner user ids"],
+    ["workspaceOwnerUserId", "internal workspace owner user ids"],
+    ["before_value", "raw audit before values"],
+    ["after_value", "raw audit after values"],
+    ["beforeValue", "raw audit before values"],
+    ["afterValue", "raw audit after values"],
+    ["authorization", "authorization headers"],
+    ["cookie", "cookie headers"],
+    ["Bearer ", "bearer tokens"],
+    ["apiKey", "API keys"],
+    ["secretKey", "secret keys"]
+  ];
+
+  for (const [forbidden, reason] of forbiddenSurfaces) {
+    requireSourceExcludes(csvSource, relativePath, forbidden, `${label} must not export ${reason}`);
+  }
+
+  return csvSource;
+}
+
 function requireProjectSurfaceChecks() {
   const persistencePath = "lib/persistence/planning-runs.ts";
   const persistenceSource = readProjectFile(persistencePath);
@@ -589,6 +621,51 @@ function requireProjectSurfaceChecks() {
     "admin activity UI must not type or render internal creator user ids"
   );
 
+  requireCsvExportSafety(
+    adminClientSource,
+    adminClientPath,
+    "function createAdminAuditCsv",
+    "\nfunction createReportShareLinksCsv",
+    "admin audit CSV"
+  );
+  const reportShareLinksCsv = requireCsvExportSafety(
+    adminClientSource,
+    adminClientPath,
+    "function createReportShareLinksCsv",
+    "\nfunction createPerformancePlansCsv",
+    "admin report-share CSV"
+  );
+  requireSourceIncludes(reportShareLinksCsv, adminClientPath, '"token_exposed"');
+  requireSourceIncludes(reportShareLinksCsv, adminClientPath, "link.tokenAvailable ?");
+  requireCsvExportSafety(
+    adminClientSource,
+    adminClientPath,
+    "function createPerformancePlansCsv",
+    "\nfunction createAdminActivitiesCsv",
+    "admin performance plans CSV"
+  );
+  requireCsvExportSafety(
+    adminClientSource,
+    adminClientPath,
+    "function createAdminActivitiesCsv",
+    "\nfunction createSnapshotHistoryCsv",
+    "admin activities CSV"
+  );
+  requireCsvExportSafety(
+    adminClientSource,
+    adminClientPath,
+    "function createSnapshotHistoryCsv",
+    "\nfunction createUsersCsv",
+    "admin snapshot history CSV"
+  );
+  requireCsvExportSafety(
+    adminClientSource,
+    adminClientPath,
+    "function createUsersCsv",
+    "\nfunction escapeCsvCell",
+    "admin users CSV"
+  );
+
   const sharedReportClientPath = "app/components/share/SharedReportClient.tsx";
   const sharedReportClientSource = readProjectFile(sharedReportClientPath);
 
@@ -615,6 +692,13 @@ function requireProjectSurfaceChecks() {
     historyListClientPath,
     "createdByUserId",
     "history list UI must not type or render internal creator user ids"
+  );
+  requireCsvExportSafety(
+    historyListClientSource,
+    historyListClientPath,
+    "function downloadFilteredCsv",
+    "\n  function resetFilters",
+    "history list CSV"
   );
 
   const shoppingLinkagePath = "lib/shopping-linkage.ts";
