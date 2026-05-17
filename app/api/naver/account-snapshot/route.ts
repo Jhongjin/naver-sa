@@ -50,7 +50,7 @@ export async function GET(request: Request) {
     return jsonNoStore(
       {
         ok: false,
-        naver: naverState,
+        naver: toPublicNaverConfig(naverState),
         error: "Naver Search Ad API environment variables are incomplete."
       },
       { status: 503 }
@@ -101,6 +101,19 @@ export async function GET(request: Request) {
     },
     { status: hasAnyData ? 200 : 502 }
   );
+}
+
+function toPublicNaverConfig(state: ReturnType<typeof getNaverConfigState>) {
+  return {
+    ready: state.ready,
+    environmentVariableNamesExcluded: true,
+    baseUrlExcluded: true,
+    configuration: {
+      ready: state.ready,
+      missingCount: state.missing.length,
+      customerIdPresent: state.customerIdPresent
+    }
+  };
 }
 
 function normalizeChannel(channel: NaverBusinessChannelSummary) {

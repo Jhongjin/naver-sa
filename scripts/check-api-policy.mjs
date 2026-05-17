@@ -60,6 +60,16 @@ for (const file of routeFiles) {
   if (relativePath === "app/api/plans/store/route.ts") {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
     requireSourceIncludes(source, relativePath, "createdByUserId = access.user.id");
+    requireSourceIncludes(source, relativePath, "environmentVariableNamesExcluded: true");
+    requireSourceIncludes(source, relativePath, "missingCount: state.missing.length");
+    requireSourceExcludes(source, relativePath, "missing: state.missing", "store route must not return env var names");
+  }
+
+  if (relativePath === "app/api/plans/store-draft/route.ts") {
+    requireSourceIncludes(source, relativePath, "verifyUserAccess(request)");
+    requireSourceIncludes(source, relativePath, "environmentVariableNamesExcluded: true");
+    requireSourceIncludes(source, relativePath, "missingCount: state.missing.length");
+    requireSourceExcludes(source, relativePath, "missing: state.missing", "store-draft route must not return env var names");
   }
 
   if (relativePath === "app/api/workspaces/mine/route.ts") {
@@ -215,6 +225,11 @@ for (const file of routeFiles) {
 
   if (relativePath === "app/api/naver/account-snapshot/route.ts") {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
+    requireSourceIncludes(source, relativePath, "toPublicNaverConfig");
+    requireSourceIncludes(source, relativePath, "environmentVariableNamesExcluded: true");
+    requireSourceIncludes(source, relativePath, "baseUrlExcluded: true");
+    requireSourceIncludes(source, relativePath, "missingCount: state.missing.length");
+    requireSourceExcludes(source, relativePath, "naver: naverState", "account snapshot errors must not return raw Naver config state");
     requireSharedErrorRedaction(
       source,
       relativePath,

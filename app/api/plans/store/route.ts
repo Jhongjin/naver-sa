@@ -42,7 +42,8 @@ export async function POST(request: Request) {
       {
         ok: false,
         error: "Supabase admin environment is not configured.",
-        missing: state.missing
+        missingCount: state.missing.length,
+        environmentVariableNamesExcluded: true
       },
       { status: 503 }
     );

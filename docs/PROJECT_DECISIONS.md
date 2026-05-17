@@ -194,6 +194,7 @@ Recent operational queue:
 - Naver Search Ad client error sanitization now uses the shared sensitive-text redaction helper instead of a local key/customer regex, keeping external API failure messages on the same masking path as route and audit errors.
 - Naver Search Ad client fetches now explicitly use `cache: "no-store"` so live read-only account and stats checks are never served from a framework fetch cache.
 - Naver readiness responses now expose only public-safe configuration counts and explicit exclusion flags instead of raw config state, env var names, or configured base URL.
+- Account snapshot and plan-store misconfiguration responses now expose only missing counts and exclusion flags instead of raw Naver/Supabase env var names.
 - Login/signup form errors now pass through the shared sensitive-text redaction helper before display, and API policy verification guards against raw Supabase Auth error messages being rendered directly.
 - Admin dashboard visible errors now pass through the shared sensitive-text redaction helper before display, including user, audit, share-link, Naver readiness, and performance sync panels.
 - Saved-history and public shared-report visible errors now pass through the shared sensitive-text redaction helper before display.
