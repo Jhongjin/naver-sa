@@ -10,9 +10,20 @@ type AccountSnapshotRow = {
   brand_name: string | null;
   site_url: string | null;
   partial: boolean;
+  channels: unknown[] | null;
+  campaigns: unknown[] | null;
+  product_groups: unknown[] | null;
   summary: Record<string, unknown> | null;
   errors: Record<string, unknown> | null;
   created_at: string;
+};
+
+type SnapshotEntityKind = "channels" | "campaigns" | "productGroups";
+
+type SnapshotEntity = {
+  id: string;
+  label: string;
+  signature: string;
 };
 
 export function POST() {
@@ -49,9 +60,12 @@ export async function GET(request: Request) {
   const productType = coerceProductType(url.searchParams.get("productType"));
   let query = supabase
     .from("naver_account_snapshots")
-    .select("id, user_id, actor_email, product_type, brand_name, site_url, partial, summary, errors, created_at", {
-      count: "exact"
-    })
+    .select(
+      "id, user_id, actor_email, product_type, brand_name, site_url, partial, channels, campaigns, product_groups, summary, errors, created_at",
+      {
+        count: "exact"
+      }
+    )
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -81,10 +95,12 @@ export async function GET(request: Request) {
     return jsonNoStore({ ok: false, error: sanitizeSnapshotError(error.message) }, { status: 502 });
   }
 
+  const rows = (data ?? []) as AccountSnapshotRow[];
+
   return jsonNoStore({
     ok: true,
     installed: true,
-    snapshots: ((data ?? []) as AccountSnapshotRow[]).map(toSnapshotHistoryItem),
+    snapshots: rows.map((row, index) => toSnapshotHistoryItem(row, findComparisonRow(rows, index))),
     total: count ?? data?.length ?? 0,
     limit,
     scope: access.state.role === "admin" ? "all" : "mine",
@@ -92,7 +108,7 @@ export async function GET(request: Request) {
   });
 }
 
-function toSnapshotHistoryItem(row: AccountSnapshotRow) {
+function toSnapshotHistoryItem(row: AccountSnapshotRow, comparisonRow: AccountSnapshotRow | null) {
   const summary = row.summary ?? {};
   const errors = row.errors ?? {};
 
@@ -112,8 +128,108 @@ function toSnapshotHistoryItem(row: AccountSnapshotRow) {
     errorScopes: Object.entries(errors)
       .filter(([, message]) => Boolean(message))
       .map(([scope]) => scope),
+    diff: comparisonRow ? createSnapshotDiff(row, comparisonRow) : null,
     createdAt: row.created_at
   };
+}
+
+function findComparisonRow(rows: AccountSnapshotRow[], currentIndex: number): AccountSnapshotRow | null {
+  const current = rows[currentIndex];
+
+  if (!current) {
+    return null;
+  }
+
+  return rows.slice(currentIndex + 1).find((candidate) => hasSameSnapshotContext(current, candidate)) ?? null;
+}
+
+function hasSameSnapshotContext(current: AccountSnapshotRow, candidate: AccountSnapshotRow): boolean {
+  return (
+    current.user_id === candidate.user_id &&
+    current.product_type === candidate.product_type &&
+    normalizeComparableText(current.brand_name) === normalizeComparableText(candidate.brand_name) &&
+    normalizeComparableText(current.site_url) === normalizeComparableText(candidate.site_url)
+  );
+}
+
+function createSnapshotDiff(current: AccountSnapshotRow, previous: AccountSnapshotRow) {
+  return {
+    comparedSnapshotId: previous.id,
+    comparedAt: previous.created_at,
+    channels: diffEntities(entityMap(current.channels, "channels"), entityMap(previous.channels, "channels")),
+    campaigns: diffEntities(entityMap(current.campaigns, "campaigns"), entityMap(previous.campaigns, "campaigns")),
+    productGroups: diffEntities(
+      entityMap(current.product_groups, "productGroups"),
+      entityMap(previous.product_groups, "productGroups")
+    )
+  };
+}
+
+function entityMap(value: unknown[] | null, kind: SnapshotEntityKind): Map<string, SnapshotEntity> {
+  const entities = new Map<string, SnapshotEntity>();
+
+  for (const record of asRecordArray(value)) {
+    const id = entityId(record, kind);
+
+    if (!id) {
+      continue;
+    }
+
+    const label = entityLabel(record, kind) ?? id;
+    const signature = entitySignature(record, label, kind);
+    entities.set(id, { id, label, signature });
+  }
+
+  return entities;
+}
+
+function diffEntities(current: Map<string, SnapshotEntity>, previous: Map<string, SnapshotEntity>) {
+  const added = [...current.values()].filter((entity) => !previous.has(entity.id));
+  const removed = [...previous.values()].filter((entity) => !current.has(entity.id));
+  const changed = [...current.values()].filter((entity) => {
+    const previousEntity = previous.get(entity.id);
+    return previousEntity ? previousEntity.signature !== entity.signature : false;
+  });
+
+  return {
+    added: added.length,
+    removed: removed.length,
+    changed: changed.length,
+    addedLabels: added.slice(0, 3).map((entity) => entity.label),
+    removedLabels: removed.slice(0, 3).map((entity) => entity.label),
+    changedLabels: changed.slice(0, 3).map((entity) => entity.label)
+  };
+}
+
+function asRecordArray(value: unknown[] | null): Record<string, unknown>[] {
+  return Array.isArray(value) ? value.filter(isRecord) : [];
+}
+
+function entityId(record: Record<string, unknown>, kind: SnapshotEntityKind): string | null {
+  if (kind === "campaigns") {
+    return scalarText(record.nccCampaignId) ?? scalarText(record.id);
+  }
+
+  return scalarText(record.id);
+}
+
+function entityLabel(record: Record<string, unknown>, kind: SnapshotEntityKind): string | null {
+  if (kind === "productGroups") {
+    return scalarText(record.name) ?? scalarText(record.mallName);
+  }
+
+  return scalarText(record.name);
+}
+
+function entitySignature(record: Record<string, unknown>, label: string, kind: SnapshotEntityKind): string {
+  const fields =
+    kind === "channels"
+      ? [label, record.channelTp, record.site, record.mobileSite, record.inspectStatus]
+      : kind === "campaigns"
+        ? [label, record.userLock, record.deliveryMethod]
+        : [label, record.businessChannelId, record.mallId, record.mallName, record.productCount, record.excludeCount];
+
+  return fields.map((field) => scalarText(field) ?? "").join("|");
 }
 
 function clampLimit(value: string | null): number {
@@ -132,6 +248,26 @@ function coerceProductType(value: string | null): "powerlink" | "shoppingSearch"
 
 function numberValue(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function normalizeComparableText(value: string | null): string {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function scalarText(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim().slice(0, 180);
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function isMissingSnapshotTableError(error: { code?: string; message?: string }): boolean {

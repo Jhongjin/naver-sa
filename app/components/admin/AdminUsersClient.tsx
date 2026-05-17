@@ -158,8 +158,24 @@ type AccountSnapshotHistoryItem = {
     campaigns: number;
     productGroups: number;
   };
+  diff: {
+    comparedSnapshotId: string;
+    comparedAt: string;
+    channels: SnapshotDiffMetric;
+    campaigns: SnapshotDiffMetric;
+    productGroups: SnapshotDiffMetric;
+  } | null;
   errorScopes: string[];
   createdAt: string;
+};
+
+type SnapshotDiffMetric = {
+  added: number;
+  removed: number;
+  changed: number;
+  addedLabels: string[];
+  removedLabels: string[];
+  changedLabels: string[];
 };
 
 type AccountSnapshotHistoryResponse = {
@@ -821,6 +837,18 @@ function AdminUsersContent() {
                   <p>
                     {snapshot.actorEmail ?? "unknown"} / {formatKoreanDateTime(snapshot.createdAt)}
                   </p>
+                  <div className={`admin-snapshot-diff ${snapshot.diff ? "" : "empty"}`}>
+                    <span>{snapshot.diff ? "직전 스캔 대비" : "비교 기준 없음"}</span>
+                    <em>
+                      {snapshot.diff
+                        ? [
+                            `채널 ${snapshotDiffLabel(snapshot.diff.channels)}`,
+                            `캠페인 ${snapshotDiffLabel(snapshot.diff.campaigns)}`,
+                            `상품그룹 ${snapshotDiffLabel(snapshot.diff.productGroups)}`
+                          ].join(" / ")
+                        : "같은 계정 조건의 이전 스캔이 아직 없습니다."}
+                    </em>
+                  </div>
                 </div>
                 <dl>
                   <div>
@@ -1256,6 +1284,16 @@ function adminEventLabel(value: string) {
   };
 
   return labels[value] ?? "관리 이벤트";
+}
+
+function snapshotDiffLabel(metric: SnapshotDiffMetric) {
+  const parts = [
+    metric.added > 0 ? `+${metric.added}` : null,
+    metric.removed > 0 ? `-${metric.removed}` : null,
+    metric.changed > 0 ? `수정 ${metric.changed}` : null
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" ") : "변화 없음";
 }
 
 function historySearchKey(user: ManagedUser) {

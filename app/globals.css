@@ -5188,6 +5188,39 @@ td span {
   margin: 4px 0 0;
 }
 
+.admin-snapshot-diff {
+  background: #f8fafc;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: 12px;
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 10px;
+}
+
+.admin-snapshot-diff.empty {
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.admin-snapshot-diff span {
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-snapshot-diff.empty span {
+  color: #64748b;
+}
+
+.admin-snapshot-diff em {
+  color: #334155;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .admin-snapshot-list dl {
   display: grid;
   gap: 8px;
