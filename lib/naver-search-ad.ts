@@ -168,6 +168,7 @@ export async function requestNaverSearchAd<T>(
   try {
     response = await fetch(url, {
       method,
+      cache: "no-store",
       headers: createNaverHeaders(method, uri, config),
       body: options.body ? JSON.stringify(options.body) : undefined,
       signal: requestSignal.signal

@@ -583,6 +583,7 @@ function requireProjectSurfaceChecks() {
 
   requireSourceIncludes(naverSearchAdSource, naverSearchAdPath, "redactSensitiveErrorText");
   requireSourceIncludes(naverSearchAdSource, naverSearchAdPath, 'redactSensitiveErrorText(value, "Naver API request failed.", 300)');
+  requireSourceIncludes(naverSearchAdSource, naverSearchAdPath, 'cache: "no-store"');
   requireSourceExcludes(
     naverSearchAdSource,
     naverSearchAdPath,
