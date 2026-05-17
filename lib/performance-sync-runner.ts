@@ -201,7 +201,7 @@ export async function runPerformanceSyncPlan(input: {
         externalRequest: true,
         readOnly: true,
         status: result.status,
-        error: result.error,
+        error: sanitizedError,
         safeguards: performanceSyncSafeguards
       }
     };

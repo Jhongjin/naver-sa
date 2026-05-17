@@ -5,6 +5,15 @@ const root = process.cwd();
 const recommendationFile = path.join(root, "lib", "performance-recommendations.ts");
 const source = readFileSync(recommendationFile, "utf8");
 const performanceSyncSource = readFileSync(path.join(root, "lib", "naver-performance-sync.ts"), "utf8");
+const performanceSyncRunnerSource = readFileSync(path.join(root, "lib", "performance-sync-runner.ts"), "utf8");
+const cronRouteSource = readFileSync(
+  path.join(root, "app", "api", "naver", "performance-sync", "cron", "route.ts"),
+  "utf8"
+);
+const queueRouteSource = readFileSync(
+  path.join(root, "app", "api", "naver", "performance-sync", "queue", "route.ts"),
+  "utf8"
+);
 const previewRouteSource = readFileSync(
   path.join(root, "app", "api", "naver", "performance-sync", "preview", "route.ts"),
   "utf8"
@@ -69,6 +78,20 @@ for (const blockedSafeguard of [
   }
 }
 
+for (const requiredCronPolicy of [
+  'scheduleUtc: "10 0 * * *"',
+  'scheduleKst: "매일 오전 9:10 KST"',
+  "maxRunsPerInvocation: 3",
+  'targetStatuses: ["planned", "failed"] as const',
+  'excludedStatuses: ["blocked", "completed", "ready"] as const',
+  "excludesMasterReference: true",
+  "automaticRetry: false"
+]) {
+  if (!performanceSyncSource.includes(requiredCronPolicy)) {
+    failures.push(`missing performance cron policy: ${requiredCronPolicy}`);
+  }
+}
+
 for (const requiredPreviewGuard of [
   "scope: PerformanceSyncScope;",
   "const requestedScope = coerceScope(input.scope);",
@@ -78,6 +101,133 @@ for (const requiredPreviewGuard of [
 ]) {
   if (!performanceSyncSource.includes(requiredPreviewGuard)) {
     failures.push(`missing performance preview guard: ${requiredPreviewGuard}`);
+  }
+}
+
+for (const requiredRunnerGuard of [
+  "validatePerformanceSyncPlan(input.plan, input.allowedStatuses, input.source)",
+  'requestNaverSearchAd<unknown>("GET", "/api/stats"',
+  "timeIncrement: \"allDays\"",
+  "storedRawStats: false",
+  "generatePerformanceRecommendations(result.data)",
+  "generatePerformanceRecommendationDrafts(recommendations)",
+  "readOnly: true",
+  "status: \"completed\"",
+  "error: sanitizedError"
+]) {
+  if (!performanceSyncRunnerSource.includes(requiredRunnerGuard)) {
+    failures.push(`missing performance sync runner guard: ${requiredRunnerGuard}`);
+  }
+}
+
+requireSourceOrder(
+  performanceSyncRunnerSource,
+  "performance sync runner",
+  "validatePerformanceSyncPlan(input.plan, input.allowedStatuses, input.source)",
+  "requestNaverSearchAd<unknown>"
+);
+
+for (const requiredValidationGuard of [
+  'plan.status === "blocked"',
+  'plan.status === "completed"',
+  "!allowedStatuses.includes(plan.status)",
+  'plan.scope === "masterReference"'
+]) {
+  if (!performanceSyncRunnerSource.includes(requiredValidationGuard)) {
+    failures.push(`missing performance sync validation guard: ${requiredValidationGuard}`);
+  }
+}
+
+for (const forbiddenRunnerSurface of ['"POST"', '"PUT"', '"DELETE"', '"/api/master-reports"', '"/api/stat-reports"', '"/api/reports"']) {
+  if (performanceSyncRunnerSource.includes(forbiddenRunnerSurface)) {
+    failures.push(`performance sync runner must stay read-only stats-only: ${forbiddenRunnerSurface}`);
+  }
+}
+
+if (performanceSyncRunnerSource.includes("error: result.error")) {
+  failures.push("performance sync runner failure responses must return sanitizedError, not raw result.error");
+}
+
+const runnerStatsRequest = extractSourceBetween(
+  performanceSyncRunnerSource,
+  'requestNaverSearchAd<unknown>("GET", "/api/stats"',
+  "\n  });"
+);
+
+if (!runnerStatsRequest) {
+  failures.push("missing performance sync runner stats request block");
+} else {
+  for (const requiredQuery of ["ids: JSON.stringify(entityIds)", "fields: JSON.stringify(fields)", "timeRange: JSON.stringify({"]) {
+    if (!runnerStatsRequest.includes(requiredQuery)) {
+      failures.push(`performance sync runner stats request missing query guard: ${requiredQuery}`);
+    }
+  }
+}
+
+const runnerResultSummary = extractSourceBetween(performanceSyncRunnerSource, 'status: "completed"', "updated_at: completedAt");
+
+if (!runnerResultSummary) {
+  failures.push("missing completed performance sync result summary block");
+} else {
+  for (const forbiddenPersistedRawStats of ["stats:", "rawStats", "raw_stats", "result.data", "response:"]) {
+    if (runnerResultSummary.includes(forbiddenPersistedRawStats)) {
+      failures.push(`performance sync runner must not persist raw stats: ${forbiddenPersistedRawStats}`);
+    }
+  }
+}
+
+const runnerFailureSummary = extractSourceBetween(performanceSyncRunnerSource, 'status: "failed"', "updated_at: new Date().toISOString()");
+
+if (!runnerFailureSummary) {
+  failures.push("missing failed performance sync result summary block");
+} else {
+  if (!runnerFailureSummary.includes("storedRawStats: false")) {
+    failures.push("failed performance sync result summary must mark storedRawStats: false");
+  }
+
+  for (const forbiddenPersistedRawStats of ["stats:", "rawStats", "raw_stats", "result.data", "response:"]) {
+    if (runnerFailureSummary.includes(forbiddenPersistedRawStats)) {
+      failures.push(`failed performance sync summary must not persist raw stats: ${forbiddenPersistedRawStats}`);
+    }
+  }
+}
+
+for (const requiredCronRouteGuard of [
+  "authorization !== `Bearer ${cronSecret}`",
+  '.in("status", [...performanceSyncCronPolicy.targetStatuses])',
+  '.neq("scope", "masterReference")',
+  ".limit(performanceSyncCronPolicy.maxRunsPerInvocation)",
+  ".slice(0, performanceSyncCronPolicy.maxRunsPerInvocation)",
+  'actor: "system:cron"',
+  'source: "cron"',
+  "allowedStatuses: [...performanceSyncCronPolicy.targetStatuses]",
+  "configMissingMarksFailed: true",
+  "recordCronHeartbeat",
+  "heartbeatRecorded",
+  "try {",
+  "catch {",
+  "return false;",
+  "readOnly: true",
+  "storedRawStats: false"
+]) {
+  if (!cronRouteSource.includes(requiredCronRouteGuard)) {
+    failures.push(`missing performance cron route guard: ${requiredCronRouteGuard}`);
+  }
+}
+
+for (const forbiddenCronRouteSurface of ['"POST"', '"PUT"', '"DELETE"', '"/api/master-reports"', '"/api/reports"']) {
+  if (cronRouteSource.includes(`requestNaverSearchAd<unknown>(${forbiddenCronRouteSurface}`)) {
+    failures.push(`performance cron route must not perform external write/report calls: ${forbiddenCronRouteSurface}`);
+  }
+}
+
+for (const requiredQueueRouteGuard of [
+  "verifyUserAccess(request, { requireAdmin: true })",
+  'allowedStatuses: ["planned", "ready", "failed"]',
+  'source: "manual"'
+]) {
+  if (!queueRouteSource.includes(requiredQueueRouteGuard)) {
+    failures.push(`missing performance queue route guard: ${requiredQueueRouteGuard}`);
   }
 }
 
@@ -130,4 +280,13 @@ function extractSourceBetween(sourceText, start, end) {
   }
 
   return sourceText.slice(startIndex, endIndex);
+}
+
+function requireSourceOrder(sourceText, label, before, after) {
+  const beforeIndex = sourceText.indexOf(before);
+  const afterIndex = sourceText.indexOf(after);
+
+  if (beforeIndex === -1 || afterIndex === -1 || beforeIndex > afterIndex) {
+    failures.push(`${label}: ${before} must appear before ${after}`);
+  }
 }

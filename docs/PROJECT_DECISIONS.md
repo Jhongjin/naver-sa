@@ -189,6 +189,7 @@ Recent operational queue:
 - Admin audit and saved-history detail audit text now share the common sensitive-text redaction helper while preserving null output for empty audit text.
 - API policy verification now locks the workspace local draft snapshot to planner input, approval decisions/notes, and execution context only; auth tokens, sessions, and authorization headers must not be persisted to localStorage.
 - `npm run verify` now runs a runtime error-redaction check that compiles the shared helper and asserts Bearer tokens, query token values, key/value secrets, auth headers, cookies, and optional blank text are handled safely.
+- Performance safety verification now also locks cron and runner behavior: scheduled sync remains 09:10 KST, max 3 planned/failed rows, masterReference excluded, runner calls only read-only `GET /api/stats`, raw stats must not be persisted, and external failure responses must return sanitized errors.
 - Admin audit event responses now keep raw `before_value` excluded and sanitize all reason/summary text before it reaches the UI or CSV export.
 - Account snapshot history now explicitly marks raw Naver inventory arrays as excluded and locks the non-admin view to the authenticated user's own snapshots.
 - Workspace membership responses now compute ownership server-side and exclude internal owner user UUIDs from the My Page API/UI.
