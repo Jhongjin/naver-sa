@@ -1,4 +1,5 @@
 import { verifyUserAccess } from "@/lib/auth-access";
+import { redactSensitiveErrorText, redactSensitiveOptionalText } from "@/lib/error-redaction";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
@@ -212,26 +213,9 @@ function coerceAuditFilter(searchParams: URLSearchParams): {
 }
 
 function sanitizeAuditError(message: string): string {
-  return sanitizeAuditText(message, 220) ?? "Supabase audit events request failed.";
+  return redactSensitiveErrorText(message, "Supabase audit events request failed.");
 }
 
 function sanitizeAuditText(value: string | null | undefined, maxLength: number): string | null {
-  const trimmed = value?.trim();
-
-  if (!trimmed) {
-    return null;
-  }
-
-  return trimmed
-    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/g, "Bearer [REDACTED]")
-    .replace(
-      /([?&](?:access_token|refresh_token|token|api_key|apikey|secret|client_secret)=)[^&\s]+/gi,
-      "$1[REDACTED]"
-    )
-    .replace(
-      /\b(api[-_ ]?key|apikey|x-api-key|secret[-_ ]?key|client[-_ ]?secret|access[-_ ]?token|refresh[-_ ]?token|token_hash|customer[-_ ]?id)[=:]\s*["']?[^"',\s}]+/gi,
-      "$1=[REDACTED]"
-    )
-    .replace(/\b(authorization|cookie):\s*[^,\n]+/gi, "$1: [REDACTED]")
-    .slice(0, maxLength);
+  return redactSensitiveOptionalText(value, maxLength);
 }

@@ -1,5 +1,5 @@
 import { verifyUserAccess } from "@/lib/auth-access";
-import { redactSensitiveErrorText } from "@/lib/error-redaction";
+import { redactSensitiveErrorText, redactSensitiveOptionalText } from "@/lib/error-redaction";
 import type { NaverExecutionContext } from "@/lib/execution-draft";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { coercePlannerMetadata } from "@/lib/planner-metadata";
@@ -671,17 +671,5 @@ function auditTextValue(value: Record<string, unknown>, key: string, maxLength: 
 }
 
 function sanitizeAuditText(value: string | null | undefined, maxLength: number): string | null {
-  const trimmed = value?.trim();
-
-  if (!trimmed) {
-    return null;
-  }
-
-  return trimmed
-    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/g, "Bearer [REDACTED]")
-    .replace(
-      /\b(api[-_ ]?key|apikey|x-api-key|secret[-_ ]?key|client[-_ ]?secret|access[-_ ]?token|refresh[-_ ]?token|token_hash|customer[-_ ]?id)[=:]\s*["']?[^"',\s}]+/gi,
-      "$1=[REDACTED]"
-    )
-    .slice(0, maxLength);
+  return redactSensitiveOptionalText(value, maxLength);
 }

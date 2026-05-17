@@ -282,12 +282,21 @@ for (const file of routeFiles) {
 
   if (relativePath === "app/api/admin/audit-events/route.ts") {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
+    requireSourceIncludes(source, relativePath, "redactSensitiveErrorText");
     requireSourceIncludes(source, relativePath, "rawValuesExcluded: true");
     requireSourceIncludes(source, relativePath, "auditTextSanitized: true");
     requireSourceIncludes(source, relativePath, "reason: sanitizeAuditText(row.reason, 220)");
     requireSourceIncludes(source, relativePath, "sanitizeAuditText(value, 160)");
     requireSourceIncludes(source, relativePath, "return sanitizeAuditText(value, 80)");
     requireSourceIncludes(source, relativePath, "function sanitizeAuditText");
+    requireSourceIncludes(source, relativePath, "redactSensitiveOptionalText");
+    requireSourceIncludes(source, relativePath, "return redactSensitiveOptionalText(value, maxLength);");
+    requireSharedErrorRedaction(
+      source,
+      relativePath,
+      "sanitizeAuditError",
+      "admin audit event errors and text must pass through shared sensitive text redaction"
+    );
     requireSourceExcludes(source, relativePath, "before_value", "admin audit event API must not select or return raw before values");
     requireSourceExcludes(source, relativePath, "beforeValue:", "admin audit event API must not return raw before values");
     requireSourceExcludes(source, relativePath, "afterValue:", "admin audit event API must not return raw after values");
@@ -311,6 +320,14 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "auditEvents: ((auditResult.data ?? []) as AuditEventRow[]).map(toSafeAuditEvent)");
     requireSourceIncludes(source, relativePath, "createdByUserLinked: Boolean(planningRun.created_by_user_id)");
     requireSourceIncludes(source, relativePath, "workspaceOwnerMatchesCreator: getWorkspaceOwnerMatchesCreator(workspace, planningRun)");
+    requireSourceIncludes(source, relativePath, "redactSensitiveOptionalText");
+    requireSourceIncludes(source, relativePath, "return redactSensitiveOptionalText(value, maxLength);");
+    requireSourceExcludes(
+      source,
+      relativePath,
+      ".replace(/Bearer",
+      "history detail audit text must pass through shared sensitive text redaction"
+    );
     requireSourceExcludes(
       source,
       relativePath,
@@ -541,6 +558,7 @@ function requireProjectSurfaceChecks() {
   const errorRedactionSource = readProjectFile(errorRedactionPath);
 
   requireSourceIncludes(errorRedactionSource, errorRedactionPath, "redactSensitiveErrorText");
+  requireSourceIncludes(errorRedactionSource, errorRedactionPath, "redactSensitiveOptionalText");
   requireSourceIncludes(errorRedactionSource, errorRedactionPath, "Bearer [REDACTED]");
   requireSourceIncludes(errorRedactionSource, errorRedactionPath, "authorization|cookie");
 

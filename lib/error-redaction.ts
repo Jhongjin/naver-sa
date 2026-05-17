@@ -22,3 +22,7 @@ export function redactSensitiveErrorText(
     .replace(/\b(authorization|cookie):\s*[^,\n]+/gi, "$1: [REDACTED]")
     .slice(0, maxLength);
 }
+
+export function redactSensitiveOptionalText(value: string | null | undefined, maxLength = 220): string | null {
+  return value?.trim() ? redactSensitiveErrorText(value, "", maxLength) : null;
+}
