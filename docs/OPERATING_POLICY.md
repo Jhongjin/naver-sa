@@ -228,3 +228,14 @@ Implementation rule:
 - drafts with any recorded `execution_results` are blocked from re-execution
 - `TEST_EXECUTION_ONLY` remains required for every execution request
 - execution results must be stored before the workflow is treated as complete
+
+## 11. External Naver API Resilience
+
+Naver Search Ad calls must fail closed.
+
+Implementation rule:
+
+- apply a server-side timeout to every Naver Search Ad request
+- convert network, abort, timeout, and invalid JSON responses into sanitized failure results
+- do not retry mutation requests automatically
+- store only sanitized errors and summarized outcomes in operational history

@@ -34,6 +34,8 @@ export type NaverApiResult<T> =
       transactionId?: string;
     };
 
+const defaultRequestTimeoutMs = 20_000;
+
 export type NaverCampaignSummary = {
   nccCampaignId?: string;
   name?: string;
@@ -145,6 +147,7 @@ export async function requestNaverSearchAd<T>(
     query?: Record<string, string | number | boolean | undefined>;
     body?: unknown;
     signal?: AbortSignal;
+    timeoutMs?: number;
   } = {}
 ): Promise<NaverApiResult<T>> {
   const config = getNaverSearchAdConfig();
@@ -158,13 +161,27 @@ export async function requestNaverSearchAd<T>(
   }
 
   const url = buildUrl(config.baseUrl, uri, options.query);
-  const response = await fetch(url, {
-    method,
-    headers: createNaverHeaders(method, uri, config),
-    body: options.body ? JSON.stringify(options.body) : undefined,
-    signal: options.signal
-  });
-  const responseText = await response.text();
+  const requestSignal = createRequestSignal(options.signal, options.timeoutMs ?? defaultRequestTimeoutMs);
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      method,
+      headers: createNaverHeaders(method, uri, config),
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: requestSignal.signal
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      error: formatFetchError(error, requestSignal.timedOut, options.timeoutMs ?? defaultRequestTimeoutMs)
+    };
+  } finally {
+    requestSignal.cleanup();
+  }
+
+  const responseText = await response.text().catch(() => "");
   const transactionId = response.headers.get("x-transaction-id") ?? undefined;
 
   if (!response.ok) {
@@ -176,10 +193,21 @@ export async function requestNaverSearchAd<T>(
     };
   }
 
+  const parsed = parseJson<T>(responseText);
+
+  if (!parsed.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      error: parsed.error,
+      transactionId
+    };
+  }
+
   return {
     ok: true,
     status: response.status,
-    data: parseJson<T>(responseText)
+    data: parsed.data
   };
 }
 
@@ -215,12 +243,25 @@ function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.replace(/\/+$/, "");
 }
 
-function parseJson<T>(value: string): T {
+function parseJson<T>(value: string): { ok: true; data: T } | { ok: false; error: string } {
   if (!value) {
-    return [] as T;
+    return {
+      ok: true,
+      data: [] as T
+    };
   }
 
-  return JSON.parse(value) as T;
+  try {
+    return {
+      ok: true,
+      data: JSON.parse(value) as T
+    };
+  } catch {
+    return {
+      ok: false,
+      error: "Naver API returned an invalid JSON response."
+    };
+  }
 }
 
 function sanitizeNaverError(value: string): string {
@@ -252,4 +293,44 @@ function sanitizeNaverError(value: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function createRequestSignal(externalSignal: AbortSignal | undefined, timeoutMs: number) {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  const abortFromExternalSignal = () => controller.abort();
+
+  if (externalSignal?.aborted) {
+    controller.abort();
+  } else {
+    externalSignal?.addEventListener("abort", abortFromExternalSignal, { once: true });
+  }
+
+  return {
+    signal: controller.signal,
+    get timedOut() {
+      return timedOut;
+    },
+    cleanup() {
+      clearTimeout(timeout);
+      externalSignal?.removeEventListener("abort", abortFromExternalSignal);
+    }
+  };
+}
+
+function formatFetchError(error: unknown, timedOut: boolean, timeoutMs: number): string {
+  if (timedOut) {
+    return `Naver API request timed out after ${timeoutMs}ms.`;
+  }
+
+  if (error instanceof Error && error.name === "AbortError") {
+    return "Naver API request was aborted before completion.";
+  }
+
+  return "Naver API network request failed before a response was received.";
 }

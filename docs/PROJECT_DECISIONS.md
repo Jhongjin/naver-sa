@@ -159,6 +159,7 @@ Recent operational queue:
 - API route files explicitly export common method handlers so unsupported methods return no-store 405 responses instead of Next.js default cacheable responses.
 - Production verification after each queue checks `/api/health`, `/api/supabase/readiness`, and the relevant protected API route for no-store authentication/method behavior.
 - Protected test execution now requires Supabase Auth admin access, a previously saved ready execution draft, no prior execution results for that draft, and the `TEST_EXECUTION_ONLY` confirmation phrase before any Naver mutation request can be sent.
+- Naver Search Ad client calls now fail closed on timeout, abort, network failure, or invalid JSON, returning sanitized errors instead of letting external API failures crash cron, account scan, preview, or protected execution routes.
 
 ## UX Direction
 
