@@ -21,6 +21,10 @@ export function DELETE() {
   return methodNotAllowed(["GET", "POST", "PATCH"]);
 }
 
+export function PUT() {
+  return methodNotAllowed(["GET", "POST", "PATCH"]);
+}
+
 export async function GET(request: Request) {
   const access = await verifyUserAccess(request, { requireAdmin: true });
 
