@@ -5369,6 +5369,20 @@ td span {
   box-shadow: 0 0 18px rgba(255, 90, 61, 0.54);
 }
 
+.rail-current-badge {
+  align-items: center;
+  background: rgba(255, 90, 61, 0.15);
+  border: 1px solid rgba(255, 90, 61, 0.32);
+  border-radius: 999px;
+  color: #ffb09d;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 900;
+  justify-content: center;
+  padding: 5px 8px;
+  width: fit-content;
+}
+
 .rail-step-grid article > span {
   width: 28px;
   height: 28px;

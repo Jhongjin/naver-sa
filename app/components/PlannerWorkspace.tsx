@@ -448,6 +448,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 action: "save" as const
               };
   const currentRailStep = railPrimaryAction.type === "link" ? "history" : railPrimaryAction.action;
+  const isApprovalRailCurrent = currentRailStep === "approve";
+  const isScanRailCurrent = currentRailStep === "scan";
+  const isValidateRailCurrent = currentRailStep === "validate";
+  const isSaveRailCurrent = currentRailStep === "save";
   const setupSteps = [
     {
       label: "입력",
@@ -1083,8 +1087,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             </div>
           </div>
           <div className="rail-step-grid">
-            <article className={`${approvalSummary.approved > 0 ? "done" : "attention"} ${currentRailStep === "approve" ? "current" : ""}`}>
+            <article
+              aria-current={isApprovalRailCurrent ? "step" : undefined}
+              className={`${approvalSummary.approved > 0 ? "done" : "attention"} ${isApprovalRailCurrent ? "current" : ""}`}
+            >
               <span>01</span>
+              {isApprovalRailCurrent ? <small className="rail-current-badge">현재 단계</small> : null}
               <strong>승인 확정</strong>
               <p>{approvalSummary.approved}건 승인, {approvalSummary.pending}건 대기</p>
               <button className="icon-button subtle" type="button" onClick={approveAllChanges}>
@@ -1094,10 +1102,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             </article>
             <article
               className={`${executionConnectionApplied ? "done" : canScanAccount ? "attention" : "pending"} ${
-                currentRailStep === "scan" ? "current" : ""
+                isScanRailCurrent ? "current" : ""
               }`}
+              aria-current={isScanRailCurrent ? "step" : undefined}
             >
               <span>02</span>
+              {isScanRailCurrent ? <small className="rail-current-badge">현재 단계</small> : null}
               <strong>계정 스캔</strong>
               <p>
                 {executionConnectionApplied
@@ -1120,8 +1130,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                 {accountSnapshotState.status === "loading" ? "스캔 중" : "계정 스캔"}
               </button>
             </article>
-            <article className={`${stageValidated ? "done" : canValidateDraft ? "attention" : "pending"} ${currentRailStep === "validate" ? "current" : ""}`}>
+            <article
+              aria-current={isValidateRailCurrent ? "step" : undefined}
+              className={`${stageValidated ? "done" : canValidateDraft ? "attention" : "pending"} ${isValidateRailCurrent ? "current" : ""}`}
+            >
               <span>03</span>
+              {isValidateRailCurrent ? <small className="rail-current-badge">현재 단계</small> : null}
               <strong>초안 검증</strong>
               <p>
                 {canValidateDraft
@@ -1140,10 +1154,12 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
             </article>
             <article
               className={`${activeSaveDraftState.status === "success" ? "done" : canSaveHistory ? "attention" : "pending"} ${
-                currentRailStep === "save" ? "current" : ""
+                isSaveRailCurrent ? "current" : ""
               }`}
+              aria-current={isSaveRailCurrent ? "step" : undefined}
             >
               <span>04</span>
+              {isSaveRailCurrent ? <small className="rail-current-badge">현재 단계</small> : null}
               <strong>이력 저장</strong>
               <p>
                 {canSaveHistory
