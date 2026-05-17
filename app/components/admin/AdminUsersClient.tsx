@@ -1111,6 +1111,20 @@ function AdminUsersContent() {
     );
   }
 
+  function downloadSnapshotHistoryCsv() {
+    if (snapshotHistory.length === 0) {
+      return;
+    }
+
+    const dateStamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+
+    downloadTextFile(
+      createSnapshotHistoryCsv(snapshotHistory),
+      `naver-sa-account-snapshots-${dateStamp}.csv`,
+      "text/csv;charset=utf-8"
+    );
+  }
+
   function downloadAdminAuditCsv() {
     if (auditEvents.length === 0) {
       return;
@@ -1278,15 +1292,26 @@ function AdminUsersContent() {
             <span>Naver 비즈채널, 캠페인, 상품그룹 조회 결과를 감사용으로 추적합니다.</span>
             {snapshotMessage ? <em className="admin-check-result error">{snapshotMessage}</em> : null}
           </div>
-          <button
-            className="icon-button subtle"
-            disabled={snapshotStatus === "loading"}
-            type="button"
-            onClick={loadAccountSnapshotHistory}
-          >
-            <RefreshCw size={17} />
-            {snapshotStatus === "loading" ? "불러오는 중" : "스캔 이력 새로고침"}
-          </button>
+          <div className="admin-snapshot-actions">
+            <button
+              className="icon-button subtle"
+              disabled={snapshotHistory.length === 0}
+              type="button"
+              onClick={downloadSnapshotHistoryCsv}
+            >
+              <Download size={17} />
+              CSV
+            </button>
+            <button
+              className="icon-button subtle"
+              disabled={snapshotStatus === "loading"}
+              type="button"
+              onClick={loadAccountSnapshotHistory}
+            >
+              <RefreshCw size={17} />
+              {snapshotStatus === "loading" ? "불러오는 중" : "스캔 이력 새로고침"}
+            </button>
+          </div>
         </div>
         <div className="admin-snapshot-summary">
           <span>저장된 스캔 {snapshotTotal}건</span>
@@ -2327,6 +2352,49 @@ function createAdminActivitiesCsv(activities: AdminActivityItem[]) {
       activity.executionDraft?.approvedChangeCount ?? "",
       activity.executionDraft?.blockerCount ?? "",
       activity.executionDraft?.warningCount ?? ""
+    ])
+  ];
+
+  return rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
+}
+
+function createSnapshotHistoryCsv(snapshots: AccountSnapshotHistoryItem[]) {
+  const rows = [
+    [
+      "created_at",
+      "snapshot_id",
+      "actor_email",
+      "brand_name",
+      "product_type",
+      "site_url",
+      "partial",
+      "channels",
+      "campaigns",
+      "product_groups",
+      "diff_compared_at",
+      "channel_diff",
+      "campaign_diff",
+      "product_group_diff",
+      "changed_labels",
+      "error_scopes"
+    ],
+    ...snapshots.map((snapshot) => [
+      snapshot.createdAt,
+      snapshot.id,
+      snapshot.actorEmail ?? "",
+      snapshot.brandName ?? "",
+      snapshot.productType ?? "",
+      snapshot.siteUrl ?? "",
+      snapshot.partial ? "true" : "false",
+      snapshot.counts.channels,
+      snapshot.counts.campaigns,
+      snapshot.counts.productGroups,
+      snapshot.diff?.comparedAt ?? "",
+      snapshot.diff ? snapshotDiffLabel(snapshot.diff.channels) : "",
+      snapshot.diff ? snapshotDiffLabel(snapshot.diff.campaigns) : "",
+      snapshot.diff ? snapshotDiffLabel(snapshot.diff.productGroups) : "",
+      snapshot.diff ? snapshotDiffPreview(snapshot.diff) : "",
+      snapshot.errorScopes.join("; ")
     ])
   ];
 

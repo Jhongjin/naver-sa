@@ -145,6 +145,7 @@ Recent operational queue:
 - Performance sync readiness now exposes scheduler state, but automatic cron execution remains off until target IDs, cadence, and failure notification policy are confirmed.
 - Saved history detail supports authenticated internal link copy and Markdown operating memo export without embedding raw payload bodies.
 - Admin recent saved activities can be exported as a filter-aware CSV for handoff and QA review.
+- Admin account snapshot history can be exported as CSV with counts, diff summaries, and warning scopes.
 - API route files explicitly export common method handlers so unsupported methods return no-store 405 responses instead of Next.js default cacheable responses.
 - Production verification after each queue checks `/api/health`, `/api/supabase/readiness`, and the relevant protected API route for no-store authentication/method behavior.
 

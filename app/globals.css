@@ -5114,6 +5114,14 @@ td span {
   justify-content: flex-end;
 }
 
+.admin-snapshot-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .admin-activity-limit {
   grid-template-columns: repeat(2, minmax(54px, 1fr));
 }
@@ -6655,6 +6663,11 @@ td span {
 
   .admin-snapshot-heading {
     flex-direction: column;
+  }
+
+  .admin-snapshot-actions {
+    justify-content: flex-start;
+    width: 100%;
   }
 
   .admin-performance-heading {
