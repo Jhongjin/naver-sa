@@ -1192,6 +1192,7 @@ function AdminUsersContent() {
     }
 
     const response = await fetch("/api/naver/readiness?check=campaigns", {
+      cache: "no-store",
       headers: {
         authorization: `Bearer ${token}`
       }

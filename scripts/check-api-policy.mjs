@@ -646,6 +646,7 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(adminClientSource, adminClientPath, 'fetch(`/api/admin/activity?${activityParams.toString()}`, {\n      cache: "no-store"');
   requireSourceIncludes(adminClientSource, adminClientPath, 'fetch("/api/naver/account-snapshot/history?limit=8", {\n      cache: "no-store"');
   requireSourceIncludes(adminClientSource, adminClientPath, 'fetch(`/api/admin/audit-events?${params.toString()}`, {\n      cache: "no-store"');
+  requireSourceIncludes(adminClientSource, adminClientPath, 'fetch("/api/naver/readiness?check=campaigns", {\n      cache: "no-store"');
   requireSourceExcludes(
     adminClientSource,
     adminClientPath,
