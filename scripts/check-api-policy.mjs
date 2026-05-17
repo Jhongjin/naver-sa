@@ -103,6 +103,28 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, 'externalWriteExecution: "test-route-only"');
   }
 
+  if (relativePath === "app/api/health/route.ts") {
+    requireSourceIncludes(source, relativePath, "secretNamesExcluded: true");
+    requireSourceIncludes(source, relativePath, "environmentVariableNamesExcluded: true");
+    requireSourceIncludes(source, relativePath, "requiredPresentCount");
+    requireSourceIncludes(source, relativePath, "requiredTotalCount");
+    requireSourceIncludes(source, relativePath, "recommendedPresentCount");
+    requireSourceIncludes(source, relativePath, "recommendedTotalCount");
+
+    const healthBody = getSourceSegment(source, relativePath, "return jsonNoStore({", "\n  });\n}");
+
+    requireSourceExcludes(healthBody, relativePath, "requiredVariables", "public health must not return env var names");
+    requireSourceExcludes(healthBody, relativePath, "recommendedVariables", "public health must not return env var names");
+    requireSourceExcludes(healthBody, relativePath, "variables:", "public health must not return env var arrays");
+    requireSourceExcludes(healthBody, relativePath, "recommended:", "public health must not return env var arrays");
+    requireSourceExcludes(healthBody, relativePath, "name:", "public health must not return individual env var names");
+    requireSourceExcludes(healthBody, relativePath, "SUPABASE_SERVICE_ROLE_KEY", "public health must not expose secret env names");
+    requireSourceExcludes(healthBody, relativePath, "NAVER_SEARCH_AD_SECRET_KEY", "public health must not expose secret env names");
+    requireSourceExcludes(healthBody, relativePath, "OPENAI_API_KEY", "public health must not expose secret env names");
+    requireSourceExcludes(healthBody, relativePath, "CRON_SECRET", "public health must not expose secret env names");
+    requireSourceExcludes(healthBody, relativePath, "ENCRYPTION_KEY", "public health must not expose secret env names");
+  }
+
   if (relativePath === "app/api/naver/performance-sync/cron/route.ts") {
     requireSourceIncludes(source, relativePath, "authorization !== `Bearer ${cronSecret}`");
     requireSourceIncludes(source, relativePath, "heartbeatRecorded");

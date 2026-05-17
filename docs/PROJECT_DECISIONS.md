@@ -190,6 +190,7 @@ Recent operational queue:
 - Saved history list and admin activity responses now exclude internal creator user UUIDs while keeping display-safe creator labels.
 - The legacy `/api/operator/session` endpoint remains a 410 deprecated surface; Supabase Auth `/api/auth/session` is the only active session API.
 - Saved history detail now maps audit rows to safe display fields and excludes raw audit `before_value`/`after_value` payloads from the UI response.
+- Public health responses now include explicit markers that secret and environment variable names are excluded, with static checks enforcing aggregate-only env reporting.
 
 ## UX Direction
 

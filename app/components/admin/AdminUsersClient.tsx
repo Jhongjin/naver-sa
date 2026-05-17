@@ -111,6 +111,8 @@ type NaverReadinessCheckResponse = {
 
 type AppHealthResponse = {
   ok: boolean;
+  secretNamesExcluded: true;
+  environmentVariableNamesExcluded: true;
   environment: {
     requiredPresentCount: number;
     requiredTotalCount: number;

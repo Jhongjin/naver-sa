@@ -44,6 +44,8 @@ export function GET() {
   }));
   const requiredPresentCount = variables.filter((variable) => variable.present).length;
   const recommendedPresentCount = recommended.filter((variable) => variable.present).length;
+  const requiredTotalCount = requiredVariables.length;
+  const recommendedTotalCount = recommendedVariables.length;
   const warnings = recommended
     .filter((variable) => !variable.present)
     .map(
@@ -52,12 +54,14 @@ export function GET() {
     );
 
   return jsonNoStore({
-    ok: requiredPresentCount === variables.length,
+    ok: requiredPresentCount === requiredTotalCount,
+    secretNamesExcluded: true,
+    environmentVariableNamesExcluded: true,
     environment: {
       requiredPresentCount,
-      requiredTotalCount: variables.length,
+      requiredTotalCount,
       recommendedPresentCount,
-      recommendedTotalCount: recommended.length
+      recommendedTotalCount
     },
     warnings,
     adminBootstrap: {
