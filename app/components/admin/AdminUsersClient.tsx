@@ -255,6 +255,10 @@ type AdminAuditEventsResponse = {
   events: AdminAuditEventItem[];
   total: number;
   limit: number;
+  filter?: {
+    group: "all" | "admin" | "ops";
+    eventType: string | null;
+  };
 };
 
 type PerformanceSyncPlanItem = {
@@ -748,7 +752,7 @@ function AdminUsersContent() {
     setSnapshotMessage(data.warning ?? "");
   }, [getAccessToken]);
 
-  const loadAdminAuditEvents = useCallback(async () => {
+  const loadAdminAuditEvents = useCallback(async (filter: AuditEventFilter = "all") => {
     setAuditStatus("loading");
     setAuditMessage("");
     const token = await getAccessToken();
@@ -759,7 +763,16 @@ function AdminUsersContent() {
       return;
     }
 
-    const response = await fetch("/api/admin/audit-events?limit=8", {
+    const params = new URLSearchParams({
+      limit: "20"
+    });
+    const serverFilter = auditServerFilterParams(filter);
+
+    for (const [key, value] of Object.entries(serverFilter)) {
+      params.set(key, value);
+    }
+
+    const response = await fetch(`/api/admin/audit-events?${params.toString()}`, {
       headers: {
         authorization: `Bearer ${token}`
       }
@@ -1862,7 +1875,12 @@ function AdminUsersContent() {
               className="icon-button subtle"
               disabled={auditStatus === "loading"}
               type="button"
-              onClick={loadAdminAuditEvents}
+              onClick={() => {
+                loadAdminAuditEvents(auditEventFilter).catch(() => {
+                  setAuditStatus("error");
+                  setAuditMessage("관리 이벤트를 불러오지 못했습니다.");
+                });
+              }}
             >
               <RefreshCw size={17} />
               {auditStatus === "loading" ? "불러오는 중" : "이벤트 새로고침"}
@@ -1912,7 +1930,13 @@ function AdminUsersContent() {
               className={auditEventFilter === filter ? "active" : ""}
               key={filter}
               type="button"
-              onClick={() => setAuditEventFilter(filter)}
+              onClick={() => {
+                setAuditEventFilter(filter);
+                loadAdminAuditEvents(filter).catch(() => {
+                  setAuditStatus("error");
+                  setAuditMessage("관리 이벤트를 불러오지 못했습니다.");
+                });
+              }}
             >
               {auditEventFilterLabel(filter)}
             </button>
@@ -2681,6 +2705,34 @@ function auditEventMatchesFilter(event: AdminAuditEventItem, filter: AuditEventF
     !event.eventType.startsWith("ops.") &&
     !["admin.user.invited", "admin.user.email_confirmed", "admin.user.role_changed"].includes(event.eventType)
   );
+}
+
+function auditServerFilterParams(filter: AuditEventFilter): Record<string, string> {
+  if (filter === "ops") {
+    return {
+      group: "ops"
+    };
+  }
+
+  if (filter === "invited") {
+    return {
+      eventType: "admin.user.invited"
+    };
+  }
+
+  if (filter === "emailConfirmed") {
+    return {
+      eventType: "admin.user.email_confirmed"
+    };
+  }
+
+  if (filter === "roleChanged") {
+    return {
+      eventType: "admin.user.role_changed"
+    };
+  }
+
+  return {};
 }
 
 function roleSourceLabel(value: ManagedUser["roleSource"]) {

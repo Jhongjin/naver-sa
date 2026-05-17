@@ -56,12 +56,23 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const limit = clampLimit(url.searchParams.get("limit"));
-  const { data, error, count } = await supabase
+  const filter = coerceAuditFilter(url.searchParams);
+  let query = supabase
     .from("audit_events")
     .select("id, event_type, actor, entity_type, entity_id, after_value, reason, created_at", { count: "exact" })
-    .or("event_type.like.admin.%,event_type.like.ops.%")
-    .order("created_at", { ascending: false })
-    .limit(limit);
+    .order("created_at", { ascending: false });
+
+  if (filter.eventType) {
+    query = query.eq("event_type", filter.eventType);
+  } else if (filter.group === "ops") {
+    query = query.like("event_type", "ops.%");
+  } else if (filter.group === "admin") {
+    query = query.like("event_type", "admin.%");
+  } else {
+    query = query.or("event_type.like.admin.%,event_type.like.ops.%");
+  }
+
+  const { data, error, count } = await query.limit(limit);
 
   if (error) {
     return jsonNoStore({ ok: false, error: sanitizeAuditError(error.message) }, { status: 502 });
@@ -71,7 +82,8 @@ export async function GET(request: Request) {
     ok: true,
     events: ((data ?? []) as AuditEventRow[]).map(toAuditEventItem),
     total: count ?? data?.length ?? 0,
-    limit
+    limit,
+    filter
   });
 }
 
@@ -147,6 +159,34 @@ function clampLimit(value: string | null): number {
   }
 
   return Math.min(Math.max(parsed, 1), 20);
+}
+
+function coerceAuditFilter(searchParams: URLSearchParams): {
+  group: "all" | "admin" | "ops";
+  eventType: string | null;
+} {
+  const eventType = searchParams.get("eventType");
+
+  if (eventType && /^(admin|ops)\.[a-z0-9_.]+$/i.test(eventType)) {
+    return {
+      group: eventType.startsWith("ops.") ? "ops" : "admin",
+      eventType
+    };
+  }
+
+  const group = searchParams.get("group");
+
+  if (group === "ops" || group === "admin") {
+    return {
+      group,
+      eventType: null
+    };
+  }
+
+  return {
+    group: "all",
+    eventType: null
+  };
 }
 
 function sanitizeAuditError(message: string): string {
