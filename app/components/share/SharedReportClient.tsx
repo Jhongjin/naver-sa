@@ -6,6 +6,27 @@ import { useEffect, useMemo, useState } from "react";
 import { formatKoreanDateTime, formatKoreanNumber, formatWon } from "@/lib/formatters";
 import { draftStatusClass, draftStatusLabel, plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
 
+type PublicPlannerMetadata = {
+  captured: boolean;
+  industryTemplateName: string;
+  benchmarkFeatureSummary: {
+    total: number;
+    implemented: number;
+    partial: number;
+    planned: number;
+  };
+  benchmarkFeatures: Array<{
+    name: string;
+    status: "implemented" | "partial" | "planned";
+  }>;
+  operationRules: Array<{
+    name: string;
+    trigger: string;
+    recommendation: string;
+    automationLevel: string;
+  }>;
+};
+
 type SharedReportResponse =
   | {
       ok: true;
@@ -29,6 +50,7 @@ type SharedReportResponse =
         createdAt: string;
         workspaceName: string | null;
         workspaceMode: "agency" | "advertiser" | null;
+        plannerMetadata: PublicPlannerMetadata;
       };
       approvalSummary: {
         approved: number;
@@ -79,8 +101,8 @@ type SharedReportResponse =
           canExecuteTest?: boolean;
           blockerCount?: number;
           warningCount?: number;
-          blockers?: Array<{ code: string; payloadId?: string; message: string }>;
-          warnings?: Array<{ code: string; payloadId?: string; message: string }>;
+          blockers?: Array<{ code: string; message: string }>;
+          warnings?: Array<{ code: string; message: string }>;
         } | null;
         generatedAt: string;
         createdAt: string;
@@ -91,6 +113,7 @@ type SharedReportResponse =
         rawPayloadExcluded: boolean;
         idempotencyKeysExcluded: boolean;
         auditExcluded: boolean;
+        plannerMetadataSanitized: boolean;
       };
     }
   | {
@@ -284,6 +307,10 @@ export function SharedReportClient({ token }: { token: string }) {
                     <dt>모드</dt>
                     <dd>{plannerModeLabel(data.run.mode)}</dd>
                   </div>
+                  <div>
+                    <dt>업종 템플릿</dt>
+                    <dd>{data.run.plannerMetadata.industryTemplateName}</dd>
+                  </div>
                 </dl>
               </article>
 
@@ -355,6 +382,43 @@ export function SharedReportClient({ token }: { token: string }) {
               </div>
             </article>
 
+            {data.run.plannerMetadata.captured ? (
+              <article className="history-detail-panel">
+                <div className="history-panel-title">
+                  <ShieldCheck size={19} />
+                  <div>
+                    <p className="eyebrow">Strategy</p>
+                    <h2>전략 근거</h2>
+                  </div>
+                </div>
+                <div className="history-keyword-list">
+                  <div>
+                    <strong>{data.run.plannerMetadata.industryTemplateName}</strong>
+                    <span>벤치마크 {formatKoreanNumber(data.run.plannerMetadata.benchmarkFeatureSummary.total)}건</span>
+                    <em>
+                      구현 {data.run.plannerMetadata.benchmarkFeatureSummary.implemented} / 일부{" "}
+                      {data.run.plannerMetadata.benchmarkFeatureSummary.partial} / 계획{" "}
+                      {data.run.plannerMetadata.benchmarkFeatureSummary.planned}
+                    </em>
+                  </div>
+                  {data.run.plannerMetadata.benchmarkFeatures.slice(0, 3).map((feature) => (
+                    <div key={feature.name}>
+                      <strong>{feature.name}</strong>
+                      <span>{featureStatusLabel(feature.status)}</span>
+                      <em>벤치마크 상태</em>
+                    </div>
+                  ))}
+                  {data.run.plannerMetadata.operationRules.slice(0, 4).map((rule) => (
+                    <div key={rule.name}>
+                      <strong>{rule.name}</strong>
+                      <span>{rule.trigger || "트리거 미기록"}</span>
+                      <em>{rule.recommendation || "추천 미기록"}</em>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ) : null}
+
             {data.run.productType === "shoppingSearch" ? (
               <article className="history-detail-panel">
                 <div className="history-panel-title">
@@ -406,6 +470,16 @@ function decisionClass(decision: string) {
 
 function riskLabel(risk: string) {
   return risk === "low" ? "낮음" : risk === "medium" ? "검토" : "차단";
+}
+
+function featureStatusLabel(status: PublicPlannerMetadata["benchmarkFeatures"][number]["status"]) {
+  const labels = {
+    implemented: "구현됨",
+    partial: "일부 반영",
+    planned: "계획"
+  };
+
+  return labels[status];
 }
 
 function getSharedReportError(response: SharedReportResponse, fallback: string) {

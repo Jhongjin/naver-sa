@@ -124,6 +124,16 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "productGroups:");
     requireSourceIncludes(source, relativePath, "planning_product_groups");
     requireSourceIncludes(source, relativePath, "sanitizePublicValidation(draft.validation)");
+    requireSourceIncludes(source, relativePath, "coercePlannerMetadata");
+    requireSourceIncludes(source, relativePath, "toPublicPlannerMetadata");
+    requireSourceIncludes(source, relativePath, "hasPlannerMetadataSupport");
+    requireSourceIncludes(source, relativePath, "industry_template");
+    requireSourceIncludes(source, relativePath, "benchmark_features");
+    requireSourceIncludes(source, relativePath, "operation_rules");
+    requireSourceIncludes(source, relativePath, "plannerMetadataSanitized: true");
+    requireSourceIncludes(source, relativePath, "industryTemplateName");
+    requireSourceIncludes(source, relativePath, "benchmarkFeatureSummary");
+    requireSourceIncludes(source, relativePath, "operationRules");
     requireSourceIncludes(source, relativePath, 'select("id",');
     requireSourceIncludes(source, relativePath, "head: true");
     requireSourceExcludes(source, relativePath, '.select("body', "public report route must not select raw execution payload bodies");
@@ -140,6 +150,8 @@ for (const file of routeFiles) {
     );
 
     requireSourceIncludes(publicReportBody, relativePath, "productGroups:");
+    requireSourceIncludes(publicReportBody, relativePath, "plannerMetadata:");
+    requireSourceIncludes(publicReportBody, relativePath, "plannerMetadataSanitized: true");
     requireSourceIncludes(publicReportBody, relativePath, "sourceGroup: group.source_group");
     requireSourceIncludes(publicReportBody, relativePath, "queryCount: group.query_count");
     requireSourceIncludes(publicReportBody, relativePath, "productHints: group.product_hints");
@@ -154,6 +166,10 @@ for (const file of routeFiles) {
     requireSourceExcludes(publicReportBody, relativePath, "idempotencyKey:", "public report body must not expose idempotency keys");
     requireSourceExcludes(publicReportBody, relativePath, "payloadId", "public report body must not expose internal payload ids");
     requireSourceExcludes(publicReportBody, relativePath, "share.id", "public report body must not expose share-link row ids");
+    requireSourceExcludes(publicReportBody, relativePath, "createdBy", "public report body must not expose internal creator identity");
+    requireSourceExcludes(publicReportBody, relativePath, "landingChecks", "public report body must not expose full planner template internals");
+    requireSourceExcludes(publicReportBody, relativePath, "copyRules", "public report body must not expose full planner template internals");
+    requireSourceExcludes(publicReportBody, relativePath, "negativeThemes", "public report body must not expose full planner template internals");
   }
 }
 
@@ -265,6 +281,19 @@ function requireProjectSurfaceChecks() {
     adminClientPath,
     "ops.performance_sync.*",
     "admin ops alert summary must cover all ops.* events, not only performance sync"
+  );
+
+  const sharedReportClientPath = "app/components/share/SharedReportClient.tsx";
+  const sharedReportClientSource = readProjectFile(sharedReportClientPath);
+
+  requireSourceIncludes(sharedReportClientSource, sharedReportClientPath, "plannerMetadata");
+  requireSourceIncludes(sharedReportClientSource, sharedReportClientPath, "plannerMetadataSanitized");
+  requireSourceIncludes(sharedReportClientSource, sharedReportClientPath, "전략 근거");
+  requireSourceExcludes(
+    sharedReportClientSource,
+    sharedReportClientPath,
+    "payloadId",
+    "shared report UI must not type or render internal payload ids"
   );
 }
 

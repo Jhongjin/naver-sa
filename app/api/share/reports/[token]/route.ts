@@ -1,4 +1,5 @@
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
+import { coercePlannerMetadata } from "@/lib/planner-metadata";
 import {
   hashReportShareToken,
   isMissingReportShareTableError,
@@ -51,6 +52,9 @@ type PlanningRunRow = {
   mode: "agency" | "advertiser";
   product_type: "powerlink" | "shoppingSearch";
   seed_keywords: string[];
+  industry_template?: Record<string, unknown> | null;
+  benchmark_features?: unknown[] | null;
+  operation_rules?: unknown[] | null;
   created_at: string;
 };
 
@@ -171,11 +175,24 @@ export async function GET(_request: Request, context: RouteContext) {
     return jsonNoStore({ ok: false, error: "Shared report link has expired." }, { status: 410 });
   }
 
+  const plannerMetadataSupport = await hasPlannerMetadataSupport(supabase);
+  const planningRunSelect = [
+    "id",
+    "workspace_id",
+    "brand_name",
+    "site_url",
+    "vertical",
+    "monthly_budget",
+    "max_bid",
+    "mode",
+    "product_type",
+    "seed_keywords",
+    ...(plannerMetadataSupport ? ["industry_template", "benchmark_features", "operation_rules"] : []),
+    "created_at"
+  ].join(", ");
   const { data: runData, error: runError } = await supabase
     .from("planning_runs")
-    .select(
-      "id, workspace_id, brand_name, site_url, vertical, monthly_budget, max_bid, mode, product_type, seed_keywords, created_at"
-    )
+    .select(planningRunSelect)
     .eq("id", share.planning_run_id)
     .single();
 
@@ -183,7 +200,7 @@ export async function GET(_request: Request, context: RouteContext) {
     return jsonNoStore({ ok: false, error: "Shared report was not found." }, { status: 404 });
   }
 
-  const run = runData as PlanningRunRow;
+  const run = runData as unknown as PlanningRunRow;
   let workspace: WorkspaceRow | null = null;
 
   if (run.workspace_id) {
@@ -276,7 +293,13 @@ export async function GET(_request: Request, context: RouteContext) {
       seedKeywords: run.seed_keywords,
       createdAt: run.created_at,
       workspaceName: workspace?.name ?? null,
-      workspaceMode: workspace?.mode ?? null
+      workspaceMode: workspace?.mode ?? null,
+      plannerMetadata: toPublicPlannerMetadata({
+        captured: plannerMetadataSupport,
+        industryTemplate: run.industry_template ?? null,
+        benchmarkFeatures: run.benchmark_features ?? [],
+        operationRules: run.operation_rules ?? []
+      })
     },
     approvalSummary: summarizeChanges(changes),
     keywords: ((keywordsResult.data ?? []) as PlanningKeywordRow[]).map((keyword) => ({
@@ -329,7 +352,8 @@ export async function GET(_request: Request, context: RouteContext) {
       deleteBlocked: true,
       rawPayloadExcluded: true,
       idempotencyKeysExcluded: true,
-      auditExcluded: true
+      auditExcluded: true,
+      plannerMetadataSanitized: true
     }
   });
 }
@@ -373,10 +397,52 @@ function sanitizePublicValidation(validation: ExecutionDraftRow["validation"]) {
   };
 }
 
+function toPublicPlannerMetadata(input: {
+  captured: boolean;
+  industryTemplate?: Record<string, unknown> | null;
+  benchmarkFeatures?: unknown[] | null;
+  operationRules?: unknown[] | null;
+}) {
+  const metadata = coercePlannerMetadata(input);
+  const benchmarkFeatureSummary = metadata.benchmarkFeatures.reduce(
+    (summary, feature) => ({
+      ...summary,
+      [feature.status]: summary[feature.status] + 1
+    }),
+    { total: metadata.benchmarkFeatures.length, implemented: 0, partial: 0, planned: 0 }
+  );
+
+  return {
+    captured: metadata.captured,
+    industryTemplateName: metadata.industryTemplate.name,
+    benchmarkFeatureSummary,
+    benchmarkFeatures: metadata.benchmarkFeatures.slice(0, 6).map((feature) => ({
+      name: feature.name,
+      status: feature.status
+    })),
+    operationRules: metadata.operationRules.slice(0, 6).map((rule) => ({
+      name: rule.name,
+      trigger: rule.trigger,
+      recommendation: rule.recommendation,
+      automationLevel: rule.automationLevel
+    }))
+  };
+}
+
 async function hasPlanningProductGroupSupport(
   supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
 ): Promise<boolean> {
   const { error } = await supabase.from("planning_product_groups").select("id", {
+    head: true
+  });
+
+  return !error;
+}
+
+async function hasPlannerMetadataSupport(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
+): Promise<boolean> {
+  const { error } = await supabase.from("planning_runs").select("id,industry_template,benchmark_features,operation_rules", {
     head: true
   });
 

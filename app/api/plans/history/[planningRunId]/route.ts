@@ -1,6 +1,7 @@
 import { verifyUserAccess } from "@/lib/auth-access";
 import type { NaverExecutionContext } from "@/lib/execution-draft";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
+import { coercePlannerMetadata } from "@/lib/planner-metadata";
 import { coerceShoppingLinkageSummary } from "@/lib/shopping-linkage";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
@@ -381,12 +382,12 @@ export async function GET(request: Request, context: RouteContext) {
       assumptions: planningRun.assumptions,
       shoppingLinkage: coerceShoppingLinkageSummary(planningRun.shopping_linkage ?? null, planningRun.product_type),
       shoppingLinkageCaptured: shoppingLinkageSupport,
-      plannerMetadata: {
+      plannerMetadata: coercePlannerMetadata({
         captured: plannerMetadataSupport,
-        industryTemplate: coerceIndustryTemplate(planningRun.industry_template ?? null),
-        benchmarkFeatures: coerceBenchmarkFeatures(planningRun.benchmark_features ?? []),
-        operationRules: coerceOperationRules(planningRun.operation_rules ?? [])
-      },
+        industryTemplate: planningRun.industry_template ?? null,
+        benchmarkFeatures: planningRun.benchmark_features ?? [],
+        operationRules: planningRun.operation_rules ?? []
+      }),
       createdBy: planningRun.created_by,
       createdByUserId: planningRun.created_by_user_id,
       workspaceId: planningRun.workspace_id,
@@ -614,49 +615,6 @@ function toExecutionContext(value: Record<string, unknown> | null): NaverExecuti
   }
 
   return context;
-}
-
-function coerceIndustryTemplate(value: Record<string, unknown> | null) {
-  return {
-    name: stringField(value?.name, "미기록"),
-    landingChecks: stringArrayField(value?.landingChecks),
-    copyRules: stringArrayField(value?.copyRules),
-    negativeThemes: stringArrayField(value?.negativeThemes)
-  };
-}
-
-function coerceBenchmarkFeatures(value: unknown[]) {
-  return value.filter(isRecord).map((item) => ({
-    name: stringField(item.name, "Unnamed feature"),
-    status:
-      item.status === "implemented" || item.status === "partial" || item.status === "planned"
-        ? item.status
-        : "planned",
-    description: stringField(item.description, "")
-  }));
-}
-
-function coerceOperationRules(value: unknown[]) {
-  return value.filter(isRecord).map((item) => ({
-    name: stringField(item.name, "Unnamed rule"),
-    trigger: stringField(item.trigger, ""),
-    recommendation: stringField(item.recommendation, ""),
-    automationLevel: stringField(item.automationLevel, "")
-  }));
-}
-
-function stringField(value: unknown, fallback: string): string {
-  return typeof value === "string" && value.trim() ? value.trim().slice(0, 240) : fallback;
-}
-
-function stringArrayField(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).map((item) => item.slice(0, 240))
-    : [];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function createDraftPayloadResultKey(executionDraftId: string, payloadKey: string): string {

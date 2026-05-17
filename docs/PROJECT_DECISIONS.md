@@ -180,6 +180,7 @@ Recent operational queue:
 - Planner-generated industry templates, benchmark features, and operating rules can now be persisted on `planning_runs` and shown in saved-history detail/memo exports, preserving the operational rationale behind each saved plan.
 - API policy verification now guards those newer history surfaces too: public reports must stay redacted while allowing safe product-group summaries, planning-save failure alerts must remain visible, readiness must list the optional persistence features, and admin ops summaries must cover every `ops.*` event family.
 - The admin operational health panel now surfaces Supabase optional feature readiness counts and per-feature status pills, so operators can see whether share links, Shopping Search linkage/product groups, execution context, and planner metadata migrations are installed.
+- Limited public reports now include sanitized planner metadata, including the industry template name, benchmark feature summaries, and operation rules, while continuing to exclude full planner template internals, raw payloads, audit internals, idempotency keys, payload ids, and creator identity.
 
 ## UX Direction
 
