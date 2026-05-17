@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import { formatCompactWon, formatKoreanDateTime, formatKoreanNumber } from "@/lib/formatters";
 import {
   shoppingLinkageStatusClass,
@@ -77,6 +78,14 @@ type ProductFilter = "all" | "powerlink" | "shoppingSearch";
 type DraftFilter = "all" | "ready" | "blocked" | "failed" | "executed" | "none";
 type DateFilter = "all" | "7" | "30";
 type ShoppingLinkageFilter = "all" | ShoppingLinkageStatus;
+
+function visibleHistoryListError(message: string | null | undefined, fallback: string) {
+  return redactSensitiveErrorText(message, fallback);
+}
+
+function visibleCaughtHistoryListError(error: unknown, fallback: string) {
+  return visibleHistoryListError(error instanceof Error ? error.message : undefined, fallback);
+}
 
 export function HistoryListClient() {
   return (
@@ -170,7 +179,7 @@ function HistoryListContent() {
     const data = (await response.json()) as HistoryResponse | { ok?: false; error?: string };
 
     if (!response.ok || data.ok !== true) {
-      throw new Error("error" in data && data.error ? data.error : "저장 이력을 불러오지 못했습니다.");
+      throw new Error(visibleHistoryListError("error" in data ? data.error : undefined, "저장 이력을 불러오지 못했습니다."));
     }
 
     return data;
@@ -190,7 +199,7 @@ function HistoryListContent() {
       setStatus("idle");
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "저장 이력을 불러오지 못했습니다.");
+      setMessage(visibleCaughtHistoryListError(error, "저장 이력을 불러오지 못했습니다."));
     }
   }, [fetchHistory]);
 
@@ -212,7 +221,7 @@ function HistoryListContent() {
       setStatus("idle");
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "저장 이력을 더 불러오지 못했습니다.");
+      setMessage(visibleCaughtHistoryListError(error, "저장 이력을 더 불러오지 못했습니다."));
     }
   }
 

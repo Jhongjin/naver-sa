@@ -789,6 +789,8 @@ function requireProjectSurfaceChecks() {
 
   requireSourceIncludes(sharedReportClientSource, sharedReportClientPath, "plannerMetadata");
   requireSourceIncludes(sharedReportClientSource, sharedReportClientPath, "plannerMetadataSanitized");
+  requireSourceIncludes(sharedReportClientSource, sharedReportClientPath, "redactSensitiveErrorText");
+  requireSourceIncludes(sharedReportClientSource, sharedReportClientPath, "visibleSharedReportError");
   requireSourceIncludes(sharedReportClientSource, sharedReportClientPath, "전략 근거");
   requireSourceIncludes(sharedReportClientSource, sharedReportClientPath, 'fetch(`/api/share/reports/${encodeURIComponent(token)}`, { cache: "no-store" })');
   requireSourceExcludes(
@@ -796,6 +798,18 @@ function requireProjectSurfaceChecks() {
     sharedReportClientPath,
     "payloadId",
     "shared report UI must not type or render internal payload ids"
+  );
+  requireSourceExcludes(
+    sharedReportClientSource,
+    sharedReportClientPath,
+    "setMessage(error instanceof Error ? error.message",
+    "shared report visible errors must be redacted before display"
+  );
+  requireSourceExcludes(
+    sharedReportClientSource,
+    sharedReportClientPath,
+    "return \"error\" in response && response.error ? response.error : fallback",
+    "shared report response errors must be redacted before display"
   );
 
   const authFormPath = "app/components/auth/AuthForm.tsx";
@@ -812,6 +826,8 @@ function requireProjectSurfaceChecks() {
 
   requireSourceIncludes(historyListClientSource, historyListClientPath, "linkageFilter");
   requireSourceIncludes(historyListClientSource, historyListClientPath, "coerceShoppingLinkageFilter");
+  requireSourceIncludes(historyListClientSource, historyListClientPath, "redactSensitiveErrorText");
+  requireSourceIncludes(historyListClientSource, historyListClientPath, "visibleHistoryListError");
   requireSourceIncludes(historyListClientSource, historyListClientPath, 'params.set("linkage", linkageFilter)');
   requireSourceIncludes(historyListClientSource, historyListClientPath, "쇼핑 linkage 필터");
   requireSourceIncludes(historyListClientSource, historyListClientPath, "internalCreatorUserIdsExcluded");
@@ -821,6 +837,18 @@ function requireProjectSurfaceChecks() {
     historyListClientPath,
     "createdByUserId",
     "history list UI must not type or render internal creator user ids"
+  );
+  requireSourceExcludes(
+    historyListClientSource,
+    historyListClientPath,
+    "throw new Error(\"error\" in data && data.error ? data.error",
+    "history list response errors must be redacted before display"
+  );
+  requireSourceExcludes(
+    historyListClientSource,
+    historyListClientPath,
+    "setMessage(error instanceof Error ? error.message",
+    "history list visible errors must be redacted before display"
   );
   requireCsvExportSafety(
     historyListClientSource,
@@ -904,6 +932,8 @@ function requireProjectSurfaceChecks() {
 
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "internalUserIdsExcluded");
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "auditRawValuesExcluded");
+  requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "redactSensitiveErrorText");
+  requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "visibleHistoryDetailError");
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "workspaceOwnerMatchesCreator");
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "createdByUserLinked");
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "event.eventType");
@@ -938,6 +968,30 @@ function requireProjectSurfaceChecks() {
     historyDetailClientPath,
     "event_type",
     "history detail UI must consume mapped camelCase audit event fields"
+  );
+  requireSourceExcludes(
+    historyDetailClientSource,
+    historyDetailClientPath,
+    "throw new Error(\"error\" in body && body.error ? body.error",
+    "history detail response errors must be redacted before display"
+  );
+  requireSourceExcludes(
+    historyDetailClientSource,
+    historyDetailClientPath,
+    "setMessage(error instanceof Error ? error.message",
+    "history detail visible errors must be redacted before display"
+  );
+  requireSourceExcludes(
+    historyDetailClientSource,
+    historyDetailClientPath,
+    "setShareMessage(error instanceof Error ? error.message",
+    "history detail share errors must be redacted before display"
+  );
+  requireSourceExcludes(
+    historyDetailClientSource,
+    historyDetailClientPath,
+    "return \"error\" in response && response.error ? response.error : fallback",
+    "history detail share response errors must be redacted before display"
   );
 
   const plannerWorkspacePath = "app/components/PlannerWorkspace.tsx";

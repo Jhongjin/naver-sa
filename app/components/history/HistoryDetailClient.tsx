@@ -18,6 +18,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import { formatKoreanDateTime, formatKoreanNumber, formatWon } from "@/lib/formatters";
 import {
   shoppingLinkageStatusLabel,
@@ -239,6 +240,14 @@ type RevokeShareLinkResponse =
       migration?: string;
     };
 
+function visibleHistoryDetailError(message: string | null | undefined, fallback: string) {
+  return redactSensitiveErrorText(message, fallback);
+}
+
+function visibleCaughtHistoryDetailError(error: unknown, fallback: string) {
+  return visibleHistoryDetailError(error instanceof Error ? error.message : undefined, fallback);
+}
+
 export function HistoryDetailClient({ planningRunId }: { planningRunId: string }) {
   return (
     <AuthGate>
@@ -280,7 +289,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
       const body = (await response.json()) as HistoryDetailResponse | { ok?: false; error?: string };
 
       if (!response.ok || body.ok !== true) {
-        throw new Error("error" in body && body.error ? body.error : "저장 이력을 불러오지 못했습니다.");
+        throw new Error(visibleHistoryDetailError("error" in body ? body.error : undefined, "저장 이력을 불러오지 못했습니다."));
       }
 
       if (active) {
@@ -303,7 +312,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
       } catch (error) {
         if (active) {
           setShareStatus("error");
-          setShareMessage(error instanceof Error ? error.message : "공유 링크 상태를 불러오지 못했습니다.");
+          setShareMessage(visibleCaughtHistoryDetailError(error, "공유 링크 상태를 불러오지 못했습니다."));
         }
       }
     }
@@ -311,7 +320,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
     loadDetail().catch((error) => {
       if (active) {
         setStatus("error");
-        setMessage(error instanceof Error ? error.message : "저장 이력을 불러오지 못했습니다.");
+        setMessage(visibleCaughtHistoryDetailError(error, "저장 이력을 불러오지 못했습니다."));
       }
     });
 
@@ -431,7 +440,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
       setShareStatus("idle");
     } catch (error) {
       setShareStatus("error");
-      setShareMessage(error instanceof Error ? error.message : "공유 링크를 생성하지 못했습니다.");
+      setShareMessage(visibleCaughtHistoryDetailError(error, "공유 링크를 생성하지 못했습니다."));
     }
   }
 
@@ -467,7 +476,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
       setShareStatus("idle");
     } catch (error) {
       setShareStatus("error");
-      setShareMessage(error instanceof Error ? error.message : "공유 링크를 폐기하지 못했습니다.");
+      setShareMessage(visibleCaughtHistoryDetailError(error, "공유 링크를 폐기하지 못했습니다."));
     }
   }
 
@@ -1030,7 +1039,7 @@ function getShareResponseError(
   response: ShareLinksResponse | CreateShareLinkResponse | RevokeShareLinkResponse,
   fallback: string
 ) {
-  return "error" in response && response.error ? response.error : fallback;
+  return visibleHistoryDetailError("error" in response ? response.error : undefined, fallback);
 }
 
 function ownerContextLabel(ownerMatchesCreator: boolean | null) {

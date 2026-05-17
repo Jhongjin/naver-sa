@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Clock3, ExternalLink, FileText, KeyRound, ListChecks, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import { formatKoreanDateTime, formatKoreanNumber, formatWon } from "@/lib/formatters";
 import { draftStatusClass, draftStatusLabel, plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
 
@@ -122,6 +123,14 @@ type SharedReportResponse =
       installed?: boolean;
     };
 
+function visibleSharedReportError(message: string | null | undefined, fallback: string) {
+  return redactSensitiveErrorText(message, fallback);
+}
+
+function visibleCaughtSharedReportError(error: unknown, fallback: string) {
+  return visibleSharedReportError(error instanceof Error ? error.message : undefined, fallback);
+}
+
 export function SharedReportClient({ token }: { token: string }) {
   const [data, setData] = useState<Extract<SharedReportResponse, { ok: true }> | null>(null);
   const [status, setStatus] = useState<"loading" | "error" | "idle">("loading");
@@ -150,7 +159,7 @@ export function SharedReportClient({ token }: { token: string }) {
     loadSharedReport().catch((error) => {
       if (active) {
         setStatus("error");
-        setMessage(error instanceof Error ? error.message : "공유 리포트를 불러오지 못했습니다.");
+        setMessage(visibleCaughtSharedReportError(error, "공유 리포트를 불러오지 못했습니다."));
       }
     });
 
@@ -483,5 +492,5 @@ function featureStatusLabel(status: PublicPlannerMetadata["benchmarkFeatures"][n
 }
 
 function getSharedReportError(response: SharedReportResponse, fallback: string) {
-  return "error" in response && response.error ? response.error : fallback;
+  return visibleSharedReportError("error" in response ? response.error : undefined, fallback);
 }
