@@ -927,8 +927,13 @@ function AdminUsersContent() {
     );
   }
 
-  async function runPerformanceStatsPreview() {
-    const entityIds = parseEntityIds(performancePreviewIds);
+  async function runPerformanceStatsPreview(
+    overrides: { idsText?: string; dateFrom?: string; dateTo?: string } = {}
+  ) {
+    const idsText = overrides.idsText ?? performancePreviewIds;
+    const dateFrom = overrides.dateFrom ?? performancePreviewFrom;
+    const dateTo = overrides.dateTo ?? performancePreviewTo;
+    const entityIds = parseEntityIds(idsText);
 
     if (entityIds.length === 0) {
       setPerformancePreviewStatus("error");
@@ -954,8 +959,8 @@ function AdminUsersContent() {
       },
       body: JSON.stringify({
         entityIds,
-        dateFrom: performancePreviewFrom,
-        dateTo: performancePreviewTo,
+        dateFrom,
+        dateTo,
         fields: ["impCnt", "clkCnt", "salesAmt", "ctr", "cpc", "avgRnk"]
       })
     });
@@ -985,6 +990,24 @@ function AdminUsersContent() {
         ? `read-only stats preview 완료: ${data.request.entityCount}개 ID / ${data.history.rowCount ?? 0} rows 저장`
         : `read-only stats preview 완료: ${data.request.entityCount}개 ID 조회`
     );
+  }
+
+  async function rerunPerformancePreviewFromPlan(plan: PerformanceSyncPlanItem) {
+    if (plan.entityIds.length === 0) {
+      setPerformancePreviewStatus("error");
+      setPerformanceMessage("이 저장 이력에는 재조회할 연결 ID가 없습니다.");
+      return;
+    }
+
+    const idsText = plan.entityIds.join(", ");
+    setPerformancePreviewIds(idsText);
+    setPerformancePreviewFrom(plan.requestedFrom);
+    setPerformancePreviewTo(plan.requestedTo);
+    await runPerformanceStatsPreview({
+      idsText,
+      dateFrom: plan.requestedFrom,
+      dateTo: plan.requestedTo
+    });
   }
 
   return (
@@ -1412,6 +1435,23 @@ function AdminUsersContent() {
                   </p>
                   {plan.warnings.length > 0 ? <small>{plan.warnings[0]}</small> : null}
                   {plan.resultSummary.message ? <small>{plan.resultSummary.message}</small> : null}
+                  <div className="admin-performance-plan-actions">
+                    <button
+                      className="icon-button subtle"
+                      disabled={performancePreviewStatus === "loading" || plan.entityIds.length === 0}
+                      title={plan.entityIds.length === 0 ? "연결 ID가 있는 이력만 재조회할 수 있습니다." : undefined}
+                      type="button"
+                      onClick={() => {
+                        rerunPerformancePreviewFromPlan(plan).catch(() => {
+                          setPerformancePreviewStatus("error");
+                          setPerformanceMessage("저장 이력 기반 preview를 다시 불러오지 못했습니다.");
+                        });
+                      }}
+                    >
+                      <Activity size={16} />
+                      preview 재조회
+                    </button>
+                  </div>
                 </div>
                 <dl>
                   <div>

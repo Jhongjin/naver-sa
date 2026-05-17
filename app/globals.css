@@ -5529,6 +5529,19 @@ td span {
   margin: 4px 0 0;
 }
 
+.admin-performance-plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.admin-performance-plan-actions .icon-button {
+  font-size: 12px;
+  min-height: 34px;
+  padding: 8px 10px;
+}
+
 .admin-performance-list small {
   color: #b45309;
   display: block;
