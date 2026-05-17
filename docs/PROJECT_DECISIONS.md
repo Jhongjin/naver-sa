@@ -198,6 +198,7 @@ Recent operational queue:
 - Account snapshot history responses now exclude internal user UUIDs while preserving actor email labels, scope enforcement, and raw inventory exclusion markers.
 - Naver stage/readiness/account-snapshot responses no longer echo internal Supabase Auth access state; `/api/auth/session` remains the dedicated session summary surface.
 - Stage/execute draft responses and workspace draft downloads now use a public execution-draft shape that excludes idempotency keys while preserving payload review fields.
+- API policy verification now globally blocks raw auth access echoes, raw env missing arrays, and raw Naver config state in route responses.
 - Supabase readiness detail now sanitizes admin environment state and connectivity diagnostics, excluding raw env names and Supabase REST endpoint URLs while keeping counts and status checks.
 - Login/signup form errors now pass through the shared sensitive-text redaction helper before display, and API policy verification guards against raw Supabase Auth error messages being rendered directly.
 - Admin dashboard visible errors now pass through the shared sensitive-text redaction helper before display, including user, audit, share-link, Naver readiness, and performance sync panels.

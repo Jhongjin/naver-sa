@@ -22,6 +22,18 @@ for (const file of routeFiles) {
     failures.push(`${relativePath}: use Supabase Auth access checks instead of shared admin secrets`);
   }
 
+  if (source.includes("authAccess: access.state")) {
+    failures.push(`${relativePath}: do not echo internal auth access state in route responses`);
+  }
+
+  if (source.includes("missing: state.missing")) {
+    failures.push(`${relativePath}: return missingCount instead of environment variable names`);
+  }
+
+  if (source.includes("naver: naverState")) {
+    failures.push(`${relativePath}: return a public Naver config shape instead of raw config state`);
+  }
+
   if (!source.includes("jsonNoStore")) {
     failures.push(`${relativePath}: missing jsonNoStore no-cache response helper`);
   }
