@@ -137,6 +137,16 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "catch {");
   }
 
+  if (relativePath === "app/api/naver/readiness/route.ts") {
+    requireSourceIncludes(source, relativePath, "environmentVariableNamesExcluded: true");
+    requireSourceIncludes(source, relativePath, "baseUrlExcluded: true");
+    requireSourceIncludes(source, relativePath, "missingCount: state.missing.length");
+    requireSourceExcludes(source, relativePath, "\n        state,", "Naver readiness responses must not return raw config state");
+    requireSourceExcludes(source, relativePath, "\n    state,", "Naver readiness responses must not return raw config state");
+    requireSourceExcludes(source, relativePath, "baseUrl:", "Naver readiness responses must not return configured base URL");
+    requireSourceExcludes(source, relativePath, "missing:", "Naver readiness responses must not return env var names");
+  }
+
   if (relativePath === "app/api/supabase/readiness/route.ts") {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
     requireSourceIncludes(source, relativePath, "optionalFeatures");

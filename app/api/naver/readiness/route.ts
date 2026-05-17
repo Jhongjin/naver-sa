@@ -34,10 +34,12 @@ export async function GET(request: Request) {
   }
 
   if (!state.ready) {
+    const readiness = toPublicReadiness(state);
+
     return jsonNoStore(
       {
+        ...readiness,
         ok: false,
-        state,
         externalRequest: false,
         error: "Naver Search Ad API environment variables are incomplete."
       },
@@ -46,12 +48,19 @@ export async function GET(request: Request) {
   }
 
   const result = await listNaverCampaigns(1);
+  const readiness = toPublicReadiness(state);
 
   return jsonNoStore({
     ok: result.ok,
-    state,
+    ready: state.ready,
+    configuration: readiness.configuration,
+    environmentVariableNamesExcluded: true,
+    baseUrlExcluded: true,
     authAccess: access.state,
     externalRequest: true,
+    readOnlyEndpointCount: readiness.readOnlyEndpointCount,
+    writeExecution: readiness.writeExecution,
+    deleteExecution: readiness.deleteExecution,
     readOnlyCheck: result
   });
 }
@@ -60,6 +69,8 @@ function toPublicReadiness(state: NaverConfigState) {
   return {
     ok: state.ready,
     ready: state.ready,
+    environmentVariableNamesExcluded: true,
+    baseUrlExcluded: true,
     configuration: {
       ready: state.ready,
       missingCount: state.missing.length,
