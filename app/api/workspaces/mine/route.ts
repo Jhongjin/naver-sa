@@ -100,6 +100,8 @@ export async function GET(request: Request) {
     return jsonNoStore({
       ok: true,
       workspaces: [],
+      scopeEnforced: true,
+      internalOwnerIdExcluded: true,
       total: 0
     });
   }
@@ -146,7 +148,7 @@ export async function GET(request: Request) {
         id: workspace.id,
         name: workspace.name,
         mode: workspace.mode,
-        ownerUserId: workspace.owner_user_id,
+        isOwner: workspace.owner_user_id === access.state.userId || membership?.role === "owner",
         role: membership?.role ?? "owner",
         memberEmail: membership?.email ?? access.state.email,
         memberCreatedAt: membership?.created_at ?? legacySummary?.latestRunAt ?? workspace.created_at,
@@ -169,6 +171,8 @@ export async function GET(request: Request) {
   return jsonNoStore({
     ok: true,
     workspaces: response,
+    scopeEnforced: true,
+    internalOwnerIdExcluded: true,
     total: response.length
   });
 }

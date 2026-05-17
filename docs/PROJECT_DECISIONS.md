@@ -185,6 +185,7 @@ Recent operational queue:
 - Public Supabase readiness now redacts optional feature row counts; detailed row-count diagnostics stay behind admin-gated `?detail=1`.
 - Admin audit event responses now keep raw `before_value` excluded and sanitize all reason/summary text before it reaches the UI or CSV export.
 - Account snapshot history now explicitly marks raw Naver inventory arrays as excluded and locks the non-admin view to the authenticated user's own snapshots.
+- Workspace membership responses now compute ownership server-side and exclude internal owner user UUIDs from the My Page API/UI.
 
 ## UX Direction
 

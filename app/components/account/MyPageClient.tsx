@@ -83,7 +83,7 @@ type WorkspaceMembership = {
   id: string;
   name: string;
   mode: "agency" | "advertiser";
-  ownerUserId: string | null;
+  isOwner: boolean;
   role: "owner" | "admin" | "member" | "viewer";
   memberEmail: string | null;
   memberCreatedAt: string;
@@ -98,6 +98,8 @@ type WorkspaceMembership = {
 type WorkspaceResponse = {
   ok: true;
   workspaces: WorkspaceMembership[];
+  scopeEnforced: true;
+  internalOwnerIdExcluded: true;
   total: number;
 };
 
@@ -362,7 +364,7 @@ function MyPageContent() {
                   </div>
                   <div>
                     <dt>소유 상태</dt>
-                    <dd>{workspaceOwnerLabel(workspace.ownerUserId, user?.id, workspace.membershipSource)}</dd>
+                    <dd>{workspaceOwnerLabel(workspace.isOwner, workspace.membershipSource)}</dd>
                   </div>
                 </dl>
                 {workspace.latestRunId ? (
@@ -512,8 +514,8 @@ function workspaceRoleLabel(role: "owner" | "admin" | "member" | "viewer") {
   return labels[role];
 }
 
-function workspaceOwnerLabel(ownerUserId: string | null, currentUserId: string | undefined, source: "membership" | "history") {
-  if (ownerUserId && ownerUserId === currentUserId) {
+function workspaceOwnerLabel(isOwner: boolean, source: "membership" | "history") {
+  if (isOwner) {
     return "소유자";
   }
 

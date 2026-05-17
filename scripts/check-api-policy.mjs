@@ -56,6 +56,20 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "createdByUserId = access.user.id");
   }
 
+  if (relativePath === "app/api/workspaces/mine/route.ts") {
+    requireSourceIncludes(source, relativePath, "verifyUserAccess(request)");
+    requireSourceIncludes(source, relativePath, '.eq("user_id", access.state.userId)');
+    requireSourceIncludes(source, relativePath, "scopeEnforced: true");
+    requireSourceIncludes(source, relativePath, "internalOwnerIdExcluded: true");
+    requireSourceIncludes(source, relativePath, "isOwner:");
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "ownerUserId:",
+      "workspace membership responses must not expose internal owner user ids"
+    );
+  }
+
   if (relativePath === "app/api/naver/performance-sync/cron/route.ts") {
     requireSourceIncludes(source, relativePath, "authorization !== `Bearer ${cronSecret}`");
     requireSourceIncludes(source, relativePath, "heartbeatRecorded");
@@ -379,6 +393,18 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(adminActivityApiSource, adminActivityApiPath, "coerceShoppingLinkageStatusFilter");
   requireSourceIncludes(adminActivityApiSource, adminActivityApiPath, "linkageFilter");
   requireSourceIncludes(adminActivityApiSource, adminActivityApiPath, "linkage: linkageFilter ?? \"all\"");
+
+  const myPageClientPath = "app/components/account/MyPageClient.tsx";
+  const myPageClientSource = readProjectFile(myPageClientPath);
+
+  requireSourceIncludes(myPageClientSource, myPageClientPath, "internalOwnerIdExcluded");
+  requireSourceIncludes(myPageClientSource, myPageClientPath, "workspaceOwnerLabel(workspace.isOwner");
+  requireSourceExcludes(
+    myPageClientSource,
+    myPageClientPath,
+    "ownerUserId",
+    "my page workspace UI must not type or render internal owner user ids"
+  );
 }
 
 function readProjectFile(relativePath) {
