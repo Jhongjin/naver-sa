@@ -1062,6 +1062,16 @@ function AdminUsersContent() {
     );
   }
 
+  function downloadAdminAuditCsv() {
+    if (auditEvents.length === 0) {
+      return;
+    }
+
+    const dateStamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+
+    downloadTextFile(createAdminAuditCsv(auditEvents), `naver-sa-admin-audit-${dateStamp}.csv`, "text/csv;charset=utf-8");
+  }
+
   return (
     <main className="account-page admin-page">
       <header className="account-header">
@@ -1546,15 +1556,26 @@ function AdminUsersContent() {
             <span>회원 초대, 메일 확인 처리, 권한 변경 기록을 추적합니다.</span>
             {auditMessage ? <em className="admin-check-result error">{auditMessage}</em> : null}
           </div>
-          <button
-            className="icon-button subtle"
-            disabled={auditStatus === "loading"}
-            type="button"
-            onClick={loadAdminAuditEvents}
-          >
-            <RefreshCw size={17} />
-            {auditStatus === "loading" ? "불러오는 중" : "이벤트 새로고침"}
-          </button>
+          <div className="admin-audit-actions">
+            <button
+              className="icon-button subtle"
+              disabled={auditEvents.length === 0}
+              type="button"
+              onClick={downloadAdminAuditCsv}
+            >
+              <Download size={17} />
+              CSV
+            </button>
+            <button
+              className="icon-button subtle"
+              disabled={auditStatus === "loading"}
+              type="button"
+              onClick={loadAdminAuditEvents}
+            >
+              <RefreshCw size={17} />
+              {auditStatus === "loading" ? "불러오는 중" : "이벤트 새로고침"}
+            </button>
+          </div>
         </div>
         <div className="admin-snapshot-summary">
           <span>관리 이벤트 {auditTotal}건</span>
@@ -2077,6 +2098,30 @@ function downloadTextFile(content: string, fileName: string, type: string) {
   link.download = fileName;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function createAdminAuditCsv(events: AdminAuditEventItem[]) {
+  const rows = [
+    ["created_at", "event_type", "label", "actor", "entity_type", "entity_id", "summary", "reason"],
+    ...events.map((event) => [
+      event.createdAt,
+      event.eventType,
+      adminEventLabel(event.eventType),
+      event.actor ?? "",
+      event.entityType ?? "",
+      event.entityId ?? "",
+      event.summary,
+      event.reason ?? ""
+    ])
+  ];
+
+  return rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
+}
+
+function escapeCsvCell(value: unknown): string {
+  const text = String(value ?? "");
+
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
 function activityFilterLabel(value: ActivityFilter) {

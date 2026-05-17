@@ -5098,6 +5098,14 @@ td span {
   gap: 7px;
 }
 
+.admin-audit-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .admin-activity-actions {
   align-items: center;
   display: flex;
@@ -6612,6 +6620,11 @@ td span {
 
   .admin-audit-heading {
     flex-direction: column;
+  }
+
+  .admin-audit-actions {
+    justify-content: flex-start;
+    width: 100%;
   }
 
   .admin-activity-actions {
