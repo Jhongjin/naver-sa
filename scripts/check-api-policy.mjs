@@ -824,6 +824,28 @@ function requireProjectSurfaceChecks() {
     "history detail UI must consume mapped camelCase audit event fields"
   );
 
+  const plannerWorkspacePath = "app/components/PlannerWorkspace.tsx";
+  const plannerWorkspaceSource = readProjectFile(plannerWorkspacePath);
+  const localDraftSnapshot = getSourceSegment(
+    plannerWorkspaceSource,
+    plannerWorkspacePath,
+    "const snapshot: WorkspaceDraftSnapshot = {",
+    "\n\n    window.localStorage.setItem"
+  );
+
+  requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "WORKSPACE_DRAFT_STORAGE_PREFIX");
+  requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "window.localStorage.setItem(workspaceDraftStorageKey, JSON.stringify(snapshot))");
+  requireSourceIncludes(localDraftSnapshot, plannerWorkspacePath, "version: 1");
+  requireSourceIncludes(localDraftSnapshot, plannerWorkspacePath, "savedAt");
+  requireSourceIncludes(localDraftSnapshot, plannerWorkspacePath, "input");
+  requireSourceIncludes(localDraftSnapshot, plannerWorkspacePath, "decisions: approvalDecisions");
+  requireSourceIncludes(localDraftSnapshot, plannerWorkspacePath, "decisionNotes: approvalNotes");
+  requireSourceIncludes(localDraftSnapshot, plannerWorkspacePath, "executionContext");
+  requireSourceExcludes(localDraftSnapshot, plannerWorkspacePath, "token", "local draft storage must not persist auth tokens");
+  requireSourceExcludes(localDraftSnapshot, plannerWorkspacePath, "accessToken", "local draft storage must not persist auth tokens");
+  requireSourceExcludes(localDraftSnapshot, plannerWorkspacePath, "authorization", "local draft storage must not persist authorization headers");
+  requireSourceExcludes(localDraftSnapshot, plannerWorkspacePath, "session", "local draft storage must not persist auth sessions");
+
   const historyDetailApiPath = "app/api/plans/history/[planningRunId]/route.ts";
   const historyDetailApiSource = readProjectFile(historyDetailApiPath);
 
