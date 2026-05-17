@@ -5034,6 +5034,11 @@ td span {
   grid-template-columns: 1fr;
 }
 
+.admin-performance-panel {
+  align-items: stretch;
+  grid-template-columns: 1fr;
+}
+
 .admin-audit-panel {
   align-items: stretch;
   grid-template-columns: 1fr;
@@ -5057,6 +5062,27 @@ td span {
   align-content: start;
   display: grid;
   gap: 7px;
+}
+
+.admin-performance-heading {
+  align-items: start;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+}
+
+.admin-performance-heading > div {
+  align-content: start;
+  display: grid;
+  gap: 7px;
+}
+
+.admin-performance-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
 .admin-audit-heading {
@@ -5147,6 +5173,132 @@ td span {
 .admin-activity-summary strong {
   color: #0f172a;
   font-size: 18px;
+}
+
+.admin-performance-summary {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1.1fr repeat(3, minmax(0, 0.85fr));
+}
+
+.admin-performance-summary article {
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 14px;
+  display: grid;
+  gap: 7px;
+  min-height: 116px;
+  padding: 14px;
+}
+
+.admin-performance-summary article.ok {
+  background: linear-gradient(180deg, rgba(236, 253, 245, 0.78), #f8fafc);
+  border-color: rgba(15, 118, 110, 0.18);
+}
+
+.admin-performance-summary article.needs-check {
+  background: linear-gradient(180deg, rgba(255, 247, 237, 0.86), #f8fafc);
+  border-color: rgba(180, 83, 9, 0.2);
+}
+
+.admin-performance-summary span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-performance-summary strong {
+  color: #0f172a;
+  font-size: 20px;
+}
+
+.admin-performance-summary small {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.admin-performance-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-performance-list article {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.9fr);
+  padding: 16px;
+}
+
+.admin-performance-list article.blocked {
+  border-color: rgba(180, 83, 9, 0.24);
+}
+
+.admin-performance-list strong,
+.admin-performance-list p {
+  display: block;
+}
+
+.admin-performance-list strong {
+  color: #0f172a;
+  font-size: 17px;
+  margin-top: 8px;
+}
+
+.admin-performance-list p {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+
+.admin-performance-list small {
+  color: #b45309;
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+  margin-top: 8px;
+}
+
+.admin-performance-list dl {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.2fr) minmax(0, 0.5fr);
+  margin: 0;
+}
+
+.admin-performance-list dl div {
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 12px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.admin-performance-list dt,
+.admin-performance-list dd {
+  margin: 0;
+}
+
+.admin-performance-list dt {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.admin-performance-list dd {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
 }
 
 .admin-activity-item {
@@ -5902,6 +6054,7 @@ td span {
   .workspace-membership-item,
   .admin-activity-item,
   .admin-snapshot-list article,
+  .admin-performance-list article,
   .admin-audit-list article,
   .history-detail-grid,
   .history-detail-grid.secondary {
@@ -6101,6 +6254,7 @@ td span {
   .account-grid,
   .admin-summary-grid,
   .admin-health-grid,
+  .admin-performance-summary,
   .rail-step-grid,
   .execution-flow-guide {
     grid-template-columns: 1fr;
@@ -6148,6 +6302,15 @@ td span {
     flex-direction: column;
   }
 
+  .admin-performance-heading {
+    flex-direction: column;
+  }
+
+  .admin-performance-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
   .admin-audit-heading {
     flex-direction: column;
   }
@@ -6185,6 +6348,10 @@ td span {
 
   .admin-snapshot-list dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-performance-list dl {
+    grid-template-columns: 1fr;
   }
 
   .admin-activity-summary {

@@ -7,6 +7,24 @@ import {
 } from "@/lib/naver-performance-sync";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
+type PerformanceSyncPlanRow = {
+  id: string;
+  actor_email: string | null;
+  product_type: "powerlink" | "shoppingSearch" | null;
+  brand_name: string | null;
+  site_url: string | null;
+  scope: "powerlinkDailyStats" | "shoppingKeywordDailyStats" | "masterReference";
+  requested_from: string;
+  requested_to: string;
+  status: "planned" | "blocked" | "ready" | "failed" | "completed";
+  external_request: boolean;
+  read_only_endpoint: string;
+  entity_ids: string[] | null;
+  fields: string[] | null;
+  warnings: string[] | null;
+  created_at: string;
+};
+
 export function PUT() {
   return methodNotAllowed(["GET", "POST"]);
 }
@@ -53,7 +71,7 @@ export async function GET(request: Request) {
   return jsonNoStore({
     ok: true,
     externalRequest: false,
-    plans: data ?? []
+    plans: ((data ?? []) as PerformanceSyncPlanRow[]).map(toPublicPlan)
   });
 }
 
@@ -173,6 +191,26 @@ function isMissingTableError(error: { code?: string; message?: string } | null):
   }
 
   return error.code === "42P01" || error.code === "PGRST205" || /naver_performance_sync_runs/i.test(error.message ?? "");
+}
+
+function toPublicPlan(row: PerformanceSyncPlanRow) {
+  return {
+    id: row.id,
+    actorEmail: row.actor_email,
+    productType: row.product_type,
+    brandName: row.brand_name,
+    siteUrl: row.site_url,
+    scope: row.scope,
+    requestedFrom: row.requested_from,
+    requestedTo: row.requested_to,
+    status: row.status,
+    externalRequest: row.external_request,
+    readOnlyEndpoint: row.read_only_endpoint,
+    entityIds: row.entity_ids ?? [],
+    fields: row.fields ?? [],
+    warnings: row.warnings ?? [],
+    createdAt: row.created_at
+  };
 }
 
 function sanitizeError(message: string | undefined): string {

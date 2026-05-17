@@ -131,6 +131,33 @@ type SupabaseReadinessResponse = {
   note: string | null;
 };
 
+type PerformanceSyncReadinessResponse = {
+  ok: boolean;
+  ready: boolean;
+  externalRequest: false;
+  naver: {
+    ready: boolean;
+    missingCount: number;
+    customerIdPresent: boolean;
+  };
+  database: {
+    table: string;
+    present: boolean;
+    rowCount: number | null;
+    error: string | null;
+    errorCode: string | null;
+  };
+  safeguards: {
+    externalRequest: false;
+    readOnlyStatsOnly: boolean;
+    externalReportJobCreation: boolean;
+    externalReportDeletion: boolean;
+    liveMutation: boolean;
+    productionDelete: boolean;
+  };
+  nextStep: string;
+};
+
 type NaverPublicReadinessResponse = {
   ok: boolean;
   ready: boolean;
@@ -206,6 +233,30 @@ type AdminAuditEventsResponse = {
   limit: number;
 };
 
+type PerformanceSyncPlanItem = {
+  id: string;
+  actorEmail: string | null;
+  productType: "powerlink" | "shoppingSearch" | null;
+  brandName: string | null;
+  siteUrl: string | null;
+  scope: "powerlinkDailyStats" | "shoppingKeywordDailyStats" | "masterReference";
+  requestedFrom: string;
+  requestedTo: string;
+  status: "planned" | "blocked" | "ready" | "failed" | "completed";
+  externalRequest: boolean;
+  readOnlyEndpoint: string;
+  entityIds: string[];
+  fields: string[];
+  warnings: string[];
+  createdAt: string;
+};
+
+type PerformanceSyncPlansResponse = {
+  ok: true;
+  externalRequest: false;
+  plans: PerformanceSyncPlanItem[];
+};
+
 type OperationalHealth = {
   app: AppHealthResponse;
   supabase: SupabaseReadinessResponse;
@@ -249,6 +300,11 @@ function AdminUsersContent() {
   const [auditEvents, setAuditEvents] = useState<AdminAuditEventItem[]>([]);
   const [auditTotal, setAuditTotal] = useState(0);
   const [auditMessage, setAuditMessage] = useState("");
+  const [performanceReadiness, setPerformanceReadiness] = useState<PerformanceSyncReadinessResponse | null>(null);
+  const [performancePlans, setPerformancePlans] = useState<PerformanceSyncPlanItem[]>([]);
+  const [performanceStatus, setPerformanceStatus] = useState<"idle" | "loading" | "error">("loading");
+  const [performancePlanStatus, setPerformancePlanStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [performanceMessage, setPerformanceMessage] = useState("");
   const [operationalHealth, setOperationalHealth] = useState<OperationalHealth | null>(null);
   const [healthStatus, setHealthStatus] = useState<"idle" | "loading" | "error">("loading");
   const [healthMessage, setHealthMessage] = useState("");
@@ -351,6 +407,17 @@ function AdminUsersContent() {
       }
     ];
   }, [operationalHealth]);
+  const performanceSummary = useMemo(() => {
+    const blocked = performancePlans.filter((plan) => plan.status === "blocked").length;
+    const planned = performancePlans.filter((plan) => plan.status === "planned").length;
+
+    return {
+      ready: performanceReadiness?.ready ?? false,
+      rowCount: performanceReadiness?.database.rowCount ?? 0,
+      blocked,
+      planned
+    };
+  }, [performancePlans, performanceReadiness]);
 
   const loadUsers = useCallback(async () => {
     setStatus("loading");
@@ -489,6 +556,60 @@ function AdminUsersContent() {
     setAuditStatus("idle");
   }, [getAccessToken]);
 
+  const loadPerformanceSyncStatus = useCallback(async () => {
+    setPerformanceStatus("loading");
+    setPerformanceMessage("");
+    const token = await getAccessToken();
+
+    if (!token) {
+      setPerformanceStatus("error");
+      setPerformanceMessage("로그인이 필요합니다.");
+      return;
+    }
+
+    const headers = {
+      authorization: `Bearer ${token}`
+    };
+    const [readinessResponse, plansResponse] = await Promise.all([
+      fetch("/api/naver/performance-sync/readiness", {
+        cache: "no-store",
+        headers
+      }),
+      fetch("/api/naver/performance-sync/plans", {
+        cache: "no-store",
+        headers
+      })
+    ]);
+    const [readinessData, plansData] = (await Promise.all([
+      readinessResponse.json().catch(() => ({})),
+      plansResponse.json().catch(() => ({}))
+    ])) as [
+      PerformanceSyncReadinessResponse | { ok?: false; error?: string },
+      PerformanceSyncPlansResponse | { ok?: false; error?: string }
+    ];
+
+    if (!readinessResponse.ok || !("ready" in readinessData)) {
+      setPerformanceStatus("error");
+      setPerformanceMessage(
+        "error" in readinessData && readinessData.error
+          ? readinessData.error
+          : "성과 sync 준비 상태를 불러오지 못했습니다."
+      );
+      return;
+    }
+
+    setPerformanceReadiness(readinessData);
+
+    if (plansResponse.ok && plansData.ok === true) {
+      setPerformancePlans(plansData.plans);
+    } else {
+      setPerformancePlans([]);
+      setPerformanceMessage("최근 성과 sync 계획 목록을 불러오지 못했습니다.");
+    }
+
+    setPerformanceStatus(readinessData.ready ? "idle" : "error");
+  }, [getAccessToken]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       loadUsers().catch(() => {
@@ -508,12 +629,16 @@ function AdminUsersContent() {
         setAuditStatus("error");
         setAuditMessage("관리 이벤트를 불러오지 못했습니다.");
       });
+      loadPerformanceSyncStatus().catch(() => {
+        setPerformanceStatus("error");
+        setPerformanceMessage("성과 sync 준비 상태를 불러오지 못했습니다.");
+      });
     }, 0);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [loadAccountSnapshotHistory, loadAdminAuditEvents, loadOperationalHealth, loadUsers]);
+  }, [loadAccountSnapshotHistory, loadAdminAuditEvents, loadOperationalHealth, loadPerformanceSyncStatus, loadUsers]);
 
   async function updateRole(userId: string, role: "member" | "admin") {
     setStatus("loading");
@@ -644,6 +769,53 @@ function AdminUsersContent() {
       readOnlyOk
         ? "Naver 캠페인 read-only 연결이 정상입니다."
         : data.error ?? data.readOnlyCheck?.error ?? "Naver read-only 점검에 실패했습니다."
+    );
+  }
+
+  async function createDryRunPerformancePlan() {
+    setPerformancePlanStatus("loading");
+    setPerformanceMessage("");
+    const token = await getAccessToken();
+
+    if (!token) {
+      setPerformancePlanStatus("error");
+      setPerformanceMessage("로그인이 필요합니다.");
+      return;
+    }
+
+    const dateTo = new Date();
+    dateTo.setDate(dateTo.getDate() - 1);
+    const dateFrom = new Date(dateTo);
+    dateFrom.setDate(dateFrom.getDate() - 6);
+    const response = await fetch("/api/naver/performance-sync/plans", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        scope: "powerlinkDailyStats",
+        dateFrom: dateFrom.toISOString().slice(0, 10),
+        dateTo: dateTo.toISOString().slice(0, 10),
+        fields: ["impCnt", "clkCnt", "salesAmt", "ctr", "cpc"]
+      })
+    });
+    const data = (await response.json().catch(() => ({}))) as
+      | { ok: true; plan: { status: string; warnings: string[] } }
+      | { ok?: false; error?: string };
+
+    if (!response.ok || data.ok !== true) {
+      setPerformancePlanStatus("error");
+      setPerformanceMessage("error" in data && data.error ? data.error : "dry-run 계획을 저장하지 못했습니다.");
+      return;
+    }
+
+    await loadPerformanceSyncStatus();
+    setPerformancePlanStatus("success");
+    setPerformanceMessage(
+      data.plan.status === "blocked"
+        ? `dry-run 계획을 저장했습니다. ${data.plan.warnings[0] ?? "실제 조회 전 연결 ID가 필요합니다."}`
+        : "dry-run 성과 sync 계획을 저장했습니다."
     );
   }
 
@@ -869,6 +1041,115 @@ function AdminUsersContent() {
                   <div>
                     <dt>상태</dt>
                     <dd>{snapshot.partial ? `${snapshot.errorScopes.length}개 경고` : "정상"}</dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section className="account-panel admin-performance-panel" aria-label="성과 sync 준비">
+        <div className="admin-performance-heading">
+          <div>
+            <Activity size={22} />
+            <strong>성과 sync 준비</strong>
+            <span>Naver stats는 read-only로만 계획하고, report job 생성과 삭제는 계속 차단합니다.</span>
+            {performanceMessage ? (
+              <em
+                className={`admin-check-result ${
+                  performancePlanStatus === "success" && performanceStatus !== "error" ? "success" : "error"
+                }`}
+              >
+                {performanceMessage}
+              </em>
+            ) : null}
+          </div>
+          <div className="admin-performance-actions">
+            <button
+              className="icon-button subtle"
+              disabled={performanceStatus === "loading"}
+              type="button"
+              onClick={loadPerformanceSyncStatus}
+            >
+              <RefreshCw size={17} />
+              {performanceStatus === "loading" ? "확인 중" : "준비 상태"}
+            </button>
+            <button
+              className="icon-button subtle"
+              disabled={performancePlanStatus === "loading"}
+              type="button"
+              onClick={createDryRunPerformancePlan}
+            >
+              <FileClock size={17} />
+              {performancePlanStatus === "loading" ? "저장 중" : "dry-run 저장"}
+            </button>
+          </div>
+        </div>
+        <div className="admin-performance-summary" aria-label="성과 sync 요약">
+          <article className={performanceSummary.ready ? "ok" : "needs-check"}>
+            <span>준비 상태</span>
+            <strong>{performanceSummary.ready ? "ready" : "check"}</strong>
+            <small>{performanceReadiness?.nextStep ?? "성과 sync 준비 상태를 확인하고 있습니다."}</small>
+          </article>
+          <article>
+            <span>계획 이력</span>
+            <strong>{performanceSummary.rowCount}건</strong>
+            <small>최근 dry-run 계획을 저장하고 추적합니다.</small>
+          </article>
+          <article>
+            <span>차단 계획</span>
+            <strong>{performanceSummary.blocked}건</strong>
+            <small>연결 ID 또는 범위 보정이 필요한 항목입니다.</small>
+          </article>
+          <article>
+            <span>안전 가드</span>
+            <strong>live off</strong>
+            <small>external job creation, deletion, mutation 모두 차단</small>
+          </article>
+        </div>
+        {performanceStatus === "loading" ? (
+          <div className="admin-activity-empty">
+            <span className="skeleton-line wide" />
+            <span className="skeleton-line" />
+            <span className="skeleton-line short" />
+          </div>
+        ) : null}
+        {performanceStatus !== "loading" && performancePlans.length === 0 ? (
+          <div className="admin-activity-empty">
+            <Activity size={20} />
+            <strong>저장된 성과 sync 계획이 없습니다</strong>
+            <span>dry-run 저장으로 DB와 안전 가드 동작을 먼저 확인할 수 있습니다.</span>
+          </div>
+        ) : null}
+        {performancePlans.length > 0 ? (
+          <div className="admin-performance-list">
+            {performancePlans.map((plan) => (
+              <article className={plan.status === "blocked" ? "blocked" : ""} key={plan.id}>
+                <div>
+                  <span className={`status-pill ${plan.status === "blocked" ? "review" : "include"}`}>
+                    {performancePlanStatusLabel(plan.status)}
+                  </span>
+                  <strong>{performanceScopeLabel(plan.scope)}</strong>
+                  <p>
+                    {plan.actorEmail ?? "unknown"} / {formatKoreanDateTime(plan.createdAt)}
+                  </p>
+                  {plan.warnings.length > 0 ? <small>{plan.warnings[0]}</small> : null}
+                </div>
+                <dl>
+                  <div>
+                    <dt>기간</dt>
+                    <dd>
+                      {plan.requestedFrom} ~ {plan.requestedTo}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>필드</dt>
+                    <dd>{plan.fields.length > 0 ? plan.fields.join(", ") : "master"}</dd>
+                  </div>
+                  <div>
+                    <dt>연결 ID</dt>
+                    <dd>{plan.entityIds.length}개</dd>
                   </div>
                 </dl>
               </article>
@@ -1287,6 +1568,28 @@ function adminEventLabel(value: string) {
   };
 
   return labels[value] ?? "관리 이벤트";
+}
+
+function performancePlanStatusLabel(value: PerformanceSyncPlanItem["status"]) {
+  const labels = {
+    planned: "계획됨",
+    blocked: "차단",
+    ready: "준비",
+    failed: "실패",
+    completed: "완료"
+  };
+
+  return labels[value];
+}
+
+function performanceScopeLabel(value: PerformanceSyncPlanItem["scope"]) {
+  const labels = {
+    powerlinkDailyStats: "파워링크 일별 성과",
+    shoppingKeywordDailyStats: "쇼핑검색 키워드 성과",
+    masterReference: "마스터 기준 데이터"
+  };
+
+  return labels[value];
 }
 
 function snapshotDiffLabel(metric: SnapshotDiffMetric) {
