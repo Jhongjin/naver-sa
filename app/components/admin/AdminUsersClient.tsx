@@ -257,6 +257,20 @@ type PerformanceSyncPlansResponse = {
   plans: PerformanceSyncPlanItem[];
 };
 
+type PerformanceStatsPreviewResponse = {
+  ok: true;
+  externalRequest: true;
+  readOnly: true;
+  request: {
+    entityCount: number;
+    fields: string[];
+    dateFrom: string;
+    dateTo: string;
+    timeIncrement: "allDays";
+  };
+  stats: unknown;
+};
+
 type OperationalHealth = {
   app: AppHealthResponse;
   supabase: SupabaseReadinessResponse;
@@ -274,6 +288,7 @@ const emptyActivitySummary: ActivityResponse["summary"] = {
   blocked: 0,
   readyDrafts: 0
 };
+const defaultPreviewRange = getDefaultPerformancePreviewRange();
 
 export function AdminUsersClient() {
   return (
@@ -304,7 +319,14 @@ function AdminUsersContent() {
   const [performancePlans, setPerformancePlans] = useState<PerformanceSyncPlanItem[]>([]);
   const [performanceStatus, setPerformanceStatus] = useState<"idle" | "loading" | "error">("loading");
   const [performancePlanStatus, setPerformancePlanStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [performancePreviewStatus, setPerformancePreviewStatus] = useState<"idle" | "loading" | "success" | "error">(
+    "idle"
+  );
   const [performanceMessage, setPerformanceMessage] = useState("");
+  const [performancePreviewIds, setPerformancePreviewIds] = useState("");
+  const [performancePreviewFrom, setPerformancePreviewFrom] = useState(defaultPreviewRange.from);
+  const [performancePreviewTo, setPerformancePreviewTo] = useState(defaultPreviewRange.to);
+  const [performancePreviewResult, setPerformancePreviewResult] = useState<PerformanceStatsPreviewResponse | null>(null);
   const [operationalHealth, setOperationalHealth] = useState<OperationalHealth | null>(null);
   const [healthStatus, setHealthStatus] = useState<"idle" | "loading" | "error">("loading");
   const [healthMessage, setHealthMessage] = useState("");
@@ -418,6 +440,13 @@ function AdminUsersContent() {
       planned
     };
   }, [performancePlans, performanceReadiness]);
+  const performancePreviewJson = useMemo(() => {
+    if (!performancePreviewResult) {
+      return "";
+    }
+
+    return JSON.stringify(performancePreviewResult.stats, null, 2).slice(0, 1800);
+  }, [performancePreviewResult]);
 
   const loadUsers = useCallback(async () => {
     setStatus("loading");
@@ -819,6 +848,60 @@ function AdminUsersContent() {
     );
   }
 
+  async function runPerformanceStatsPreview() {
+    const entityIds = parseEntityIds(performancePreviewIds);
+
+    if (entityIds.length === 0) {
+      setPerformancePreviewStatus("error");
+      setPerformanceMessage("성과 preview에는 최소 1개의 campaign/ad group/keyword/ad ID가 필요합니다.");
+      return;
+    }
+
+    setPerformancePreviewStatus("loading");
+    setPerformanceMessage("");
+    const token = await getAccessToken();
+
+    if (!token) {
+      setPerformancePreviewStatus("error");
+      setPerformanceMessage("로그인이 필요합니다.");
+      return;
+    }
+
+    const response = await fetch("/api/naver/performance-sync/preview", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        entityIds,
+        dateFrom: performancePreviewFrom,
+        dateTo: performancePreviewTo,
+        fields: ["impCnt", "clkCnt", "salesAmt", "ctr", "cpc", "avgRnk"]
+      })
+    });
+    const data = (await response.json().catch(() => ({}))) as
+      | PerformanceStatsPreviewResponse
+      | { ok?: false; error?: string; warnings?: string[] };
+
+    if (!response.ok || data.ok !== true) {
+      setPerformancePreviewStatus("error");
+      setPerformancePreviewResult(null);
+      setPerformanceMessage(
+        "warnings" in data && data.warnings?.length
+          ? data.warnings[0]
+          : "error" in data && data.error
+            ? data.error
+            : "성과 preview를 불러오지 못했습니다."
+      );
+      return;
+    }
+
+    setPerformancePreviewStatus("success");
+    setPerformancePreviewResult(data);
+    setPerformanceMessage(`read-only stats preview 완료: ${data.request.entityCount}개 ID 조회`);
+  }
+
   return (
     <main className="account-page admin-page">
       <header className="account-header">
@@ -1108,6 +1191,60 @@ function AdminUsersContent() {
             <small>external job creation, deletion, mutation 모두 차단</small>
           </article>
         </div>
+        <form
+          className="admin-performance-preview"
+          onSubmit={(event) => {
+            event.preventDefault();
+            runPerformanceStatsPreview().catch(() => {
+              setPerformancePreviewStatus("error");
+              setPerformanceMessage("성과 preview를 불러오지 못했습니다.");
+            });
+          }}
+        >
+          <div>
+            <label>
+              <span>성과 조회 ID</span>
+              <input
+                placeholder="nccCampaignId, nccAdgroupId, keyword ID"
+                value={performancePreviewIds}
+                onChange={(event) => setPerformancePreviewIds(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>시작일</span>
+              <input
+                type="date"
+                value={performancePreviewFrom}
+                onChange={(event) => setPerformancePreviewFrom(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>종료일</span>
+              <input
+                type="date"
+                value={performancePreviewTo}
+                onChange={(event) => setPerformancePreviewTo(event.target.value)}
+              />
+            </label>
+            <button className="icon-button primary" disabled={performancePreviewStatus === "loading"} type="submit">
+              <Activity size={17} />
+              {performancePreviewStatus === "loading" ? "조회 중" : "read-only 조회"}
+            </button>
+          </div>
+          {performancePreviewResult ? (
+            <section className="admin-performance-preview-result" aria-label="성과 preview 결과">
+              <div>
+                <span>preview result</span>
+                <strong>{countPreviewRows(performancePreviewResult.stats)} rows</strong>
+                <small>
+                  {performancePreviewResult.request.dateFrom} ~ {performancePreviewResult.request.dateTo} /{" "}
+                  {performancePreviewResult.request.fields.join(", ")}
+                </small>
+              </div>
+              <pre>{performancePreviewJson}</pre>
+            </section>
+          ) : null}
+        </form>
         {performanceStatus === "loading" ? (
           <div className="admin-activity-empty">
             <span className="skeleton-line wide" />
@@ -1537,6 +1674,42 @@ function userStatusFilterLabel(value: UserStatusFilter) {
   };
 
   return labels[value];
+}
+
+function getDefaultPerformancePreviewRange() {
+  const to = new Date();
+  to.setDate(to.getDate() - 1);
+  const from = new Date(to);
+  from.setDate(from.getDate() - 6);
+
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10)
+  };
+}
+
+function parseEntityIds(value: string) {
+  return [
+    ...new Set(
+      value
+        .split(/[\s,]+/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((item) => item.slice(0, 120))
+    )
+  ].slice(0, 10);
+}
+
+function countPreviewRows(value: unknown): number {
+  if (Array.isArray(value)) {
+    return value.length;
+  }
+
+  if (value && typeof value === "object" && "data" in value && Array.isArray(value.data)) {
+    return value.data.length;
+  }
+
+  return value ? 1 : 0;
 }
 
 function activityFilterLabel(value: ActivityFilter) {
