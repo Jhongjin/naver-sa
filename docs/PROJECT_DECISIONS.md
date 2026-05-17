@@ -165,6 +165,7 @@ Recent operational queue:
 - Account scan candidates are now fingerprinted by product type, brand, and site URL in the workspace UI; stale scan results are hidden after those inputs change so operators do not apply candidates from a different context.
 - API policy verification now asserts protected test execution keeps admin auth, saved-ready-draft lookup, duplicate-result blocking, and pre-Naver-call ordering in place.
 - Blocked staged changes, including Shopping Search channel/product-group preconditions, are now persisted with `approval_required = true` so saved history and audit exports do not understate required operator review.
+- Public `/api/health` now returns aggregate environment counts instead of per-secret variable names, reducing configuration fingerprint exposure while keeping admin operational health counts.
 
 ## UX Direction
 

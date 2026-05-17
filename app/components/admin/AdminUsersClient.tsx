@@ -101,15 +101,12 @@ type NaverReadinessCheckResponse = {
 
 type AppHealthResponse = {
   ok: boolean;
-  variables: Array<{
-    name: string;
-    present: boolean;
-  }>;
-  recommended: Array<{
-    name: string;
-    present: boolean;
-    purpose: string;
-  }>;
+  environment: {
+    requiredPresentCount: number;
+    requiredTotalCount: number;
+    recommendedPresentCount: number;
+    recommendedTotalCount: number;
+  };
   warnings: string[];
   adminBootstrap: {
     appMetadataRoleSupported: boolean;
@@ -579,9 +576,10 @@ function AdminUsersContent() {
       return [];
     }
 
-    const appPresentCount = operationalHealth.app.variables.filter((variable) => variable.present).length;
-    const appVariableCount = operationalHealth.app.variables.length;
-    const recommendedMissing = operationalHealth.app.recommended.filter((variable) => !variable.present).length;
+    const appPresentCount = operationalHealth.app.environment.requiredPresentCount;
+    const appVariableCount = operationalHealth.app.environment.requiredTotalCount;
+    const recommendedMissing =
+      operationalHealth.app.environment.recommendedTotalCount - operationalHealth.app.environment.recommendedPresentCount;
 
     return [
       {

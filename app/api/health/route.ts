@@ -42,17 +42,23 @@ export function GET() {
     present: Boolean(process.env[name]),
     purpose: "Optional first-admin bootstrap fallback. Supabase app_metadata.role=admin is also supported."
   }));
+  const requiredPresentCount = variables.filter((variable) => variable.present).length;
+  const recommendedPresentCount = recommended.filter((variable) => variable.present).length;
   const warnings = recommended
     .filter((variable) => !variable.present)
     .map(
-      (variable) =>
-        `${variable.name} is optional after an app_metadata admin exists; configure it only if no admin can access member management.`
+      () =>
+        "Optional first-admin bootstrap fallback is not configured; this is acceptable after an app_metadata admin exists."
     );
 
   return jsonNoStore({
-    ok: variables.every((variable) => variable.present),
-    variables,
-    recommended,
+    ok: requiredPresentCount === variables.length,
+    environment: {
+      requiredPresentCount,
+      requiredTotalCount: variables.length,
+      recommendedPresentCount,
+      recommendedTotalCount: recommended.length
+    },
     warnings,
     adminBootstrap: {
       appMetadataRoleSupported: true,
