@@ -33,6 +33,12 @@ for (const file of routeFiles) {
   if (exportedMethods.length === 0) {
     failures.push(`${relativePath}: no exported route method found`);
   }
+
+  for (const method of ["GET", "POST", "PUT", "PATCH", "DELETE"]) {
+    if (!exportedMethods.includes(method)) {
+      failures.push(`${relativePath}: missing explicit ${method} handler; avoid Next.js default cacheable method responses`);
+    }
+  }
 }
 
 if (failures.length > 0) {

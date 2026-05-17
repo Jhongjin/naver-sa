@@ -16,6 +16,18 @@ export function GET() {
   return methodNotAllowed(["POST"]);
 }
 
+export function PUT() {
+  return methodNotAllowed(["POST"]);
+}
+
+export function PATCH() {
+  return methodNotAllowed(["POST"]);
+}
+
+export function DELETE() {
+  return methodNotAllowed(["POST"]);
+}
+
 export async function POST(request: Request) {
   const authResult = verifyAdminSecret(request);
 

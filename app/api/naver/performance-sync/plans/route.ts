@@ -30,6 +30,14 @@ export function PUT() {
   return methodNotAllowed(["GET", "POST"]);
 }
 
+export function PATCH() {
+  return methodNotAllowed(["GET", "POST"]);
+}
+
+export function DELETE() {
+  return methodNotAllowed(["GET", "POST"]);
+}
+
 export async function GET(request: Request) {
   const access = await verifyUserAccess(request, { requireAdmin: true });
 

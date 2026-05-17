@@ -6,6 +6,18 @@ export function POST() {
   return methodNotAllowed(["GET"]);
 }
 
+export function PUT() {
+  return methodNotAllowed(["GET"]);
+}
+
+export function PATCH() {
+  return methodNotAllowed(["GET"]);
+}
+
+export function DELETE() {
+  return methodNotAllowed(["GET"]);
+}
+
 export async function GET(request: Request) {
   const state = getNaverConfigState();
   const url = new URL(request.url);
