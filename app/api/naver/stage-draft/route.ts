@@ -43,7 +43,6 @@ export async function POST(request: Request) {
     dryRun: true,
     externalRequest: false,
     automationLevel: "Level 2 Staged Changes",
-    authAccess: access.state,
     naver: {
       ready: naverState.ready,
       missingCount: naverState.missing.length,

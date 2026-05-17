@@ -90,12 +90,6 @@ type StageDraftResponse = {
   ok: boolean;
   dryRun: boolean;
   automationLevel: string;
-  authAccess: {
-    mode: "supabase-auth";
-    role: "member" | "admin";
-    userId: string;
-    email: string | null;
-  };
   naver: {
     ready: boolean;
     missingCount: number;

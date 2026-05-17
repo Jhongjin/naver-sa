@@ -63,7 +63,6 @@ export async function GET(request: Request) {
   return jsonNoStore({
     ok: ready,
     ready,
-    authAccess: access.state,
     externalRequest: false,
     naver: {
       ready: naver.ready,

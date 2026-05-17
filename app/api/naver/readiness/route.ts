@@ -56,7 +56,6 @@ export async function GET(request: Request) {
     configuration: readiness.configuration,
     environmentVariableNamesExcluded: true,
     baseUrlExcluded: true,
-    authAccess: access.state,
     externalRequest: true,
     readOnlyEndpointCount: readiness.readOnlyEndpointCount,
     writeExecution: readiness.writeExecution,

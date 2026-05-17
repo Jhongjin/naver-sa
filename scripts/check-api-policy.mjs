@@ -57,6 +57,17 @@ for (const file of routeFiles) {
     );
   }
 
+  if (relativePath === "app/api/naver/stage-draft/route.ts") {
+    requireSourceIncludes(source, relativePath, "verifyUserAccess(request)");
+    requireSourceIncludes(source, relativePath, "externalRequest: false");
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "authAccess: access.state",
+      "stage draft responses must not echo internal auth access state"
+    );
+  }
+
   if (relativePath === "app/api/plans/store/route.ts") {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
     requireSourceIncludes(source, relativePath, "createdByUserId = access.user.id");
@@ -155,6 +166,12 @@ for (const file of routeFiles) {
     requireSourceExcludes(source, relativePath, "\n    state,", "Naver readiness responses must not return raw config state");
     requireSourceExcludes(source, relativePath, "baseUrl:", "Naver readiness responses must not return configured base URL");
     requireSourceExcludes(source, relativePath, "missing:", "Naver readiness responses must not return env var names");
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "authAccess: access.state",
+      "Naver readiness responses must not echo internal auth access state"
+    );
   }
 
   if (relativePath === "app/api/supabase/readiness/route.ts") {
@@ -222,6 +239,12 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "ops,");
     requireSourceIncludes(source, relativePath, "externalRequest: false");
     requireSourceExcludes(source, relativePath, "databaseCheck,", "readiness must return the sanitized database object without the internal client");
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "authAccess: access.state",
+      "performance readiness responses must not echo internal auth access state"
+    );
     requireSourceIncludes(source, relativePath, 'redactSensitiveErrorText(value, "", maxLength)');
     requireSharedErrorRedaction(
       source,
@@ -238,6 +261,12 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "baseUrlExcluded: true");
     requireSourceIncludes(source, relativePath, "missingCount: state.missing.length");
     requireSourceExcludes(source, relativePath, "naver: naverState", "account snapshot errors must not return raw Naver config state");
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "authAccess: access.state",
+      "account snapshot responses must not echo internal auth access state"
+    );
     requireSharedErrorRedaction(
       source,
       relativePath,
@@ -1044,6 +1073,12 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "redactSensitiveErrorText");
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "visiblePlannerError");
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "visibleCaughtPlannerError");
+  requireSourceExcludes(
+    plannerWorkspaceSource,
+    plannerWorkspacePath,
+    "authAccess:",
+    "workspace stage draft response type must not include internal auth access state"
+  );
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, 'fetch("/api/naver/readiness", { cache: "no-store" })');
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, 'fetch(`/api/naver/account-snapshot?${params.toString()}`, {\n        cache: "no-store"');
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "window.localStorage.setItem(workspaceDraftStorageKey, JSON.stringify(snapshot))");

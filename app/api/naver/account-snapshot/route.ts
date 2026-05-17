@@ -91,7 +91,6 @@ export async function GET(request: Request) {
       ok: hasAnyData,
       partial: hasAnyData && !allOk,
       externalRequest: true,
-      authAccess: access.state,
       channels,
       campaigns,
       productGroups,
