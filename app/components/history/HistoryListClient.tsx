@@ -16,6 +16,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
 import { formatCompactWon, formatKoreanDateTime, formatKoreanNumber } from "@/lib/formatters";
+import {
+  shoppingLinkageStatusClass,
+  shoppingLinkageStatusLabel,
+  type ShoppingLinkageSummary
+} from "@/lib/shopping-linkage";
 import { draftStatusClass, draftStatusLabel, plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
 
 type HistoryRun = {
@@ -30,6 +35,7 @@ type HistoryRun = {
   expectedClicks: number | null;
   avgCpc: number | null;
   adGroupCount: number | null;
+  shoppingLinkage: ShoppingLinkageSummary;
   createdBy: string | null;
   workspaceId: string | null;
   workspaceName: string | null;
@@ -301,6 +307,7 @@ function HistoryListContent() {
           run.createdBy,
           run.workspaceName,
           productTypeLabel(run.productType),
+          shoppingLinkageStatusLabel(run.shoppingLinkage.status),
           plannerModeLabel(run.mode),
           run.id
         ]
@@ -334,6 +341,10 @@ function HistoryListContent() {
         "blocked",
         "draft_status",
         "draft_blockers",
+        "shopping_linkage_status",
+        "shopping_channel_id",
+        "product_group_id",
+        "product_group_channel_id",
         "monthly_budget",
         "max_bid",
         "site_url"
@@ -353,6 +364,10 @@ function HistoryListContent() {
         String(run.approvalSummary.blocked),
         run.executionDraft ? draftStatusLabel(run.executionDraft.status) : "초안 없음",
         String(run.executionDraft?.blockerCount ?? 0),
+        shoppingLinkageStatusLabel(run.shoppingLinkage.status),
+        run.shoppingLinkage.shoppingChannelId ?? "",
+        run.shoppingLinkage.productGroupId ?? "",
+        run.shoppingLinkage.productGroupBusinessChannelId ?? "",
         String(run.monthlyBudget),
         String(run.maxBid),
         run.siteUrl
@@ -588,6 +603,11 @@ function HistoryListContent() {
                   <span className={`status-pill ${draftStatusClass(run.executionDraft?.status)}`}>
                     {run.executionDraft ? draftStatusLabel(run.executionDraft.status) : "초안 없음"}
                   </span>
+                  {run.productType === "shoppingSearch" ? (
+                    <span className={`status-pill ${shoppingLinkageStatusClass(run.shoppingLinkage.status)}`}>
+                      {shoppingLinkageStatusLabel(run.shoppingLinkage.status)}
+                    </span>
+                  ) : null}
                   {run.workspaceName ? <span className="status-pill neutral">{run.workspaceName}</span> : null}
                   <strong>{run.brandName}</strong>
                   <p>

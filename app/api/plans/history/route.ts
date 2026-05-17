@@ -1,5 +1,6 @@
 import { verifyUserAccess } from "@/lib/auth-access";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
+import { coerceShoppingLinkageSummary } from "@/lib/shopping-linkage";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 export function POST() {
@@ -33,6 +34,7 @@ type PlanningRunRow = {
     avgCpc?: number;
     adGroupCount?: number;
   } | null;
+  shopping_linkage?: Record<string, unknown> | null;
   created_by: string | null;
   created_by_user_id: string | null;
   created_at: string;
@@ -97,12 +99,26 @@ export async function GET(request: Request) {
   const searchQuery = coerceSearchQuery(url.searchParams.get("q"));
   const readableWorkspaceIds =
     access.state.role === "admin" ? [] : await getReadableWorkspaceIds(supabase, access.state.userId);
+  const shoppingLinkageSupport = await hasShoppingLinkageSupport(supabase);
+  const planningRunSelect = [
+    "id",
+    "workspace_id",
+    "brand_name",
+    "site_url",
+    "vertical",
+    "monthly_budget",
+    "max_bid",
+    "mode",
+    "product_type",
+    "forecast",
+    ...(shoppingLinkageSupport ? ["shopping_linkage"] : []),
+    "created_by",
+    "created_by_user_id",
+    "created_at"
+  ].join(", ");
   let runsQuery = supabase
     .from("planning_runs")
-    .select(
-      "id, workspace_id, brand_name, site_url, vertical, monthly_budget, max_bid, mode, product_type, forecast, created_by, created_by_user_id, created_at",
-      { count: "exact" }
-    )
+    .select(planningRunSelect, { count: "exact" })
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -146,7 +162,7 @@ export async function GET(request: Request) {
     return jsonNoStore({ ok: false, error: sanitizeError(runsError.message) }, { status: 502 });
   }
 
-  const planningRuns = (runs ?? []) as PlanningRunRow[];
+  const planningRuns = ((runs ?? []) as unknown) as PlanningRunRow[];
   const runIds = planningRuns.map((run) => run.id);
   const workspaceIds = [
     ...new Set(planningRuns.map((run) => run.workspace_id).filter((workspaceId): workspaceId is string => Boolean(workspaceId)))
@@ -241,6 +257,7 @@ export async function GET(request: Request) {
       expectedClicks: run.forecast?.expectedClicks ?? null,
       avgCpc: run.forecast?.avgCpc ?? null,
       adGroupCount: run.forecast?.adGroupCount ?? null,
+      shoppingLinkage: coerceShoppingLinkageSummary(run.shopping_linkage ?? null, run.product_type),
       createdBy: run.created_by,
       createdByUserId: run.created_by_user_id,
       workspaceId: run.workspace_id,
@@ -350,6 +367,16 @@ async function getReadableWorkspaceIds(
   }
 
   return [...new Set((data ?? []).map((membership) => membership.workspace_id).filter(Boolean))];
+}
+
+async function hasShoppingLinkageSupport(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
+): Promise<boolean> {
+  const { error } = await supabase.from("planning_runs").select("id,shopping_linkage", {
+    head: true
+  });
+
+  return !error;
 }
 
 function sanitizeError(message: string | undefined): string {

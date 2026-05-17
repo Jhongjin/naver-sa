@@ -76,6 +76,11 @@ const optionalTables = [
 
 const optionalColumns = [
   {
+    table: "planning_runs",
+    column: "shopping_linkage",
+    feature: "Shopping Search linkage summary"
+  },
+  {
     table: "execution_drafts",
     column: "execution_context",
     feature: "Execution draft context history"

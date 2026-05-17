@@ -19,6 +19,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
 import { formatKoreanDate, formatKoreanDateTime } from "@/lib/formatters";
+import {
+  shoppingLinkageStatusClass,
+  shoppingLinkageStatusLabel,
+  type ShoppingLinkageSummary
+} from "@/lib/shopping-linkage";
 import { draftStatusLabel, productTypeLabel } from "@/lib/ui-labels";
 
 type ManagedUser = {
@@ -57,6 +62,7 @@ type AdminActivityItem = {
   vertical: string;
   mode: "agency" | "advertiser";
   productType: "powerlink" | "shoppingSearch";
+  shoppingLinkage: ShoppingLinkageSummary;
   createdBy: string | null;
   createdAt: string;
   approvalSummary: {
@@ -2405,6 +2411,11 @@ function AdminUsersContent() {
               <Link className="admin-activity-item" href={`/history/${activity.id}`} key={activity.id}>
                 <div>
                   <span className="status-pill include">{productTypeLabel(activity.productType)}</span>
+                  {activity.productType === "shoppingSearch" ? (
+                    <span className={`status-pill ${shoppingLinkageStatusClass(activity.shoppingLinkage.status)}`}>
+                      {shoppingLinkageStatusLabel(activity.shoppingLinkage.status)}
+                    </span>
+                  ) : null}
                   <strong>{activity.brandName}</strong>
                   <p>
                     {activity.workspaceName ?? activity.vertical} / {activity.createdBy ?? "unknown"} /{" "}
@@ -2866,7 +2877,11 @@ function createAdminActivitiesCsv(activities: AdminActivityItem[]) {
       "draft_status",
       "draft_approved_changes",
       "draft_blockers",
-      "draft_warnings"
+      "draft_warnings",
+      "shopping_linkage_status",
+      "shopping_channel_id",
+      "product_group_id",
+      "product_group_channel_id"
     ],
     ...activities.map((activity) => [
       activity.id,
@@ -2884,7 +2899,11 @@ function createAdminActivitiesCsv(activities: AdminActivityItem[]) {
       activity.executionDraft?.status ?? "",
       activity.executionDraft?.approvedChangeCount ?? "",
       activity.executionDraft?.blockerCount ?? "",
-      activity.executionDraft?.warningCount ?? ""
+      activity.executionDraft?.warningCount ?? "",
+      shoppingLinkageStatusLabel(activity.shoppingLinkage.status),
+      activity.shoppingLinkage.shoppingChannelId ?? "",
+      activity.shoppingLinkage.productGroupId ?? "",
+      activity.shoppingLinkage.productGroupBusinessChannelId ?? ""
     ])
   ];
 

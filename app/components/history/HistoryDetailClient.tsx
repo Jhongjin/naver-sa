@@ -19,6 +19,10 @@ import { useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
 import { formatKoreanDateTime, formatKoreanNumber, formatWon } from "@/lib/formatters";
+import {
+  shoppingLinkageStatusLabel,
+  type ShoppingLinkageSummary
+} from "@/lib/shopping-linkage";
 import { draftStatusClass, draftStatusLabel, plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
 
 type HistoryDetailResponse = {
@@ -35,6 +39,8 @@ type HistoryDetailResponse = {
     seedKeywords: string[];
     forecast: Record<string, unknown>;
     assumptions: string[];
+    shoppingLinkage: ShoppingLinkageSummary;
+    shoppingLinkageCaptured: boolean;
     createdBy: string | null;
     createdByUserId: string | null;
     workspaceId: string | null;
@@ -677,6 +683,18 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                     <dt>워크스페이스</dt>
                     <dd>{data.run.workspaceName ?? "미기록"}</dd>
                   </div>
+                  {data.run.productType === "shoppingSearch" ? (
+                    <>
+                      <div>
+                        <dt>쇼핑 linkage</dt>
+                        <dd>{shoppingLinkageStatusLabel(data.run.shoppingLinkage.status)}</dd>
+                      </div>
+                      <div>
+                        <dt>상품그룹</dt>
+                        <dd>{data.run.shoppingLinkage.productGroupId ?? "미기록"}</dd>
+                      </div>
+                    </>
+                  ) : null}
                   <div>
                     <dt>저장자</dt>
                     <dd>{data.run.createdBy ?? "미기록"}</dd>
@@ -1018,6 +1036,14 @@ function buildHistoryMemoMarkdown(data: HistoryDetailResponse) {
     `- Planning run: ${data.run.id}`,
     `- Brand: ${data.run.brandName}`,
     `- Product: ${productTypeLabel(data.run.productType)}`,
+    ...(data.run.productType === "shoppingSearch"
+      ? [
+          `- Shopping linkage: ${shoppingLinkageStatusLabel(data.run.shoppingLinkage.status)}`,
+          `- Shopping channel ID: ${data.run.shoppingLinkage.shoppingChannelId ?? "not recorded"}`,
+          `- Product group ID: ${data.run.shoppingLinkage.productGroupId ?? "not recorded"}`,
+          `- Product group channel ID: ${data.run.shoppingLinkage.productGroupBusinessChannelId ?? "not recorded"}`
+        ]
+      : []),
     `- Vertical: ${data.run.vertical}`,
     `- Created: ${data.run.createdAt}`,
     `- Workspace: ${data.run.workspaceName ?? "not recorded"}`,

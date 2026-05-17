@@ -1,5 +1,6 @@
 import { verifyUserAccess } from "@/lib/auth-access";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
+import { coerceShoppingLinkageSummary } from "@/lib/shopping-linkage";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 export function POST() {
@@ -26,6 +27,7 @@ type PlanningRunActivityRow = {
   vertical: string;
   mode: "agency" | "advertiser";
   product_type: "powerlink" | "shoppingSearch";
+  shopping_linkage?: Record<string, unknown> | null;
   created_by: string | null;
   created_by_user_id: string | null;
   created_at: string;
@@ -76,11 +78,23 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const limit = clampLimit(url.searchParams.get("limit"));
+  const shoppingLinkageSupport = await hasShoppingLinkageSupport(supabase);
+  const planningRunSelect = [
+    "id",
+    "workspace_id",
+    "brand_name",
+    "site_url",
+    "vertical",
+    "mode",
+    "product_type",
+    ...(shoppingLinkageSupport ? ["shopping_linkage"] : []),
+    "created_by",
+    "created_by_user_id",
+    "created_at"
+  ].join(", ");
   const { data: runs, error: runsError } = await supabase
     .from("planning_runs")
-    .select(
-      "id, workspace_id, brand_name, site_url, vertical, mode, product_type, created_by, created_by_user_id, created_at"
-    )
+    .select(planningRunSelect)
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -88,7 +102,7 @@ export async function GET(request: Request) {
     return jsonNoStore({ ok: false, error: sanitizeError(runsError.message) }, { status: 502 });
   }
 
-  const planningRuns = (runs ?? []) as PlanningRunActivityRow[];
+  const planningRuns = ((runs ?? []) as unknown) as PlanningRunActivityRow[];
   const runIds = planningRuns.map((run) => run.id);
   const workspaceIds = [
     ...new Set(planningRuns.map((run) => run.workspace_id).filter((workspaceId): workspaceId is string => Boolean(workspaceId)))
@@ -161,6 +175,7 @@ export async function GET(request: Request) {
       vertical: run.vertical,
       mode: run.mode,
       productType: run.product_type,
+      shoppingLinkage: coerceShoppingLinkageSummary(run.shopping_linkage ?? null, run.product_type),
       createdBy: run.created_by,
       createdByUserId: run.created_by_user_id,
       createdAt: run.created_at,
@@ -250,6 +265,16 @@ function clampLimit(value: string | null): number {
   }
 
   return Math.min(Math.max(Math.trunc(parsed), 1), 20);
+}
+
+async function hasShoppingLinkageSupport(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
+): Promise<boolean> {
+  const { error } = await supabase.from("planning_runs").select("id,shopping_linkage", {
+    head: true
+  });
+
+  return !error;
 }
 
 function sanitizeError(message: string | undefined): string {

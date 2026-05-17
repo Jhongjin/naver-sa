@@ -2,6 +2,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import type { PlannerPlan } from "@/lib/planner";
 import type { ApprovalDecisionMap, ApprovalDecisionNoteMap } from "@/lib/reporting";
 import type { NaverExecutionContext, NaverExecutionDraft } from "@/lib/execution-draft";
+import { createShoppingLinkageSummary } from "@/lib/shopping-linkage";
 
 export type SavePlanningRunInput = {
   plan: PlannerPlan;
@@ -37,7 +38,10 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
   const { plan, decisions } = input;
   const decisionNotes = input.decisionNotes ?? {};
   const warnings: string[] = [];
-  const ownershipSupport = await getWorkspaceOwnershipSupport(supabase);
+  const [ownershipSupport, shoppingLinkageSupport] = await Promise.all([
+    getWorkspaceOwnershipSupport(supabase),
+    getPlanningRunShoppingLinkageSupport(supabase)
+  ]);
   const workspaceResult = await getOrCreateWorkspace({
     supabase,
     name: `${plan.input.brandName} Workspace`,
@@ -54,6 +58,11 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
   }
 
   const workspaceId = workspaceResult.workspaceId;
+  const shoppingLinkage = createShoppingLinkageSummary({
+    productType: plan.input.productType,
+    context: input.executionDraft?.context ?? {},
+    capturedAt: new Date().toISOString()
+  });
   const planningRunInsert = {
     workspace_id: workspaceId,
     brand_name: plan.input.brandName,
@@ -67,6 +76,7 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
     forecast: plan.forecast,
     assumptions: plan.assumptions,
     created_by: input.createdBy,
+    ...(shoppingLinkageSupport ? { shopping_linkage: shoppingLinkage } : {}),
     ...(ownershipSupport.planningRunUser && input.createdByUserId
       ? { created_by_user_id: input.createdByUserId }
       : {})
@@ -187,7 +197,9 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
       after_value: {
         forecast: plan.forecast,
         decisions,
-        decisionNotes
+        decisionNotes,
+        shoppingLinkage,
+        shoppingLinkageCaptured: shoppingLinkageSupport
       },
       reason: "MVP planner dry-run saved."
     })
@@ -268,6 +280,16 @@ async function getWorkspaceOwnershipSupport(supabase: NonNullable<ReturnType<typ
     planningRunUser: !runResult.error,
     workspaceMembers: !memberResult.error
   };
+}
+
+async function getPlanningRunShoppingLinkageSupport(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
+): Promise<boolean> {
+  const { error } = await supabase.from("planning_runs").select("id,shopping_linkage", {
+    head: true
+  });
+
+  return !error;
 }
 
 async function getOrCreateWorkspace(input: {

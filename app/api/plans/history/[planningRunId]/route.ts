@@ -1,6 +1,7 @@
 import { verifyUserAccess } from "@/lib/auth-access";
 import type { NaverExecutionContext } from "@/lib/execution-draft";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
+import { coerceShoppingLinkageSummary } from "@/lib/shopping-linkage";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 export function POST() {
@@ -32,6 +33,7 @@ type PlanningRunRow = {
   seed_keywords: string[];
   forecast: Record<string, unknown>;
   assumptions: string[];
+  shopping_linkage?: Record<string, unknown> | null;
   created_by: string | null;
   created_by_user_id: string | null;
   created_at: string;
@@ -170,11 +172,28 @@ export async function GET(request: Request, context: RouteContext) {
     return jsonNoStore({ ok: false, error: "Invalid planning run id." }, { status: 400 });
   }
 
+  const shoppingLinkageSupport = await hasShoppingLinkageSupport(supabase);
+  const planningRunSelect = [
+    "id",
+    "workspace_id",
+    "brand_name",
+    "site_url",
+    "vertical",
+    "monthly_budget",
+    "max_bid",
+    "mode",
+    "product_type",
+    "seed_keywords",
+    "forecast",
+    "assumptions",
+    ...(shoppingLinkageSupport ? ["shopping_linkage"] : []),
+    "created_by",
+    "created_by_user_id",
+    "created_at"
+  ].join(", ");
   const { data: run, error: runError } = await supabase
     .from("planning_runs")
-    .select(
-      "id, workspace_id, brand_name, site_url, vertical, monthly_budget, max_bid, mode, product_type, seed_keywords, forecast, assumptions, created_by, created_by_user_id, created_at"
-    )
+    .select(planningRunSelect)
     .eq("id", planningRunId)
     .single();
 
@@ -182,7 +201,7 @@ export async function GET(request: Request, context: RouteContext) {
     return jsonNoStore({ ok: false, error: "Planning run was not found." }, { status: 404 });
   }
 
-  const planningRun = run as PlanningRunRow;
+  const planningRun = run as unknown as PlanningRunRow;
   const creators = new Set([access.state.email, access.state.userId].filter(Boolean));
   const ownsRun =
     planningRun.created_by_user_id === access.state.userId ||
@@ -332,6 +351,8 @@ export async function GET(request: Request, context: RouteContext) {
       seedKeywords: planningRun.seed_keywords,
       forecast: planningRun.forecast,
       assumptions: planningRun.assumptions,
+      shoppingLinkage: coerceShoppingLinkageSummary(planningRun.shopping_linkage ?? null, planningRun.product_type),
+      shoppingLinkageCaptured: shoppingLinkageSupport,
       createdBy: planningRun.created_by,
       createdByUserId: planningRun.created_by_user_id,
       workspaceId: planningRun.workspace_id,
@@ -477,6 +498,16 @@ async function hasExecutionDraftContextSupport(
   supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
 ): Promise<boolean> {
   const { error } = await supabase.from("execution_drafts").select("id,execution_context", {
+    head: true
+  });
+
+  return !error;
+}
+
+async function hasShoppingLinkageSupport(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
+): Promise<boolean> {
+  const { error } = await supabase.from("planning_runs").select("id,shopping_linkage", {
     head: true
   });
 
