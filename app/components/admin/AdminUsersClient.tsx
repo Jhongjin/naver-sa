@@ -87,6 +87,70 @@ type NaverReadinessCheckResponse = {
   };
 };
 
+type AppHealthResponse = {
+  ok: boolean;
+  variables: Array<{
+    name: string;
+    present: boolean;
+  }>;
+  recommended: Array<{
+    name: string;
+    present: boolean;
+    purpose: string;
+  }>;
+  warnings: string[];
+  adminBootstrap: {
+    appMetadataRoleSupported: boolean;
+    adminEmailsConfigured: boolean;
+  };
+};
+
+type SupabaseReadinessResponse = {
+  ok: boolean;
+  ready: boolean;
+  environment: {
+    configured: boolean;
+    urlPresent: boolean;
+    urlValid: boolean;
+  };
+  connectivity: {
+    checked: boolean;
+    reachable: boolean;
+    status: number | null;
+  };
+  auth: {
+    checked: boolean;
+    adminApiReachable: boolean;
+  };
+  schema: {
+    requiredTableCount: number;
+    presentTableCount: number;
+    requiredColumnCount: number;
+    presentColumnCount: number;
+  };
+  note: string | null;
+};
+
+type NaverPublicReadinessResponse = {
+  ok: boolean;
+  ready: boolean;
+  configuration: {
+    ready: boolean;
+    missingCount: number;
+    customerIdPresent: boolean;
+  };
+  externalRequest: boolean;
+  readOnlyEndpointCount: number;
+  writeExecution: string;
+  deleteExecution: string;
+};
+
+type OperationalHealth = {
+  app: AppHealthResponse;
+  supabase: SupabaseReadinessResponse;
+  naver: NaverPublicReadinessResponse;
+};
+
 type ActivityFilter = "all" | "ready" | "blocked" | "missingDraft";
 type ActivityLimit = 8 | 20;
 type UserStatusFilter = "all" | "unconfirmed" | "neverSignedIn" | "noWorkspace";
@@ -116,6 +180,9 @@ function AdminUsersContent() {
   const [activityStatus, setActivityStatus] = useState<"idle" | "loading" | "error">("loading");
   const [naverCheckStatus, setNaverCheckStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [naverCheckMessage, setNaverCheckMessage] = useState("");
+  const [operationalHealth, setOperationalHealth] = useState<OperationalHealth | null>(null);
+  const [healthStatus, setHealthStatus] = useState<"idle" | "loading" | "error">("loading");
+  const [healthMessage, setHealthMessage] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
   const [inviteCompany, setInviteCompany] = useState("");
@@ -177,6 +244,44 @@ function AdminUsersContent() {
 
     return activities;
   }, [activities, activityFilter]);
+  const operationalHealthItems = useMemo(() => {
+    if (!operationalHealth) {
+      return [];
+    }
+
+    const appPresentCount = operationalHealth.app.variables.filter((variable) => variable.present).length;
+    const appVariableCount = operationalHealth.app.variables.length;
+    const recommendedMissing = operationalHealth.app.recommended.filter((variable) => !variable.present).length;
+
+    return [
+      {
+        label: "앱 환경",
+        value: `${appPresentCount}/${appVariableCount}`,
+        ok: operationalHealth.app.ok,
+        detail: recommendedMissing > 0 ? `선택 항목 ${recommendedMissing}개 미설정` : "필수 환경값 준비"
+      },
+      {
+        label: "Supabase",
+        value: `${operationalHealth.supabase.schema.presentTableCount}/${operationalHealth.supabase.schema.requiredTableCount}`,
+        ok: operationalHealth.supabase.ready,
+        detail: operationalHealth.supabase.ready
+          ? "스키마와 admin API 정상"
+          : "스키마 또는 연결 확인 필요"
+      },
+      {
+        label: "Naver API",
+        value: operationalHealth.naver.ready ? "ready" : "check",
+        ok: operationalHealth.naver.ready,
+        detail: `${operationalHealth.naver.readOnlyEndpointCount}개 read-only 엔드포인트 / live off`
+      },
+      {
+        label: "MVP 가드",
+        value: "blocked",
+        ok: operationalHealth.naver.writeExecution === "blocked in MVP" && operationalHealth.naver.deleteExecution === "blocked in MVP",
+        detail: "라이브 전송과 삭제는 차단 유지"
+      }
+    ];
+  }, [operationalHealth]);
 
   const loadUsers = useCallback(async () => {
     setStatus("loading");
@@ -226,6 +331,32 @@ function AdminUsersContent() {
     setStatus("idle");
   }, [activityLimit, getAccessToken]);
 
+  const loadOperationalHealth = useCallback(async () => {
+    setHealthStatus("loading");
+    setHealthMessage("");
+
+    try {
+      const [appResponse, supabaseResponse, naverResponse] = await Promise.all([
+        fetch("/api/health", { cache: "no-store" }),
+        fetch("/api/supabase/readiness", { cache: "no-store" }),
+        fetch("/api/naver/readiness", { cache: "no-store" })
+      ]);
+      const [app, supabase, naver] = (await Promise.all([
+        appResponse.json(),
+        supabaseResponse.json(),
+        naverResponse.json()
+      ])) as [AppHealthResponse, SupabaseReadinessResponse, NaverPublicReadinessResponse];
+      const allHealthy = app.ok && supabase.ready && naver.ready;
+
+      setOperationalHealth({ app, supabase, naver });
+      setHealthStatus(allHealthy ? "idle" : "error");
+      setHealthMessage(allHealthy ? "" : "확인이 필요한 운영 항목이 있습니다.");
+    } catch {
+      setHealthStatus("error");
+      setHealthMessage("운영 헬스 정보를 불러오지 못했습니다.");
+    }
+  }, []);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       loadUsers().catch(() => {
@@ -233,12 +364,16 @@ function AdminUsersContent() {
         setActivityStatus("error");
         setMessage("사용자 목록을 불러오지 못했습니다.");
       });
+      loadOperationalHealth().catch(() => {
+        setHealthStatus("error");
+        setHealthMessage("운영 헬스 정보를 불러오지 못했습니다.");
+      });
     }, 0);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [loadUsers]);
+  }, [loadOperationalHealth, loadUsers]);
 
   async function updateRole(userId: string, role: "member" | "admin") {
     setStatus("loading");
@@ -415,6 +550,43 @@ function AdminUsersContent() {
             <RefreshCw size={17} />
             새로고침
           </button>
+        </div>
+      </section>
+
+      <section className="account-panel admin-health-panel" aria-label="운영 헬스">
+        <div className="admin-health-heading">
+          <div>
+            <ShieldCheck size={22} />
+            <strong>운영 헬스</strong>
+            <span>환경, Supabase, Naver 설정, MVP 안전 가드를 한 번에 점검합니다.</span>
+            {healthMessage ? <em className="admin-check-result error">{healthMessage}</em> : null}
+          </div>
+          <button
+            className="icon-button subtle"
+            disabled={healthStatus === "loading"}
+            type="button"
+            onClick={loadOperationalHealth}
+          >
+            <RefreshCw size={17} />
+            {healthStatus === "loading" ? "확인 중" : "헬스 새로고침"}
+          </button>
+        </div>
+        <div className="admin-health-grid">
+          {operationalHealthItems.length > 0 ? (
+            operationalHealthItems.map((item) => (
+              <article className={item.ok ? "ok" : "needs-check"} key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+                <small>{item.detail}</small>
+              </article>
+            ))
+          ) : (
+            <article className="loading">
+              <span>운영 헬스</span>
+              <strong>확인 중</strong>
+              <small>배포 환경을 점검하고 있습니다.</small>
+            </article>
+          )}
         </div>
       </section>
 
