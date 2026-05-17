@@ -7,6 +7,7 @@ import {
   type NaverProductGroupSummary
 } from "@/lib/naver-search-ad";
 import { verifyUserAccess } from "@/lib/auth-access";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { createAccountSnapshotDiff, type AccountSnapshotDiff } from "@/lib/naver-account-snapshot-diff";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
@@ -318,12 +319,5 @@ function isMissingSnapshotTableError(error: { code?: string; message?: string } 
 }
 
 function sanitizeSnapshotError(message: string | undefined): string {
-  if (!message) {
-    return "Unknown persistence error.";
-  }
-
-  return message
-    .replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer [REDACTED]")
-    .replace(/apikey[=:]\s*[^,\s}]+/gi, "apikey=[REDACTED]")
-    .slice(0, 220);
+  return redactSensitiveErrorText(message, "Unknown persistence error.");
 }

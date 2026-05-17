@@ -1,4 +1,5 @@
 import { verifyUserAccess } from "@/lib/auth-access";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { getNaverConfigState, requestNaverSearchAd } from "@/lib/naver-search-ad";
 import {
@@ -231,10 +232,5 @@ function isMissingTableError(error: { code?: string; message?: string } | null):
 }
 
 function sanitizeError(message: string | undefined): string {
-  return message
-    ? message
-        .replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer [REDACTED]")
-        .replace(/apikey[=:]\s*[^,\s}]+/gi, "apikey=[REDACTED]")
-        .slice(0, 220)
-    : "Unknown persistence error.";
+  return redactSensitiveErrorText(message, "Unknown persistence error.");
 }

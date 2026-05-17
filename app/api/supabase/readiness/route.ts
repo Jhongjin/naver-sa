@@ -1,4 +1,5 @@
 import { verifyUserAccess } from "@/lib/auth-access";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { getSupabaseAdminClient, getSupabaseAdminState, type SupabaseUrlState } from "@/lib/supabase-admin";
 
@@ -456,8 +457,5 @@ function getErrorMessage(error: unknown): string {
 }
 
 function sanitizeSupabaseError(message: string): string {
-  return message
-    .replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer [REDACTED]")
-    .replace(/apikey[=:]\s*[^,\s}]+/gi, "apikey=[REDACTED]")
-    .slice(0, 220);
+  return redactSensitiveErrorText(message, "Supabase readiness check failed.");
 }

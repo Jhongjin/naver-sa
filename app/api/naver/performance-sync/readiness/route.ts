@@ -1,4 +1,5 @@
 import { verifyUserAccess } from "@/lib/auth-access";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { getNaverConfigState } from "@/lib/naver-search-ad";
 import {
@@ -287,14 +288,9 @@ function readScalar(value: unknown): string | null {
 }
 
 function readString(value: unknown, maxLength: number): string | null {
-  return typeof value === "string" && value.trim() ? sanitizeError(value).slice(0, maxLength) : null;
+  return typeof value === "string" && value.trim() ? redactSensitiveErrorText(value, "", maxLength) : null;
 }
 
 function sanitizeError(message: string | undefined): string {
-  return message
-    ? message
-        .replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer [REDACTED]")
-        .replace(/apikey[=:]\s*[^,\s}]+/gi, "apikey=[REDACTED]")
-        .slice(0, 220)
-    : "Performance sync readiness check failed.";
+  return redactSensitiveErrorText(message, "Performance sync readiness check failed.");
 }

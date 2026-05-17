@@ -49,6 +49,12 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "loadReadyExecutionDraft(draft.draftKey)");
     requireSourceIncludes(source, relativePath, "EXECUTION_ALREADY_RECORDED");
     requireSourceOrder(source, relativePath, "loadReadyExecutionDraft(draft.draftKey)", "requestNaverSearchAd<unknown>");
+    requireSharedErrorRedaction(
+      source,
+      relativePath,
+      "sanitizePersistenceError",
+      "execution persistence errors must pass through shared sensitive text redaction"
+    );
   }
 
   if (relativePath === "app/api/plans/store/route.ts") {
@@ -146,6 +152,12 @@ for (const file of routeFiles) {
       "rowCount: table.rowCount",
       "public Supabase readiness must not expose optional table row counts"
     );
+    requireSharedErrorRedaction(
+      source,
+      relativePath,
+      "sanitizeSupabaseError",
+      "Supabase readiness errors must pass through shared sensitive text redaction"
+    );
   }
 
   if (relativePath === "app/api/naver/performance-sync/preview/route.ts") {
@@ -155,6 +167,24 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "scope: input.preview.scope");
     requireSourceIncludes(source, relativePath, "storedRawStats: false");
     requireSourceIncludes(source, relativePath, "readOnly: true");
+    requireSharedErrorRedaction(
+      source,
+      relativePath,
+      "sanitizeError",
+      "performance preview errors must pass through shared sensitive text redaction"
+    );
+  }
+
+  if (relativePath === "app/api/naver/performance-sync/plans/route.ts") {
+    requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
+    requireSourceIncludes(source, relativePath, "error: readRedactedString(value?.error, 220)");
+    requireSourceIncludes(source, relativePath, "message: readRedactedString(value?.message, 240)");
+    requireSharedErrorRedaction(
+      source,
+      relativePath,
+      "sanitizeError",
+      "performance sync plan errors must pass through shared sensitive text redaction"
+    );
   }
 
   if (relativePath === "app/api/naver/performance-sync/readiness/route.ts") {
@@ -164,10 +194,23 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "ops,");
     requireSourceIncludes(source, relativePath, "externalRequest: false");
     requireSourceExcludes(source, relativePath, "databaseCheck,", "readiness must return the sanitized database object without the internal client");
+    requireSourceIncludes(source, relativePath, 'redactSensitiveErrorText(value, "", maxLength)');
+    requireSharedErrorRedaction(
+      source,
+      relativePath,
+      "sanitizeError",
+      "performance sync readiness errors must pass through shared sensitive text redaction"
+    );
   }
 
   if (relativePath === "app/api/naver/account-snapshot/route.ts") {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
+    requireSharedErrorRedaction(
+      source,
+      relativePath,
+      "sanitizeSnapshotError",
+      "account snapshot errors must pass through shared sensitive text redaction"
+    );
   }
 
   if (relativePath === "app/api/naver/account-snapshot/history/route.ts") {
@@ -176,6 +219,12 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, 'query = query.eq("user_id", access.user.id)');
     requireSourceIncludes(source, relativePath, "rawInventoryExcluded: true");
     requireSourceIncludes(source, relativePath, "scopeEnforced: true");
+    requireSharedErrorRedaction(
+      source,
+      relativePath,
+      "sanitizeSnapshotError",
+      "account snapshot history errors must pass through shared sensitive text redaction"
+    );
 
     const snapshotHistoryItem = getSourceSegment(
       source,
@@ -422,6 +471,14 @@ function requireSourceOrder(source, relativePath, before, after) {
   if (beforeIndex === -1 || afterIndex === -1 || beforeIndex > afterIndex) {
     failures.push(`${relativePath}: ${before} must appear before ${after}`);
   }
+}
+
+function requireSharedErrorRedaction(source, relativePath, sanitizerName, reason) {
+  requireSourceIncludes(source, relativePath, "redactSensitiveErrorText");
+  requireSourceIncludes(source, relativePath, sanitizerName);
+  requireSourceExcludes(source, relativePath, ".replace(/Bearer", reason);
+  requireSourceExcludes(source, relativePath, "apikey[=:]", reason);
+  requireSourceExcludes(source, relativePath, ".slice(0, 220)", reason);
 }
 
 function requireProjectSurfaceChecks() {
