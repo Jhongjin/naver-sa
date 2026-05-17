@@ -22,6 +22,7 @@ import { formatKoreanDate, formatKoreanDateTime } from "@/lib/formatters";
 import {
   shoppingLinkageStatusClass,
   shoppingLinkageStatusLabel,
+  type ShoppingLinkageStatus,
   type ShoppingLinkageSummary
 } from "@/lib/shopping-linkage";
 import { draftStatusLabel, productTypeLabel } from "@/lib/ui-labels";
@@ -85,6 +86,7 @@ type ActivityResponse = {
   limit: number;
   filters: {
     limit: number;
+    linkage: ActivityLinkageFilter;
   };
   summary: {
     total: number;
@@ -517,6 +519,7 @@ type OperationalHealth = {
 };
 
 type ActivityFilter = "all" | "ready" | "blocked" | "missingDraft";
+type ActivityLinkageFilter = "all" | ShoppingLinkageStatus;
 type ActivityLimit = 8 | 20;
 type AuditEventFilter = "all" | "ops" | "invited" | "emailConfirmed" | "roleChanged" | "other";
 type UserStatusFilter = "all" | "unconfirmed" | "neverSignedIn" | "noWorkspace";
@@ -599,6 +602,7 @@ function AdminUsersContent() {
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "member">("all");
   const [userStatusFilter, setUserStatusFilter] = useState<UserStatusFilter>("all");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
+  const [activityLinkageFilter, setActivityLinkageFilter] = useState<ActivityLinkageFilter>("all");
   const [activityLimit, setActivityLimit] = useState<ActivityLimit>(8);
   const [auditEventFilter, setAuditEventFilter] = useState<AuditEventFilter>("all");
 
@@ -636,22 +640,29 @@ function AdminUsersContent() {
     });
   }, [query, roleFilter, userStatusFilter, users]);
   const filteredActivities = useMemo(() => {
-    if (activityFilter === "ready") {
-      return activities.filter((activity) => activity.executionDraft?.status === "ready");
-    }
+    return activities.filter((activity) => {
+      const matchesLinkage =
+        activityLinkageFilter === "all" || activity.shoppingLinkage.status === activityLinkageFilter;
 
-    if (activityFilter === "blocked") {
-      return activities.filter(
-        (activity) => (activity.executionDraft?.blockerCount ?? activity.approvalSummary.blocked) > 0
-      );
-    }
+      if (!matchesLinkage) {
+        return false;
+      }
 
-    if (activityFilter === "missingDraft") {
-      return activities.filter((activity) => !activity.executionDraft);
-    }
+      if (activityFilter === "ready") {
+        return activity.executionDraft?.status === "ready";
+      }
 
-    return activities;
-  }, [activities, activityFilter]);
+      if (activityFilter === "blocked") {
+        return (activity.executionDraft?.blockerCount ?? activity.approvalSummary.blocked) > 0;
+      }
+
+      if (activityFilter === "missingDraft") {
+        return !activity.executionDraft;
+      }
+
+      return true;
+    });
+  }, [activities, activityFilter, activityLinkageFilter]);
   const auditSummary = useMemo(
     () =>
       auditEvents.reduce(
@@ -789,7 +800,15 @@ function AdminUsersContent() {
         authorization: `Bearer ${token}`
       }
     });
-    const activityRequest = fetch(`/api/admin/activity?limit=${activityLimit}`, {
+    const activityParams = new URLSearchParams({
+      limit: String(activityLimit)
+    });
+
+    if (activityLinkageFilter !== "all") {
+      activityParams.set("linkage", activityLinkageFilter);
+    }
+
+    const activityRequest = fetch(`/api/admin/activity?${activityParams.toString()}`, {
       headers: {
         authorization: `Bearer ${token}`
       }
@@ -817,7 +836,7 @@ function AdminUsersContent() {
       setActivityStatus("error");
     }
     setStatus("idle");
-  }, [activityLimit, getAccessToken]);
+  }, [activityLimit, activityLinkageFilter, getAccessToken]);
 
   const loadOperationalHealth = useCallback(async () => {
     setHealthStatus("loading");
@@ -2407,6 +2426,19 @@ function AdminUsersContent() {
             </button>
           ))}
         </div>
+        <div className="segmented-control admin-activity-filter" aria-label="최근 활동 쇼핑 linkage 필터">
+          {(["all", "verified", "mismatch", "unverified", "not_applicable"] as const).map((filter) => (
+            <button
+              aria-pressed={activityLinkageFilter === filter}
+              className={activityLinkageFilter === filter ? "active" : ""}
+              key={filter}
+              type="button"
+              onClick={() => setActivityLinkageFilter(filter)}
+            >
+              {activityLinkageFilterLabel(filter)}
+            </button>
+          ))}
+        </div>
         {activityStatus === "loading" ? (
           <div className="admin-activity-empty">
             <span className="skeleton-line wide" />
@@ -2432,7 +2464,7 @@ function AdminUsersContent() {
           <div className="admin-activity-empty">
             <Search size={20} />
             <strong>필터에 맞는 최근 활동이 없습니다</strong>
-            <span>상태 필터를 전체로 바꾸거나 표시 개수를 늘려 주세요.</span>
+            <span>상태/linkage 필터를 전체로 바꾸거나 표시 개수를 늘려 주세요.</span>
           </div>
         ) : null}
         {filteredActivities.length > 0 ? (
@@ -3050,6 +3082,10 @@ function activityFilterLabel(value: ActivityFilter) {
   };
 
   return labels[value];
+}
+
+function activityLinkageFilterLabel(value: ActivityLinkageFilter) {
+  return value === "all" ? "전체" : shoppingLinkageStatusLabel(value);
 }
 
 function auditEventFilterLabel(value: AuditEventFilter) {

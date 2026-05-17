@@ -181,6 +181,7 @@ Recent operational queue:
 - API policy verification now guards those newer history surfaces too: public reports must stay redacted while allowing safe product-group summaries, planning-save failure alerts must remain visible, readiness must list the optional persistence features, and admin ops summaries must cover every `ops.*` event family.
 - The admin operational health panel now surfaces Supabase optional feature readiness counts and per-feature status pills, so operators can see whether share links, Shopping Search linkage/product groups, execution context, and planner metadata migrations are installed.
 - Limited public reports now include sanitized planner metadata, including the industry template name, benchmark feature summaries, and operation rules, while continuing to exclude full planner template internals, raw payloads, audit internals, idempotency keys, payload ids, and creator identity.
+- Saved-history and admin recent-activity screens and APIs now support Shopping Search linkage status filters, making verified, mismatch, unverified, and not-applicable runs easier to review without changing persistence or Naver execution behavior.
 
 ## UX Direction
 

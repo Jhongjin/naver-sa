@@ -271,6 +271,9 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(adminClientSource, adminClientPath, "formatOptionalFeatureDetail");
   requireSourceIncludes(adminClientSource, adminClientPath, "admin-health-feature-list");
   requireSourceIncludes(adminClientSource, adminClientPath, "선택 기능");
+  requireSourceIncludes(adminClientSource, adminClientPath, "activityLinkageFilter");
+  requireSourceIncludes(adminClientSource, adminClientPath, "activityLinkageFilterLabel");
+  requireSourceIncludes(adminClientSource, adminClientPath, "최근 활동 쇼핑 linkage 필터");
   requireSourceIncludes(adminClientSource, adminClientPath, 'event.eventType.startsWith("ops.")');
   requireSourceIncludes(adminClientSource, adminClientPath, "ops.report_share.created");
   requireSourceIncludes(adminClientSource, adminClientPath, "ops.report_share.revoked");
@@ -295,6 +298,33 @@ function requireProjectSurfaceChecks() {
     "payloadId",
     "shared report UI must not type or render internal payload ids"
   );
+
+  const historyListClientPath = "app/components/history/HistoryListClient.tsx";
+  const historyListClientSource = readProjectFile(historyListClientPath);
+
+  requireSourceIncludes(historyListClientSource, historyListClientPath, "linkageFilter");
+  requireSourceIncludes(historyListClientSource, historyListClientPath, "coerceShoppingLinkageFilter");
+  requireSourceIncludes(historyListClientSource, historyListClientPath, 'params.set("linkage", linkageFilter)');
+  requireSourceIncludes(historyListClientSource, historyListClientPath, "쇼핑 linkage 필터");
+
+  const shoppingLinkagePath = "lib/shopping-linkage.ts";
+  const shoppingLinkageSource = readProjectFile(shoppingLinkagePath);
+
+  requireSourceIncludes(shoppingLinkageSource, shoppingLinkagePath, "coerceShoppingLinkageStatusFilter");
+
+  const historyApiPath = "app/api/plans/history/route.ts";
+  const historyApiSource = readProjectFile(historyApiPath);
+
+  requireSourceIncludes(historyApiSource, historyApiPath, "coerceShoppingLinkageStatusFilter");
+  requireSourceIncludes(historyApiSource, historyApiPath, "linkageFilter");
+  requireSourceIncludes(historyApiSource, historyApiPath, "linkage: linkageFilter ?? \"all\"");
+
+  const adminActivityApiPath = "app/api/admin/activity/route.ts";
+  const adminActivityApiSource = readProjectFile(adminActivityApiPath);
+
+  requireSourceIncludes(adminActivityApiSource, adminActivityApiPath, "coerceShoppingLinkageStatusFilter");
+  requireSourceIncludes(adminActivityApiSource, adminActivityApiPath, "linkageFilter");
+  requireSourceIncludes(adminActivityApiSource, adminActivityApiPath, "linkage: linkageFilter ?? \"all\"");
 }
 
 function readProjectFile(relativePath) {

@@ -1,6 +1,6 @@
 import { verifyUserAccess } from "@/lib/auth-access";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
-import { coerceShoppingLinkageSummary } from "@/lib/shopping-linkage";
+import { coerceShoppingLinkageStatusFilter, coerceShoppingLinkageSummary } from "@/lib/shopping-linkage";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 export function POST() {
@@ -97,6 +97,7 @@ export async function GET(request: Request) {
   const dayWindow = coerceDayWindow(url.searchParams.get("days"));
   const createdSince = dayWindow ? new Date(Date.now() - dayWindow * 24 * 60 * 60 * 1000).toISOString() : null;
   const searchQuery = coerceSearchQuery(url.searchParams.get("q"));
+  const linkageFilter = coerceShoppingLinkageStatusFilter(url.searchParams.get("linkage"));
   const readableWorkspaceIds =
     access.state.role === "admin" ? [] : await getReadableWorkspaceIds(supabase, access.state.userId);
   const shoppingLinkageSupport = await hasShoppingLinkageSupport(supabase);
@@ -180,7 +181,8 @@ export async function GET(request: Request) {
       filters: {
         productType: productType ?? "all",
         days: dayWindow,
-        q: searchQuery
+        q: searchQuery,
+        linkage: linkageFilter ?? "all"
       }
     });
   }
@@ -283,6 +285,9 @@ export async function GET(request: Request) {
         : null
     };
   });
+  const filteredHistory = linkageFilter
+    ? history.filter((run) => run.shoppingLinkage.status === linkageFilter)
+    : history;
 
   const nextOffset =
     count !== null && count !== undefined
@@ -295,8 +300,8 @@ export async function GET(request: Request) {
 
   return jsonNoStore({
     ok: true,
-    runs: history,
-    total: count ?? offset + history.length,
+    runs: filteredHistory,
+    total: linkageFilter ? offset + filteredHistory.length : count ?? offset + history.length,
     offset,
     limit,
     nextOffset,
@@ -304,7 +309,8 @@ export async function GET(request: Request) {
     filters: {
       productType: productType ?? "all",
       days: dayWindow,
-      q: searchQuery
+      q: searchQuery,
+      linkage: linkageFilter ?? "all"
     }
   });
 }

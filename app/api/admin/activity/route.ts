@@ -1,6 +1,6 @@
 import { verifyUserAccess } from "@/lib/auth-access";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
-import { coerceShoppingLinkageSummary } from "@/lib/shopping-linkage";
+import { coerceShoppingLinkageStatusFilter, coerceShoppingLinkageSummary } from "@/lib/shopping-linkage";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 export function POST() {
@@ -78,6 +78,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const limit = clampLimit(url.searchParams.get("limit"));
+  const linkageFilter = coerceShoppingLinkageStatusFilter(url.searchParams.get("linkage"));
   const shoppingLinkageSupport = await hasShoppingLinkageSupport(supabase);
   const planningRunSelect = [
     "id",
@@ -121,7 +122,8 @@ export async function GET(request: Request) {
       },
       limit,
       filters: {
-        limit
+        limit,
+        linkage: linkageFilter ?? "all"
       }
     });
   }
@@ -192,14 +194,18 @@ export async function GET(request: Request) {
         : null
     };
   });
+  const filteredActivities = linkageFilter
+    ? activities.filter((activity) => activity.shoppingLinkage.status === linkageFilter)
+    : activities;
 
   return jsonNoStore({
     ok: true,
-    activities,
-    summary: summarizeActivities(activities),
+    activities: filteredActivities,
+    summary: summarizeActivities(filteredActivities),
     limit,
     filters: {
-      limit
+      limit,
+      linkage: linkageFilter ?? "all"
     }
   });
 }

@@ -19,6 +19,7 @@ import { formatCompactWon, formatKoreanDateTime, formatKoreanNumber } from "@/li
 import {
   shoppingLinkageStatusClass,
   shoppingLinkageStatusLabel,
+  type ShoppingLinkageStatus,
   type ShoppingLinkageSummary
 } from "@/lib/shopping-linkage";
 import { draftStatusClass, draftStatusLabel, plannerModeLabel, productTypeLabel } from "@/lib/ui-labels";
@@ -67,12 +68,14 @@ type HistoryResponse = {
     productType: ProductFilter;
     days: 7 | 30 | null;
     q: string | null;
+    linkage: ShoppingLinkageFilter;
   };
 };
 
 type ProductFilter = "all" | "powerlink" | "shoppingSearch";
 type DraftFilter = "all" | "ready" | "blocked" | "failed" | "executed" | "none";
 type DateFilter = "all" | "7" | "30";
+type ShoppingLinkageFilter = "all" | ShoppingLinkageStatus;
 
 export function HistoryListClient() {
   return (
@@ -94,6 +97,7 @@ function HistoryListContent() {
   const [productFilter, setProductFilter] = useState<ProductFilter>("all");
   const [draftFilter, setDraftFilter] = useState<DraftFilter>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  const [linkageFilter, setLinkageFilter] = useState<ShoppingLinkageFilter>("all");
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [filtersReady, setFiltersReady] = useState(false);
   const [copiedFilterLink, setCopiedFilterLink] = useState(false);
@@ -109,6 +113,7 @@ function HistoryListContent() {
       const initialProductFilter = coerceProductFilter(params.get("productType"));
       const initialDraftFilter = coerceDraftFilter(params.get("draft"));
       const initialDateFilter = coerceDateFilter(params.get("days"));
+      const initialLinkageFilter = coerceShoppingLinkageFilter(params.get("linkage"));
 
       if (initialQuery) {
         setQuery(initialQuery);
@@ -118,6 +123,7 @@ function HistoryListContent() {
       setProductFilter(initialProductFilter);
       setDraftFilter(initialDraftFilter);
       setDateFilter(initialDateFilter);
+      setLinkageFilter(initialLinkageFilter);
       setFiltersReady(true);
     }, 0);
 
@@ -146,6 +152,10 @@ function HistoryListContent() {
       params.set("days", dateFilter);
     }
 
+    if (linkageFilter !== "all") {
+      params.set("linkage", linkageFilter);
+    }
+
     if (serverQuery.trim()) {
       params.set("q", serverQuery.trim());
     }
@@ -162,7 +172,7 @@ function HistoryListContent() {
     }
 
     return data;
-  }, [dateFilter, getAccessToken, productFilter, serverQuery]);
+  }, [dateFilter, getAccessToken, linkageFilter, productFilter, serverQuery]);
 
   const loadHistory = useCallback(async () => {
     setStatus("loading");
@@ -247,6 +257,7 @@ function HistoryListContent() {
     setUrlParam(params, "productType", productFilter === "all" ? "" : productFilter);
     setUrlParam(params, "days", dateFilter === "all" ? "" : dateFilter);
     setUrlParam(params, "draft", draftFilter === "all" ? "" : draftFilter);
+    setUrlParam(params, "linkage", linkageFilter === "all" ? "" : linkageFilter);
 
     const queryString = params.toString();
     const nextUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
@@ -255,7 +266,7 @@ function HistoryListContent() {
     if (nextUrl !== currentUrl) {
       window.history.replaceState(null, "", nextUrl);
     }
-  }, [dateFilter, draftFilter, filtersReady, productFilter, query]);
+  }, [dateFilter, draftFilter, filtersReady, linkageFilter, productFilter, query]);
 
   const summary = useMemo(
     () => ({
@@ -270,7 +281,11 @@ function HistoryListContent() {
     [runs]
   );
   const hasActiveFilters =
-    query.trim().length > 0 || productFilter !== "all" || draftFilter !== "all" || dateFilter !== "all";
+    query.trim().length > 0 ||
+    productFilter !== "all" ||
+    draftFilter !== "all" ||
+    dateFilter !== "all" ||
+    linkageFilter !== "all";
   const isSearchSettling = query.trim() !== serverQuery.trim();
   const serverFilterSummary = useMemo(() => {
     const filters: string[] = [];
@@ -287,8 +302,12 @@ function HistoryListContent() {
       filters.push(`최근 ${dateFilterLabel(dateFilter)}`);
     }
 
+    if (linkageFilter !== "all") {
+      filters.push(`linkage ${shoppingLinkageFilterLabel(linkageFilter)}`);
+    }
+
     return filters;
-  }, [dateFilter, productFilter, serverQuery]);
+  }, [dateFilter, linkageFilter, productFilter, serverQuery]);
 
   const filteredRuns = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -298,6 +317,7 @@ function HistoryListContent() {
       const draftStatus = run.executionDraft?.status ?? "none";
       const matchesDraft = draftFilter === "all" || draftFilter === draftStatus;
       const matchesDate = isWithinDateFilter(run.createdAt, dateFilter);
+      const matchesLinkage = linkageFilter === "all" || run.shoppingLinkage.status === linkageFilter;
       const matchesQuery =
         !needle ||
         [
@@ -316,9 +336,9 @@ function HistoryListContent() {
           .toLowerCase()
           .includes(needle);
 
-      return matchesProduct && matchesDraft && matchesDate && matchesQuery;
+      return matchesProduct && matchesDraft && matchesDate && matchesLinkage && matchesQuery;
     });
-  }, [dateFilter, draftFilter, productFilter, query, runs]);
+  }, [dateFilter, draftFilter, linkageFilter, productFilter, query, runs]);
 
   function downloadFilteredCsv() {
     if (filteredRuns.length === 0) {
@@ -378,7 +398,7 @@ function HistoryListContent() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = buildHistoryCsvFileName({ dateFilter, draftFilter, productFilter, query });
+    link.download = buildHistoryCsvFileName({ dateFilter, draftFilter, linkageFilter, productFilter, query });
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -388,6 +408,7 @@ function HistoryListContent() {
     setProductFilter("all");
     setDraftFilter("all");
     setDateFilter("all");
+    setLinkageFilter("all");
   }
 
   async function copyFilterLink() {
@@ -506,6 +527,19 @@ function HistoryListContent() {
               onClick={() => setDraftFilter(filter)}
             >
               {draftFilterLabel(filter)}
+            </button>
+          ))}
+        </div>
+        <div className="segmented-control history-filter-control linkage-filter-control" aria-label="쇼핑 linkage 필터">
+          {(["all", "verified", "mismatch", "unverified", "not_applicable"] as const).map((filter) => (
+            <button
+              aria-pressed={linkageFilter === filter}
+              className={linkageFilter === filter ? "active" : ""}
+              key={filter}
+              type="button"
+              onClick={() => setLinkageFilter(filter)}
+            >
+              {shoppingLinkageFilterLabel(filter)}
             </button>
           ))}
         </div>
@@ -709,6 +743,16 @@ function coerceDateFilter(value: string | null): DateFilter {
   return value === "7" || value === "30" ? value : "all";
 }
 
+function shoppingLinkageFilterLabel(value: ShoppingLinkageFilter) {
+  return value === "all" ? "전체" : shoppingLinkageStatusLabel(value);
+}
+
+function coerceShoppingLinkageFilter(value: string | null): ShoppingLinkageFilter {
+  return value === "verified" || value === "mismatch" || value === "unverified" || value === "not_applicable"
+    ? value
+    : "all";
+}
+
 function setUrlParam(params: URLSearchParams, key: string, value: string) {
   if (value) {
     params.set(key, value);
@@ -737,11 +781,13 @@ function isWithinDateFilter(value: string, filter: DateFilter) {
 function buildHistoryCsvFileName({
   dateFilter,
   draftFilter,
+  linkageFilter,
   productFilter,
   query
 }: {
   dateFilter: DateFilter;
   draftFilter: DraftFilter;
+  linkageFilter: ShoppingLinkageFilter;
   productFilter: ProductFilter;
   query: string;
 }) {
@@ -750,6 +796,7 @@ function buildHistoryCsvFileName({
     query.trim() ? safeFileName(query.trim()) : null,
     productFilter !== "all" ? safeFileName(productFilterLabel(productFilter)) : null,
     draftFilter !== "all" ? safeFileName(draftFilterLabel(draftFilter)) : null,
+    linkageFilter !== "all" ? safeFileName(shoppingLinkageFilterLabel(linkageFilter)) : null,
     dateFilter !== "all" ? safeFileName(`최근-${dateFilterLabel(dateFilter)}`) : null,
     new Date().toISOString().slice(0, 10)
   ].filter((segment): segment is string => Boolean(segment));

@@ -148,6 +148,12 @@ export function shoppingLinkageStatusClass(status: ShoppingLinkageStatus): "incl
   return "neutral";
 }
 
+export function coerceShoppingLinkageStatusFilter(value: string | null): ShoppingLinkageStatus | null {
+  return value === "verified" || value === "mismatch" || value === "unverified" || value === "not_applicable"
+    ? value
+    : null;
+}
+
 function coerceStatus(value: string): ShoppingLinkageStatus {
   return value === "verified" || value === "mismatch" || value === "not_applicable" ? value : "unverified";
 }
