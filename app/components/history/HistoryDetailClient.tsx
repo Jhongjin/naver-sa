@@ -10,7 +10,9 @@ import {
   Download,
   FileJson,
   History,
+  Link2Off,
   ListChecks,
+  Share2,
   ShieldAlert
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -131,6 +133,62 @@ type HistoryDetailResponse = {
   }>;
 };
 
+type ShareLink = {
+  id: string;
+  status: "active" | "revoked";
+  createdByEmail: string | null;
+  expiresAt: string;
+  lastAccessedAt: string | null;
+  accessCount: number;
+  createdAt: string;
+  updatedAt: string;
+  isExpired: boolean;
+};
+
+type ShareLinksResponse =
+  | {
+      ok: true;
+      installed: true;
+      planningRunId: string;
+      links: ShareLink[];
+    }
+  | {
+      ok?: false;
+      installed?: boolean;
+      error?: string;
+      migration?: string;
+    };
+
+type CreateShareLinkResponse =
+  | {
+      ok: true;
+      installed: true;
+      planningRunId: string;
+      shareUrl: string;
+      expiresInDays: number;
+      link: ShareLink;
+    }
+  | {
+      ok?: false;
+      installed?: boolean;
+      error?: string;
+      migration?: string;
+    };
+
+type RevokeShareLinkResponse =
+  | {
+      ok: true;
+      installed: true;
+      planningRunId: string;
+      link: ShareLink;
+    }
+  | {
+      ok?: false;
+      installed?: boolean;
+      error?: string;
+      migration?: string;
+    };
+
 export function HistoryDetailClient({ planningRunId }: { planningRunId: string }) {
   return (
     <AuthGate>
@@ -146,6 +204,10 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
   const [message, setMessage] = useState("");
   const [copiedPayloadKey, setCopiedPayloadKey] = useState<string | null>(null);
   const [copiedReference, setCopiedReference] = useState<string | null>(null);
+  const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
+  const [shareStatus, setShareStatus] = useState<"idle" | "loading" | "creating" | "revoking" | "error">("idle");
+  const [shareMessage, setShareMessage] = useState("");
+  const [createdShareUrl, setCreatedShareUrl] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -173,6 +235,25 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
       if (active) {
         setData(body);
         setStatus("idle");
+      }
+
+      try {
+        if (active) {
+          setShareStatus("loading");
+          setShareMessage("");
+        }
+
+        const links = await fetchShareLinks(planningRunId, token);
+
+        if (active) {
+          setShareLinks(links);
+          setShareStatus("idle");
+        }
+      } catch (error) {
+        if (active) {
+          setShareStatus("error");
+          setShareMessage(error instanceof Error ? error.message : "공유 링크 상태를 불러오지 못했습니다.");
+        }
       }
     }
 
@@ -264,6 +345,80 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
     );
   }
 
+  async function createShareLink() {
+    setShareStatus("creating");
+    setShareMessage("");
+    setCreatedShareUrl("");
+
+    try {
+      const token = await getAccessToken();
+
+      if (!token) {
+        throw new Error("로그인이 필요합니다.");
+      }
+
+      const response = await fetch(`/api/plans/history/${planningRunId}/share-links`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          expiresInDays: 7
+        })
+      });
+      const body = (await response.json()) as CreateShareLinkResponse;
+
+      if (!response.ok || body.ok !== true) {
+        throw new Error(getShareResponseError(body, "공유 링크를 생성하지 못했습니다."));
+      }
+
+      setShareLinks((current) => [body.link, ...current]);
+      setCreatedShareUrl(body.shareUrl);
+      setShareMessage(`${body.expiresInDays}일 제한 공유 링크를 생성했습니다.`);
+      setShareStatus("idle");
+    } catch (error) {
+      setShareStatus("error");
+      setShareMessage(error instanceof Error ? error.message : "공유 링크를 생성하지 못했습니다.");
+    }
+  }
+
+  async function revokeShareLink(shareId: string) {
+    setShareStatus("revoking");
+    setShareMessage("");
+
+    try {
+      const token = await getAccessToken();
+
+      if (!token) {
+        throw new Error("로그인이 필요합니다.");
+      }
+
+      const response = await fetch(`/api/plans/history/${planningRunId}/share-links`, {
+        method: "PATCH",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          shareId
+        })
+      });
+      const body = (await response.json()) as RevokeShareLinkResponse;
+
+      if (!response.ok || body.ok !== true) {
+        throw new Error(getShareResponseError(body, "공유 링크를 폐기하지 못했습니다."));
+      }
+
+      setShareLinks((current) => current.map((link) => (link.id === body.link.id ? body.link : link)));
+      setShareMessage("공유 링크를 폐기했습니다.");
+      setShareStatus("idle");
+    } catch (error) {
+      setShareStatus("error");
+      setShareMessage(error instanceof Error ? error.message : "공유 링크를 폐기하지 못했습니다.");
+    }
+  }
+
   return (
     <main className="account-page history-detail-page">
       <header className="account-header">
@@ -349,6 +504,15 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
               <button className="icon-button subtle" type="button" onClick={downloadHistoryMemo}>
                 <Download size={15} />
                 운영 메모
+              </button>
+              <button
+                className="icon-button subtle"
+                disabled={shareStatus === "creating" || shareStatus === "loading"}
+                type="button"
+                onClick={createShareLink}
+              >
+                <Share2 size={15} />
+                {shareStatus === "creating" ? "생성 중" : "공유 링크"}
               </button>
               <a className="icon-button subtle" href={data.run.siteUrl} rel="noreferrer" target="_blank">
                 사이트 확인
@@ -494,6 +658,75 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                 </dl>
               </article>
 
+              <article className="history-detail-panel history-share-panel">
+                <div className="history-panel-title">
+                  <Share2 size={19} />
+                  <div>
+                    <p className="eyebrow">Share</p>
+                    <h2>제한 공유</h2>
+                  </div>
+                </div>
+                <p className="history-share-note">
+                  7일 제한 공개 리포트입니다. payload 본문, idempotency key, 내부 audit 원문은 제외됩니다.
+                </p>
+                <div className="history-share-actions">
+                  <button
+                    className="icon-button primary compact"
+                    disabled={shareStatus === "creating" || shareStatus === "loading"}
+                    type="button"
+                    onClick={createShareLink}
+                  >
+                    <Share2 size={14} />
+                    {shareStatus === "creating" ? "생성 중" : "링크 생성"}
+                  </button>
+                  {createdShareUrl ? (
+                    <button
+                      className="icon-button subtle compact"
+                      type="button"
+                      onClick={() => copyReference("share-url", createdShareUrl)}
+                    >
+                      <Copy size={14} />
+                      {copiedReference === "share-url" ? "복사됨" : "링크 복사"}
+                    </button>
+                  ) : null}
+                </div>
+                {shareMessage ? (
+                  <p className={`history-share-message ${shareStatus === "error" ? "error" : ""}`}>{shareMessage}</p>
+                ) : null}
+                {createdShareUrl ? (
+                  <div className="history-share-created">
+                    <span>방금 생성된 링크</span>
+                    <code>{createdShareUrl}</code>
+                  </div>
+                ) : null}
+                <div className="history-share-list">
+                  {shareStatus === "loading" ? <span>공유 링크를 확인하는 중입니다.</span> : null}
+                  {shareStatus !== "loading" && shareLinks.length === 0 ? <span>생성된 공유 링크가 없습니다.</span> : null}
+                  {shareLinks.map((link) => (
+                    <div key={link.id}>
+                      <span className={`status-pill ${shareLinkClass(link)}`}>{shareLinkLabel(link)}</span>
+                      <strong>{formatKoreanDateTime(link.expiresAt)} 만료</strong>
+                      <p>
+                        조회 {formatKoreanNumber(link.accessCount)}회
+                        {link.lastAccessedAt ? ` / 최근 ${formatKoreanDateTime(link.lastAccessedAt)}` : ""}
+                      </p>
+                      <em>{link.createdByEmail ?? "생성자 미기록"}</em>
+                      {link.status === "active" && !link.isExpired ? (
+                        <button
+                          className="icon-button subtle compact"
+                          disabled={shareStatus === "revoking"}
+                          type="button"
+                          onClick={() => revokeShareLink(link.id)}
+                        >
+                          <Link2Off size={14} />
+                          폐기
+                        </button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </article>
+
               <article className="history-detail-panel">
                 <div className="history-panel-title">
                   <ListChecks size={19} />
@@ -622,6 +855,44 @@ function IssueList({
       ))}
     </div>
   );
+}
+
+async function fetchShareLinks(planningRunId: string, token: string): Promise<ShareLink[]> {
+  const response = await fetch(`/api/plans/history/${planningRunId}/share-links`, {
+    headers: {
+      authorization: `Bearer ${token}`
+    }
+  });
+  const body = (await response.json()) as ShareLinksResponse;
+
+  if (!response.ok || body.ok !== true) {
+    throw new Error(getShareResponseError(body, "공유 링크 상태를 불러오지 못했습니다."));
+  }
+
+  return body.links;
+}
+
+function shareLinkLabel(link: ShareLink) {
+  if (link.status === "revoked") {
+    return "폐기됨";
+  }
+
+  return link.isExpired ? "만료" : "활성";
+}
+
+function shareLinkClass(link: ShareLink) {
+  if (link.status === "revoked" || link.isExpired) {
+    return "review";
+  }
+
+  return "include";
+}
+
+function getShareResponseError(
+  response: ShareLinksResponse | CreateShareLinkResponse | RevokeShareLinkResponse,
+  fallback: string
+) {
+  return "error" in response && response.error ? response.error : fallback;
 }
 
 function ownerContextLabel(ownerUserId: string | null, creatorUserId: string | null) {

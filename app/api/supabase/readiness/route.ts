@@ -67,6 +67,10 @@ const optionalTables = [
   {
     name: "naver_performance_sync_runs",
     feature: "Naver performance sync planning"
+  },
+  {
+    name: "report_share_links",
+    feature: "Limited public report share links"
   }
 ];
 
