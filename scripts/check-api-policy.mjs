@@ -101,6 +101,40 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
   }
 
+  if (relativePath === "app/api/naver/account-snapshot/history/route.ts") {
+    requireSourceIncludes(source, relativePath, "verifyUserAccess(request)");
+    requireSourceIncludes(source, relativePath, 'access.state.role !== "admin"');
+    requireSourceIncludes(source, relativePath, 'query = query.eq("user_id", access.user.id)');
+    requireSourceIncludes(source, relativePath, "rawInventoryExcluded: true");
+    requireSourceIncludes(source, relativePath, "scopeEnforced: true");
+
+    const snapshotHistoryItem = getSourceSegment(
+      source,
+      relativePath,
+      "function toSnapshotHistoryItem",
+      "\nfunction findComparisonRow"
+    );
+
+    requireSourceExcludes(
+      snapshotHistoryItem,
+      relativePath,
+      "channels: row.channels",
+      "account snapshot history items must not expose raw channel inventory"
+    );
+    requireSourceExcludes(
+      snapshotHistoryItem,
+      relativePath,
+      "campaigns: row.campaigns",
+      "account snapshot history items must not expose raw campaign inventory"
+    );
+    requireSourceExcludes(
+      snapshotHistoryItem,
+      relativePath,
+      "productGroups: row.product_groups",
+      "account snapshot history items must not expose raw product-group inventory"
+    );
+  }
+
   if (relativePath === "app/api/admin/report-share-links/route.ts") {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
     requireSourceIncludes(source, relativePath, "tokenExcluded: true");

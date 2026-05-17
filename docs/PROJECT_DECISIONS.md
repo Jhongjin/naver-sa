@@ -184,6 +184,7 @@ Recent operational queue:
 - Saved-history and admin recent-activity screens and APIs now support Shopping Search linkage status filters, making verified, mismatch, unverified, and not-applicable runs easier to review without changing persistence or Naver execution behavior.
 - Public Supabase readiness now redacts optional feature row counts; detailed row-count diagnostics stay behind admin-gated `?detail=1`.
 - Admin audit event responses now keep raw `before_value` excluded and sanitize all reason/summary text before it reaches the UI or CSV export.
+- Account snapshot history now explicitly marks raw Naver inventory arrays as excluded and locks the non-admin view to the authenticated user's own snapshots.
 
 ## UX Direction
 

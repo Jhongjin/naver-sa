@@ -291,6 +291,8 @@ type AccountSnapshotHistoryResponse = {
   ok: true;
   installed: boolean;
   snapshots: AccountSnapshotHistoryItem[];
+  rawInventoryExcluded: true;
+  scopeEnforced: true;
   total: number;
   limit: number;
   scope: "all" | "mine";
