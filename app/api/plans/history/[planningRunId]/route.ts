@@ -34,6 +34,9 @@ type PlanningRunRow = {
   forecast: Record<string, unknown>;
   assumptions: string[];
   shopping_linkage?: Record<string, unknown> | null;
+  industry_template?: Record<string, unknown> | null;
+  benchmark_features?: unknown[] | null;
+  operation_rules?: unknown[] | null;
   created_by: string | null;
   created_by_user_id: string | null;
   created_at: string;
@@ -183,6 +186,7 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   const shoppingLinkageSupport = await hasShoppingLinkageSupport(supabase);
+  const plannerMetadataSupport = await hasPlannerMetadataSupport(supabase);
   const planningRunSelect = [
     "id",
     "workspace_id",
@@ -197,6 +201,7 @@ export async function GET(request: Request, context: RouteContext) {
     "forecast",
     "assumptions",
     ...(shoppingLinkageSupport ? ["shopping_linkage"] : []),
+    ...(plannerMetadataSupport ? ["industry_template", "benchmark_features", "operation_rules"] : []),
     "created_by",
     "created_by_user_id",
     "created_at"
@@ -376,6 +381,12 @@ export async function GET(request: Request, context: RouteContext) {
       assumptions: planningRun.assumptions,
       shoppingLinkage: coerceShoppingLinkageSummary(planningRun.shopping_linkage ?? null, planningRun.product_type),
       shoppingLinkageCaptured: shoppingLinkageSupport,
+      plannerMetadata: {
+        captured: plannerMetadataSupport,
+        industryTemplate: coerceIndustryTemplate(planningRun.industry_template ?? null),
+        benchmarkFeatures: coerceBenchmarkFeatures(planningRun.benchmark_features ?? []),
+        operationRules: coerceOperationRules(planningRun.operation_rules ?? [])
+      },
       createdBy: planningRun.created_by,
       createdByUserId: planningRun.created_by_user_id,
       workspaceId: planningRun.workspace_id,
@@ -557,6 +568,16 @@ async function hasPlanningProductGroupSupport(
   return !error;
 }
 
+async function hasPlannerMetadataSupport(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
+): Promise<boolean> {
+  const { error } = await supabase.from("planning_runs").select("id,industry_template,benchmark_features,operation_rules", {
+    head: true
+  });
+
+  return !error;
+}
+
 function toExecutionContext(value: Record<string, unknown> | null): NaverExecutionContext {
   if (!value) {
     return {};
@@ -593,6 +614,49 @@ function toExecutionContext(value: Record<string, unknown> | null): NaverExecuti
   }
 
   return context;
+}
+
+function coerceIndustryTemplate(value: Record<string, unknown> | null) {
+  return {
+    name: stringField(value?.name, "미기록"),
+    landingChecks: stringArrayField(value?.landingChecks),
+    copyRules: stringArrayField(value?.copyRules),
+    negativeThemes: stringArrayField(value?.negativeThemes)
+  };
+}
+
+function coerceBenchmarkFeatures(value: unknown[]) {
+  return value.filter(isRecord).map((item) => ({
+    name: stringField(item.name, "Unnamed feature"),
+    status:
+      item.status === "implemented" || item.status === "partial" || item.status === "planned"
+        ? item.status
+        : "planned",
+    description: stringField(item.description, "")
+  }));
+}
+
+function coerceOperationRules(value: unknown[]) {
+  return value.filter(isRecord).map((item) => ({
+    name: stringField(item.name, "Unnamed rule"),
+    trigger: stringField(item.trigger, ""),
+    recommendation: stringField(item.recommendation, ""),
+    automationLevel: stringField(item.automationLevel, "")
+  }));
+}
+
+function stringField(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, 240) : fallback;
+}
+
+function stringArrayField(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).map((item) => item.slice(0, 240))
+    : [];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function createDraftPayloadResultKey(executionDraftId: string, payloadKey: string): string {

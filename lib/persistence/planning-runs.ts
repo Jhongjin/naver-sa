@@ -40,10 +40,11 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
   const { plan, decisions } = input;
   const decisionNotes = input.decisionNotes ?? {};
   const warnings: string[] = [];
-  const [ownershipSupport, shoppingLinkageSupport, productGroupSupport] = await Promise.all([
+  const [ownershipSupport, shoppingLinkageSupport, productGroupSupport, plannerMetadataSupport] = await Promise.all([
     getWorkspaceOwnershipSupport(supabase),
     getPlanningRunShoppingLinkageSupport(supabase),
-    getPlanningProductGroupSupport(supabase)
+    getPlanningProductGroupSupport(supabase),
+    getPlanningRunMetadataSupport(supabase)
   ]);
   const workspaceResult = await getOrCreateWorkspace({
     supabase,
@@ -80,6 +81,13 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
     assumptions: plan.assumptions,
     created_by: input.createdBy,
     ...(shoppingLinkageSupport ? { shopping_linkage: shoppingLinkage } : {}),
+    ...(plannerMetadataSupport
+      ? {
+          industry_template: plan.industryTemplate,
+          benchmark_features: plan.benchmarkFeatures,
+          operation_rules: plan.operationRules
+        }
+      : {}),
     ...(ownershipSupport.planningRunUser && input.createdByUserId
       ? { created_by_user_id: input.createdByUserId }
       : {})
@@ -204,7 +212,8 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
         shoppingLinkage,
         shoppingLinkageCaptured: shoppingLinkageSupport,
         productGroupRecommendationCount: plan.productGroups.length,
-        productGroupRecommendationsCaptured: productGroupSupport
+        productGroupRecommendationsCaptured: productGroupSupport,
+        plannerMetadataCaptured: plannerMetadataSupport
       },
       reason: "MVP planner dry-run saved."
     })
@@ -337,6 +346,16 @@ async function getPlanningProductGroupSupport(
   supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
 ): Promise<boolean> {
   const { error } = await supabase.from("planning_product_groups").select("id", {
+    head: true
+  });
+
+  return !error;
+}
+
+async function getPlanningRunMetadataSupport(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
+): Promise<boolean> {
+  const { error } = await supabase.from("planning_runs").select("id,industry_template,benchmark_features,operation_rules", {
     head: true
   });
 

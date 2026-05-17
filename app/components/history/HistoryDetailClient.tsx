@@ -41,6 +41,26 @@ type HistoryDetailResponse = {
     assumptions: string[];
     shoppingLinkage: ShoppingLinkageSummary;
     shoppingLinkageCaptured: boolean;
+    plannerMetadata: {
+      captured: boolean;
+      industryTemplate: {
+        name: string;
+        landingChecks: string[];
+        copyRules: string[];
+        negativeThemes: string[];
+      };
+      benchmarkFeatures: Array<{
+        name: string;
+        status: "implemented" | "partial" | "planned";
+        description: string;
+      }>;
+      operationRules: Array<{
+        name: string;
+        trigger: string;
+        recommendation: string;
+        automationLevel: string;
+      }>;
+    };
     createdBy: string | null;
     createdByUserId: string | null;
     workspaceId: string | null;
@@ -690,6 +710,10 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                     <dd>{plannerModeLabel(data.run.mode)}</dd>
                   </div>
                   <div>
+                    <dt>업종 템플릿</dt>
+                    <dd>{data.run.plannerMetadata.industryTemplate.name}</dd>
+                  </div>
+                  <div>
                     <dt>워크스페이스</dt>
                     <dd>{data.run.workspaceName ?? "미기록"}</dd>
                   </div>
@@ -884,6 +908,36 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
 
             <article className="history-detail-panel">
               <div className="history-panel-title">
+                <ListChecks size={19} />
+                <div>
+                  <p className="eyebrow">Operations</p>
+                  <h2>운영 룰</h2>
+                </div>
+              </div>
+              <div className="history-keyword-list">
+                {data.run.plannerMetadata.operationRules.length === 0 ? (
+                  <span>
+                    {data.run.plannerMetadata.captured
+                      ? "저장된 운영 룰이 없습니다."
+                      : "운영 룰 이력 컬럼이 아직 적용되지 않았습니다."}
+                  </span>
+                ) : (
+                  data.run.plannerMetadata.operationRules.map((rule) => (
+                    <div key={rule.name}>
+                      <strong>{rule.name}</strong>
+                      <span>{rule.trigger}</span>
+                      <em>
+                        {rule.recommendation}
+                        {rule.automationLevel ? ` / ${rule.automationLevel}` : ""}
+                      </em>
+                    </div>
+                  ))
+                )}
+              </div>
+            </article>
+
+            <article className="history-detail-panel">
+              <div className="history-panel-title">
                 <History size={19} />
                 <div>
                   <p className="eyebrow">Audit</p>
@@ -1073,6 +1127,7 @@ function buildHistoryMemoMarkdown(data: HistoryDetailResponse) {
     `- Planning run: ${data.run.id}`,
     `- Brand: ${data.run.brandName}`,
     `- Product: ${productTypeLabel(data.run.productType)}`,
+    `- Industry template: ${data.run.plannerMetadata.industryTemplate.name}`,
     ...(data.run.productType === "shoppingSearch"
       ? [
           `- Shopping linkage: ${shoppingLinkageStatusLabel(data.run.shoppingLinkage.status)}`,
@@ -1108,6 +1163,16 @@ function buildHistoryMemoMarkdown(data: HistoryDetailResponse) {
     "## Top Keywords",
     "",
     ...data.keywords.slice(0, 12).map((keyword) => `- ${keyword.term} (${keyword.adGroupName}) / bid ${keyword.bid}`),
+    ...(data.run.plannerMetadata.operationRules.length > 0
+      ? [
+          "",
+          "## Operation Rules",
+          "",
+          ...data.run.plannerMetadata.operationRules.map(
+            (rule) => `- ${rule.name}: ${rule.trigger} -> ${rule.recommendation} (${rule.automationLevel || "manual"})`
+          )
+        ]
+      : []),
     ...(data.productGroups.length > 0
       ? [
           "",

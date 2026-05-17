@@ -88,6 +88,21 @@ const optionalColumns = [
     table: "execution_drafts",
     column: "execution_context",
     feature: "Execution draft context history"
+  },
+  {
+    table: "planning_runs",
+    column: "industry_template",
+    feature: "Planner industry template history"
+  },
+  {
+    table: "planning_runs",
+    column: "benchmark_features",
+    feature: "Planner benchmark feature history"
+  },
+  {
+    table: "planning_runs",
+    column: "operation_rules",
+    feature: "Planner operation rule history"
   }
 ];
 
