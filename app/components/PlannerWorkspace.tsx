@@ -31,7 +31,7 @@ import {
   type PlannerMode,
   type PlannerProductType
 } from "@/lib/planner";
-import { createNaverExecutionDraft } from "@/lib/execution-draft";
+import { createNaverExecutionDraft, toPublicNaverExecutionDraft } from "@/lib/execution-draft";
 import {
   createApprovalCsv,
   createPlannerExcelReport,
@@ -98,6 +98,7 @@ type StageDraftResponse = {
   draft: {
     draftId: string;
     draftKey: string;
+    idempotencyKeysExcluded: true;
     approvedChangeCount: number;
     payloads: Array<{
       id: string;
@@ -779,7 +780,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
   function downloadExecutionDraft() {
     downloadTextFile(
-      JSON.stringify(executionDraft, null, 2),
+      JSON.stringify(toPublicNaverExecutionDraft(executionDraft), null, 2),
       plannerDownloadFileName(plan.input, "naver-execution-draft", "json"),
       "application/json;charset=utf-8"
     );
@@ -1640,7 +1641,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                       <span>
                         {payload.method} {payload.uri}
                       </span>
-                      <em>{payload.entityType} / {payload.idempotencyKey}</em>
+                      <em>{payload.entityType} / {payload.target}</em>
                     </div>
                   ))
                 )}

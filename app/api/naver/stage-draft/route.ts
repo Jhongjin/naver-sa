@@ -1,4 +1,4 @@
-import { createNaverExecutionDraft } from "@/lib/execution-draft";
+import { createNaverExecutionDraft, toPublicNaverExecutionDraft } from "@/lib/execution-draft";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { getNaverConfigState } from "@/lib/naver-search-ad";
 import { verifyUserAccess } from "@/lib/auth-access";
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       customerIdPresent: naverState.customerIdPresent
     },
     approvalSummary,
-    draft,
+    draft: toPublicNaverExecutionDraft(draft),
     nextAction: draft.validation.canExecuteTest
       ? "Save this ready draft, then an admin session may request protected test execution with the confirmation phrase."
       : "Resolve validation blockers before requesting protected test execution."

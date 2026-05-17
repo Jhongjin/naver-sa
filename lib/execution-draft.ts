@@ -64,6 +64,30 @@ export type NaverExecutionDraft = {
   };
 };
 
+export type PublicNaverExecutionPayload = Omit<NaverExecutionPayload, "idempotencyKey">;
+
+export type PublicNaverExecutionDraft = Omit<NaverExecutionDraft, "payloads"> & {
+  payloads: PublicNaverExecutionPayload[];
+  idempotencyKeysExcluded: true;
+};
+
+export function toPublicNaverExecutionDraft(draft: NaverExecutionDraft): PublicNaverExecutionDraft {
+  return {
+    ...draft,
+    payloads: draft.payloads.map((payload) => ({
+      id: payload.id,
+      method: payload.method,
+      uri: payload.uri,
+      entityType: payload.entityType,
+      target: payload.target,
+      params: payload.params,
+      body: payload.body,
+      safety: payload.safety
+    })),
+    idempotencyKeysExcluded: true
+  };
+}
+
 export function createNaverExecutionDraft(
   plan: PlannerPlan,
   decisions: ApprovalDecisionMap,

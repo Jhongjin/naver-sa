@@ -45,10 +45,25 @@ for (const file of routeFiles) {
   }
 
   if (relativePath === "app/api/naver/execute-draft/route.ts") {
+    const executionResponseType = getSourceSegment(
+      source,
+      relativePath,
+      "type ExecutionResponse = {",
+      "\n\ntype PersistableExecutionResult"
+    );
+
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
     requireSourceIncludes(source, relativePath, "loadReadyExecutionDraft(draft.draftKey)");
     requireSourceIncludes(source, relativePath, "EXECUTION_ALREADY_RECORDED");
+    requireSourceIncludes(source, relativePath, "toPublicNaverExecutionDraft(draft)");
+    requireSourceIncludes(source, relativePath, "idempotencyKeysExcluded: true");
     requireSourceOrder(source, relativePath, "loadReadyExecutionDraft(draft.draftKey)", "requestNaverSearchAd<unknown>");
+    requireSourceExcludes(
+      executionResponseType,
+      relativePath,
+      "idempotencyKey:",
+      "execute-draft response type must not expose idempotency keys"
+    );
     requireSharedErrorRedaction(
       source,
       relativePath,
@@ -60,6 +75,7 @@ for (const file of routeFiles) {
   if (relativePath === "app/api/naver/stage-draft/route.ts") {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request)");
     requireSourceIncludes(source, relativePath, "externalRequest: false");
+    requireSourceIncludes(source, relativePath, "draft: toPublicNaverExecutionDraft(draft)");
     requireSourceExcludes(
       source,
       relativePath,
@@ -679,6 +695,12 @@ function requireProjectSurfaceChecks() {
     "Naver API client errors must pass through shared sensitive text redaction"
   );
 
+  const executionDraftPath = "lib/execution-draft.ts";
+  const executionDraftSource = readProjectFile(executionDraftPath);
+
+  requireSourceIncludes(executionDraftSource, executionDraftPath, "toPublicNaverExecutionDraft");
+  requireSourceIncludes(executionDraftSource, executionDraftPath, "idempotencyKeysExcluded: true");
+
   const reportSharePath = "lib/report-share.ts";
   const reportShareSource = readProjectFile(reportSharePath);
 
@@ -1093,11 +1115,24 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "redactSensitiveErrorText");
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "visiblePlannerError");
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "visibleCaughtPlannerError");
+  requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "toPublicNaverExecutionDraft(executionDraft)");
   requireSourceExcludes(
     plannerWorkspaceSource,
     plannerWorkspacePath,
     "authAccess:",
     "workspace stage draft response type must not include internal auth access state"
+  );
+  requireSourceExcludes(
+    plannerWorkspaceSource,
+    plannerWorkspacePath,
+    "payload.idempotencyKey",
+    "workspace UI must not render execution idempotency keys"
+  );
+  requireSourceExcludes(
+    plannerWorkspaceSource,
+    plannerWorkspacePath,
+    "JSON.stringify(executionDraft",
+    "workspace draft downloads must use the public execution draft shape"
   );
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, 'fetch("/api/naver/readiness", { cache: "no-store" })');
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, 'fetch(`/api/naver/account-snapshot?${params.toString()}`, {\n        cache: "no-store"');

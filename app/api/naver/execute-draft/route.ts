@@ -1,5 +1,6 @@
 import {
   createNaverExecutionDraft,
+  toPublicNaverExecutionDraft,
   type NaverExecutionPayload
 } from "@/lib/execution-draft";
 import { verifyUserAccess } from "@/lib/auth-access";
@@ -19,11 +20,11 @@ import {
 type ExecutionResponse = {
   ok: boolean;
   dryRun: boolean;
+  idempotencyKeysExcluded: true;
   payloadCount: number;
   executedCount: number;
   results: Array<{
     id: string;
-    idempotencyKey: string;
     ok: boolean;
     status: number;
     target: string;
@@ -39,6 +40,7 @@ type ExecutionResponse = {
 };
 
 type PersistableExecutionResult = ExecutionResponse["results"][number] & {
+  idempotencyKey: string;
   response?: unknown;
 };
 
@@ -83,7 +85,8 @@ export async function POST(request: Request) {
     return jsonNoStore({
       ok: true,
       dryRun: true,
-      draft
+      draft: toPublicNaverExecutionDraft(draft),
+      idempotencyKeysExcluded: true
     });
   }
 
@@ -141,7 +144,6 @@ export async function POST(request: Request) {
     if (resolvedPayload.unresolved.length > 0) {
       results.push({
         id: payload.id,
-        idempotencyKey: payload.idempotencyKey,
         ok: false,
         status: 409,
         target: payload.target,
@@ -165,7 +167,6 @@ export async function POST(request: Request) {
 
     const executionResult = {
       id: payload.id,
-      idempotencyKey: payload.idempotencyKey,
       ok: result.ok,
       status: result.status,
       target: payload.target,
@@ -176,6 +177,7 @@ export async function POST(request: Request) {
     results.push(executionResult);
     persistableResults.push({
       ...executionResult,
+      idempotencyKey: payload.idempotencyKey,
       response: result.ok ? result.data : undefined
     });
 
@@ -196,6 +198,7 @@ export async function POST(request: Request) {
   const response: ExecutionResponse = {
     ok: executionSucceeded,
     dryRun: false,
+    idempotencyKeysExcluded: true,
     payloadCount: draft.payloads.length,
     executedCount: results.filter((result) => result.ok).length,
     results,
