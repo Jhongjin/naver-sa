@@ -164,6 +164,7 @@ Recent operational queue:
 - Saved history detail now maps execution results by `execution_draft_id + payload_key`, preventing results from different drafts in the same planning run from appearing under the wrong payload.
 - Account scan candidates are now fingerprinted by product type, brand, and site URL in the workspace UI; stale scan results are hidden after those inputs change so operators do not apply candidates from a different context.
 - API policy verification now asserts protected test execution keeps admin auth, saved-ready-draft lookup, duplicate-result blocking, and pre-Naver-call ordering in place.
+- Blocked staged changes, including Shopping Search channel/product-group preconditions, are now persisted with `approval_required = true` so saved history and audit exports do not understate required operator review.
 
 ## UX Direction
 

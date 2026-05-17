@@ -123,7 +123,7 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
       target: change.target,
       action: change.action,
       risk: change.risk,
-      approval_required: change.approval === "승인 필요",
+      approval_required: isStagedChangeApprovalRequired(change),
       details: change.details,
       decision,
       decided_at: decision === "pending" ? null : decisionSavedAt
@@ -165,7 +165,7 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
           target: change.target,
           action: change.action,
           risk: change.risk,
-          approvalRequired: change.approval === "승인 필요",
+          approvalRequired: isStagedChangeApprovalRequired(change),
           note: decisionNotes[change.id] ?? null
         },
         reason: "Operator approval decision was saved."
@@ -250,6 +250,10 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
     executionDraftId,
     warnings
   };
+}
+
+function isStagedChangeApprovalRequired(change: PlannerPlan["stagedChanges"][number]): boolean {
+  return change.approval === "승인 필요" || change.risk === "blocked";
 }
 
 async function getWorkspaceOwnershipSupport(supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>) {
