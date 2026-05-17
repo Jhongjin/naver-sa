@@ -170,15 +170,17 @@ type HistoryDetailResponse = {
   internalUserIdsExcluded: true;
   auditEvents: Array<{
     id: string;
-    event_type: string;
+    eventType: string;
     actor: string | null;
-    entity_type: string | null;
-    entity_id: string | null;
-    before_value: Record<string, unknown> | null;
-    after_value: Record<string, unknown> | null;
+    entityType: string | null;
+    entityId: string | null;
     reason: string | null;
-    created_at: string;
+    createdAt: string;
+    decision: string | null;
+    target: string | null;
+    note: string | null;
   }>;
+  auditRawValuesExcluded: true;
 };
 
 type ShareLink = {
@@ -320,7 +322,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
   const latestDraft = data?.executionDrafts[0];
   const latestExecutionContextRows = useMemo(() => executionContextRows(latestDraft?.executionContext ?? {}), [latestDraft]);
   const approvalAuditEvents = useMemo(
-    () => data?.auditEvents.filter((event) => event.event_type.startsWith("staged_change.")) ?? [],
+    () => data?.auditEvents.filter((event) => event.eventType.startsWith("staged_change.")) ?? [],
     [data]
   );
   const summaryItems = useMemo(() => {
@@ -839,17 +841,15 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                     <strong>승인 결정 로그</strong>
                     {approvalAuditEvents.slice(0, 6).map((event) => (
                       <div key={event.id}>
-                        <span className={`status-pill ${decisionClass(String(event.after_value?.decision ?? ""))}`}>
-                          {approvalEventLabel(event.event_type)}
+                        <span className={`status-pill ${decisionClass(event.decision ?? "")}`}>
+                          {approvalEventLabel(event.eventType)}
                         </span>
-                        <p>{getAuditTextValue(event.after_value, "target") ?? event.entity_id ?? "대상 미기록"}</p>
+                        <p>{event.target ?? event.entityId ?? "대상 미기록"}</p>
                         <em>
-                          {formatKoreanDateTime(event.created_at)}
+                          {formatKoreanDateTime(event.createdAt)}
                           {event.actor ? ` / ${event.actor}` : ""}
                         </em>
-                        {getAuditTextValue(event.after_value, "note") ? (
-                          <small>{getAuditTextValue(event.after_value, "note")}</small>
-                        ) : null}
+                        {event.note ? <small>{event.note}</small> : null}
                       </div>
                     ))}
                   </div>
@@ -951,8 +951,8 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
                 ) : (
                   data.auditEvents.map((event) => (
                     <div key={event.id}>
-                      <strong>{event.event_type}</strong>
-                      <span>{formatKoreanDateTime(event.created_at)}</span>
+                      <strong>{event.eventType}</strong>
+                      <span>{formatKoreanDateTime(event.createdAt)}</span>
                       <em>{event.reason ?? event.actor ?? "사유 미기록"}</em>
                       {event.actor ? <small>{event.actor}</small> : null}
                     </div>
@@ -1081,12 +1081,6 @@ function approvalEventLabel(eventType: string) {
   return "기록";
 }
 
-function getAuditTextValue(value: Record<string, unknown> | null, key: string) {
-  const field = value?.[key];
-
-  return typeof field === "string" && field.trim() ? field : null;
-}
-
 function riskLabel(risk: string) {
   return risk === "low" ? "낮음" : risk === "medium" ? "검토" : "차단";
 }
@@ -1192,7 +1186,7 @@ function buildHistoryMemoMarkdown(data: HistoryDetailResponse) {
     ...(data.auditEvents.length > 0
       ? data.auditEvents
           .slice(0, 10)
-          .map((event) => `- ${event.created_at} / ${event.event_type} / ${event.actor ?? event.reason ?? "not recorded"}`)
+          .map((event) => `- ${event.createdAt} / ${event.eventType} / ${event.actor ?? event.reason ?? "not recorded"}`)
       : ["- No audit events saved."]),
     "",
     "## Safety",

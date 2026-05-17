@@ -217,8 +217,23 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request)");
     requireSourceIncludes(source, relativePath, "hasWorkspaceMembership");
     requireSourceIncludes(source, relativePath, "internalUserIdsExcluded: true");
+    requireSourceIncludes(source, relativePath, "auditRawValuesExcluded: true");
+    requireSourceIncludes(source, relativePath, "toSafeAuditEvent");
+    requireSourceIncludes(source, relativePath, "auditEvents: ((auditResult.data ?? []) as AuditEventRow[]).map(toSafeAuditEvent)");
     requireSourceIncludes(source, relativePath, "createdByUserLinked: Boolean(planningRun.created_by_user_id)");
     requireSourceIncludes(source, relativePath, "workspaceOwnerMatchesCreator: getWorkspaceOwnerMatchesCreator(workspace, planningRun)");
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "before_value",
+      "history detail responses must not select or expose raw audit before values"
+    );
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "auditEvents: auditResult.data ?? []",
+      "history detail responses must map audit rows through a safe formatter"
+    );
     requireSourceExcludes(
       source,
       relativePath,
@@ -498,8 +513,10 @@ function requireProjectSurfaceChecks() {
   const historyDetailClientSource = readProjectFile(historyDetailClientPath);
 
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "internalUserIdsExcluded");
+  requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "auditRawValuesExcluded");
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "workspaceOwnerMatchesCreator");
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "createdByUserLinked");
+  requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "event.eventType");
   requireSourceExcludes(
     historyDetailClientSource,
     historyDetailClientPath,
@@ -511,6 +528,24 @@ function requireProjectSurfaceChecks() {
     historyDetailClientPath,
     "createdByUserId",
     "history detail UI must not type or render internal creator user ids"
+  );
+  requireSourceExcludes(
+    historyDetailClientSource,
+    historyDetailClientPath,
+    "before_value",
+    "history detail UI must not type or render raw audit before values"
+  );
+  requireSourceExcludes(
+    historyDetailClientSource,
+    historyDetailClientPath,
+    "after_value",
+    "history detail UI must not type or render raw audit after values"
+  );
+  requireSourceExcludes(
+    historyDetailClientSource,
+    historyDetailClientPath,
+    "event_type",
+    "history detail UI must consume mapped camelCase audit event fields"
   );
 
 }

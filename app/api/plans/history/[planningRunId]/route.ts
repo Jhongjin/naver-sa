@@ -155,6 +155,17 @@ type ExecutionResultRow = {
   created_at: string;
 };
 
+type AuditEventRow = {
+  id: string;
+  event_type: string;
+  actor: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  after_value: Record<string, unknown> | null;
+  reason: string | null;
+  created_at: string;
+};
+
 type RouteContext = {
   params: Promise<{
     planningRunId: string;
@@ -298,7 +309,7 @@ export async function GET(request: Request, context: RouteContext) {
       .order("created_at", { ascending: false }),
     supabase
       .from("audit_events")
-      .select("id, event_type, actor, entity_type, entity_id, before_value, after_value, reason, created_at")
+      .select("id, event_type, actor, entity_type, entity_id, after_value, reason, created_at")
       .eq("planning_run_id", planningRun.id)
       .order("created_at", { ascending: false })
       .limit(20)
@@ -491,8 +502,26 @@ export async function GET(request: Request, context: RouteContext) {
           })) ?? []
         }))
     })),
-    auditEvents: auditResult.data ?? []
+    auditEvents: ((auditResult.data ?? []) as AuditEventRow[]).map(toSafeAuditEvent),
+    auditRawValuesExcluded: true
   });
+}
+
+function toSafeAuditEvent(event: AuditEventRow) {
+  const value = event.after_value ?? {};
+
+  return {
+    id: event.id,
+    eventType: event.event_type,
+    actor: event.actor,
+    entityType: event.entity_type,
+    entityId: event.entity_id,
+    reason: sanitizeAuditText(event.reason, 220),
+    createdAt: event.created_at,
+    decision: auditTextValue(value, "decision", 40),
+    target: auditTextValue(value, "target", 160),
+    note: auditTextValue(value, "note", 220)
+  };
 }
 
 function getWorkspaceOwnerMatchesCreator(workspace: WorkspaceRow | null, planningRun: PlanningRunRow): boolean | null {
@@ -632,4 +661,26 @@ function createDraftPayloadResultKey(executionDraftId: string, payloadKey: strin
 
 function sanitizeError(message: string | undefined): string {
   return message?.slice(0, 220) ?? "History detail lookup failed.";
+}
+
+function auditTextValue(value: Record<string, unknown>, key: string, maxLength: number): string | null {
+  const field = value[key];
+
+  return typeof field === "string" && field.trim() ? sanitizeAuditText(field, maxLength) : null;
+}
+
+function sanitizeAuditText(value: string | null | undefined, maxLength: number): string | null {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/g, "Bearer [REDACTED]")
+    .replace(
+      /\b(api[-_ ]?key|apikey|x-api-key|secret[-_ ]?key|client[-_ ]?secret|access[-_ ]?token|refresh[-_ ]?token|token_hash|customer[-_ ]?id)[=:]\s*["']?[^"',\s}]+/gi,
+      "$1=[REDACTED]"
+    )
+    .slice(0, maxLength);
 }

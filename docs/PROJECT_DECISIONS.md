@@ -189,6 +189,7 @@ Recent operational queue:
 - Saved history detail now derives creator/session and workspace-owner context server-side without returning internal user UUIDs to the detail UI.
 - Saved history list and admin activity responses now exclude internal creator user UUIDs while keeping display-safe creator labels.
 - The legacy `/api/operator/session` endpoint remains a 410 deprecated surface; Supabase Auth `/api/auth/session` is the only active session API.
+- Saved history detail now maps audit rows to safe display fields and excludes raw audit `before_value`/`after_value` payloads from the UI response.
 
 ## UX Direction
 
