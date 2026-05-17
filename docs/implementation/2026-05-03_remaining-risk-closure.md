@@ -1,6 +1,6 @@
 # Remaining Risk Closure
 
-> Superseded on 2026-05-16: browser-facing protected workflows now use Supabase Auth sessions instead of `OPERATOR_ACCESS_CODE`. This note remains historical implementation context only.
+> Superseded on 2026-05-16 and 2026-05-17: browser-facing protected workflows now use Supabase Auth sessions instead of `OPERATOR_ACCESS_CODE`, and protected test execution uses Supabase Auth admin access instead of shared admin secrets. This note remains historical implementation context only.
 
 Date: 2026-05-03
 
@@ -43,7 +43,9 @@ Missing business channel IDs remain a blocker because they must exist before ad 
 
 The route still requires:
 
-- `x-admin-secret`
+- authenticated Supabase Auth admin session
+- saved ready execution draft history
+- no previously recorded execution results for the draft
 - `execute: true`
 - `confirmation: "TEST_EXECUTION_ONLY"`
 - zero validation blockers

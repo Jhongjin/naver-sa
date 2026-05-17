@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     approvalSummary,
     draft,
     nextAction: draft.validation.canExecuteTest
-      ? "Protected test execution may be requested with a separate admin secret and confirmation phrase."
+      ? "Save this ready draft, then an admin session may request protected test execution with the confirmation phrase."
       : "Resolve validation blockers before requesting protected test execution."
   });
 }

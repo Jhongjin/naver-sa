@@ -46,6 +46,7 @@ export async function GET(request: Request) {
     return jsonNoStore(supabase, { status: supabase.status });
   }
 
+  const pendingBefore = await countPendingCronPlans(supabase.client);
   const { data, error } = await supabase.client
     .from(performanceSyncTableName)
     .select("id, scope, requested_from, requested_to, status, entity_ids, fields, warnings")
@@ -108,11 +109,23 @@ export async function GET(request: Request) {
     });
   }
 
+  const remainingAfter = await countPendingCronPlans(supabase.client);
+  await recordCronHeartbeat(supabase.client, {
+    processed: results.length,
+    pendingBefore,
+    remainingAfter,
+    completed: results.filter((result) => result.outcome === "completed").length,
+    failed: results.filter((result) => result.outcome === "failed").length,
+    blocked: results.filter((result) => result.outcome === "blocked").length
+  });
+
   return jsonNoStore({
     ok: true,
     externalRequest: results.some((result) => result.externalRequest),
     readOnly: true,
     processed: results.length,
+    pendingBefore,
+    remainingAfter,
     maxRunsPerInvocation: performanceSyncCronPolicy.maxRunsPerInvocation,
     policy: {
       scheduleUtc: performanceSyncCronPolicy.scheduleUtc,
@@ -164,4 +177,45 @@ function getReadySupabase():
     ok: true,
     client
   };
+}
+
+async function countPendingCronPlans(client: NonNullable<ReturnType<typeof getSupabaseAdminClient>>): Promise<number | null> {
+  const { count, error } = await client
+    .from(performanceSyncTableName)
+    .select("id", { count: "exact", head: true })
+    .in("status", [...performanceSyncCronPolicy.targetStatuses])
+    .neq("scope", "masterReference");
+
+  return error ? null : count;
+}
+
+async function recordCronHeartbeat(
+  client: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  summary: {
+    processed: number;
+    pendingBefore: number | null;
+    remainingAfter: number | null;
+    completed: number;
+    failed: number;
+    blocked: number;
+  }
+) {
+  await client.from("audit_events").insert({
+    event_type: "ops.performance_sync.cron_checked",
+    actor: "system:cron",
+    entity_type: "naver_performance_sync_run",
+    entity_id: null,
+    after_value: {
+      ...summary,
+      scheduleUtc: performanceSyncCronPolicy.scheduleUtc,
+      scheduleKst: performanceSyncCronPolicy.scheduleKst,
+      maxRunsPerInvocation: performanceSyncCronPolicy.maxRunsPerInvocation,
+      readOnly: true,
+      storedRawStats: false
+    },
+    reason:
+      summary.processed > 0
+        ? `Scheduled performance sync checked ${summary.processed} plan(s).`
+        : "Scheduled performance sync checked with no eligible plans."
+  });
 }

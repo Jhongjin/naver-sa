@@ -282,6 +282,11 @@ type PerformanceSyncPlanItem = {
     recommendationCount: number;
     recommendationDraftCount: number;
     storedRawStats: boolean;
+    source: "manual" | "cron" | "preview" | null;
+    statusCode: number | null;
+    error: string | null;
+    queuedAt: string | null;
+    completedAt: string | null;
     message: string | null;
   };
   createdAt: string;
@@ -1757,8 +1762,22 @@ function AdminUsersContent() {
                   <p>
                     {plan.actorEmail ?? "unknown"} / {formatKoreanDateTime(plan.createdAt)}
                   </p>
+                  <small>
+                    {performancePlanSourceLabel(plan.resultSummary.source)} /{" "}
+                    {plan.resultSummary.completedAt
+                      ? `완료 ${formatKoreanDateTime(plan.resultSummary.completedAt)}`
+                      : plan.resultSummary.queuedAt
+                        ? `시작 ${formatKoreanDateTime(plan.resultSummary.queuedAt)}`
+                        : "실행 대기"}
+                  </small>
                   {plan.warnings.length > 0 ? <small>{plan.warnings[0]}</small> : null}
                   {plan.resultSummary.message ? <small>{plan.resultSummary.message}</small> : null}
+                  {plan.resultSummary.error ? (
+                    <small>
+                      {plan.resultSummary.statusCode ? `status ${plan.resultSummary.statusCode} / ` : ""}
+                      {plan.resultSummary.error}
+                    </small>
+                  ) : null}
                   {plan.externalRequest ? <small>read-only external sync 실행됨 / raw stats 저장 안 함</small> : null}
                   <div className="admin-performance-plan-actions">
                     <button
@@ -2439,6 +2458,7 @@ function createPerformancePlansCsv(plans: PerformanceSyncPlanItem[]) {
       "created_at",
       "status",
       "scope",
+      "source",
       "product_type",
       "brand_name",
       "site_url",
@@ -2450,6 +2470,10 @@ function createPerformancePlansCsv(plans: PerformanceSyncPlanItem[]) {
       "row_count",
       "recommendations",
       "recommendation_drafts",
+      "status_code",
+      "error",
+      "queued_at",
+      "completed_at",
       "read_only_endpoint",
       "warnings",
       "result_message"
@@ -2458,6 +2482,7 @@ function createPerformancePlansCsv(plans: PerformanceSyncPlanItem[]) {
       plan.createdAt,
       plan.status,
       plan.scope,
+      plan.resultSummary.source ?? "",
       plan.productType ?? "",
       plan.brandName ?? "",
       plan.siteUrl ?? "",
@@ -2469,6 +2494,10 @@ function createPerformancePlansCsv(plans: PerformanceSyncPlanItem[]) {
       plan.resultSummary.rowCount,
       plan.resultSummary.recommendationCount,
       plan.resultSummary.recommendationDraftCount,
+      plan.resultSummary.statusCode ?? "",
+      plan.resultSummary.error ?? "",
+      plan.resultSummary.queuedAt ?? "",
+      plan.resultSummary.completedAt ?? "",
       plan.readOnlyEndpoint,
       plan.warnings.join("; "),
       plan.resultSummary.message ?? ""
@@ -2672,6 +2701,7 @@ function adminEventLabel(value: string) {
     "admin.user.email_confirmed": "메일 확인",
     "admin.user.role_changed": "권한 변경",
     "ops.performance_sync.blocked": "Sync 차단",
+    "ops.performance_sync.cron_checked": "Cron 확인",
     "ops.performance_sync.config_missing": "설정 경고",
     "ops.performance_sync.failed": "Sync 실패"
   };
@@ -2693,6 +2723,16 @@ function performancePlanStatusLabel(value: PerformanceSyncPlanItem["status"]) {
   };
 
   return labels[value];
+}
+
+function performancePlanSourceLabel(value: PerformanceSyncPlanItem["resultSummary"]["source"]) {
+  const labels = {
+    manual: "수동 sync",
+    cron: "예약 cron",
+    preview: "preview 저장"
+  };
+
+  return value ? labels[value] : "dry-run 계획";
 }
 
 function canRunManualPerformanceSync(plan: PerformanceSyncPlanItem) {

@@ -105,6 +105,15 @@ function summarizeAuditEvent(eventType: string, value: Record<string, unknown> |
   }
 
   if (eventType.startsWith("ops.")) {
+    if (eventType === "ops.performance_sync.cron_checked") {
+      const processed = scalarValue(value?.processed);
+      const remaining = scalarValue(value?.remainingAfter);
+
+      return [`cron checked ${processed ?? "0"} plan(s)`, remaining ? `remaining ${remaining}` : null]
+        .filter(Boolean)
+        .join(" / ");
+    }
+
     const error = stringValue(value?.error);
     const warning = Array.isArray(value?.warnings) ? stringValue(value.warnings[0]) : null;
     const status = scalarValue(value?.status);

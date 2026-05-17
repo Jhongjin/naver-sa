@@ -19,9 +19,9 @@ Implemented:
 - The migration only creates new tables and indexes.
 - No production data deletion or destructive migration is included.
 - RLS is enabled on all new tables.
-- The storage route requires `x-admin-secret` matching `CRON_SECRET`.
+- The legacy storage route requires an authenticated Supabase Auth admin session and ignores caller-provided user IDs.
 - The storage route regenerates the plan server-side from submitted input instead of trusting client-provided generated rows.
-- The route is not called by the browser UI yet.
+- The browser UI uses `/api/plans/store-draft` with the signed-in user's Supabase Auth session.
 - The readiness route returns table presence and counts only. It does not return table rows or secrets.
 
 ## Tables

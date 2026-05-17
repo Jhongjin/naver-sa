@@ -18,6 +18,10 @@ for (const file of routeFiles) {
     failures.push(`${relativePath}: keep NextResponse usage inside lib/http.ts`);
   }
 
+  if (source.includes("x-admin-secret") || source.includes("verifyAdminSecret")) {
+    failures.push(`${relativePath}: use Supabase Auth access checks instead of shared admin secrets`);
+  }
+
   if (!source.includes("jsonNoStore")) {
     failures.push(`${relativePath}: missing jsonNoStore no-cache response helper`);
   }

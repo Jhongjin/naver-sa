@@ -215,3 +215,16 @@ Implementation rule:
 - do not include API keys, tokens, admin secrets, or raw service role values in response bodies
 - public readiness endpoints may return only presence/configuration booleans, never secret values
 - run `npm run lint:api-policy` before shipping API route changes to catch missing `jsonNoStore` and `methodNotAllowed` coverage
+
+## 10. Protected Test Execution
+
+Protected test execution must use Supabase Auth, not shared operator secrets.
+
+Implementation rule:
+
+- `/api/naver/execute-draft` requires an authenticated admin session
+- the execution draft must already be saved in `execution_drafts`
+- only `status = ready` drafts can be executed
+- drafts with any recorded `execution_results` are blocked from re-execution
+- `TEST_EXECUTION_ONLY` remains required for every execution request
+- execution results must be stored before the workflow is treated as complete

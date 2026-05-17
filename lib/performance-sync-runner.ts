@@ -97,6 +97,9 @@ export async function runPerformanceSyncPlan(input: {
           result_summary: {
             message: `${sourceLabel(input.source)} read-only sync failed before external request: Naver API configuration is incomplete.`,
             storedRawStats: false,
+            source: input.source,
+            status: 0,
+            error: "Naver Search Ad API environment variables are incomplete.",
             missingCount: naverState.missing.length
           },
           updated_at: new Date().toISOString()

@@ -2,6 +2,7 @@ import {
   createNaverExecutionDraft,
   type NaverExecutionPayload
 } from "@/lib/execution-draft";
+import { verifyUserAccess } from "@/lib/auth-access";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { requestNaverSearchAd } from "@/lib/naver-search-ad";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
@@ -40,6 +41,11 @@ type PersistableExecutionResult = ExecutionResponse["results"][number] & {
   response?: unknown;
 };
 
+type ReadyExecutionDraftRecord = {
+  id: string;
+  planningRunId: string;
+};
+
 export function GET() {
   return methodNotAllowed(["POST"]);
 }
@@ -57,10 +63,10 @@ export function DELETE() {
 }
 
 export async function POST(request: Request) {
-  const authResult = verifyAdminSecret(request);
+  const access = await verifyUserAccess(request, { requireAdmin: true });
 
-  if (!authResult.ok) {
-    return jsonNoStore(authResult, { status: authResult.status });
+  if (!access.ok) {
+    return jsonNoStore(access, { status: access.status });
   }
 
   const body = await readJsonRecord(request);
@@ -108,6 +114,19 @@ export async function POST(request: Request) {
         validation: draft.validation
       },
       { status: 409 }
+    );
+  }
+
+  const persistedDraft = await loadReadyExecutionDraft(draft.draftKey);
+
+  if (!persistedDraft.ok) {
+    return jsonNoStore(
+      {
+        ok: false,
+        error: persistedDraft.error,
+        code: persistedDraft.code
+      },
+      { status: persistedDraft.status }
     );
   }
 
@@ -168,7 +187,8 @@ export async function POST(request: Request) {
 
   const executionSucceeded = results.every((result) => result.ok);
   const history = await persistExecutionResults({
-    draftKey: draft.draftKey,
+    draft: persistedDraft.draft,
+    actor: access.user.email ?? access.user.id,
     succeeded: executionSucceeded,
     results: persistableResults
   });
@@ -184,8 +204,110 @@ export async function POST(request: Request) {
   return jsonNoStore(response, { status: response.ok ? 200 : 502 });
 }
 
+async function loadReadyExecutionDraft(
+  draftKey: string
+): Promise<
+  | {
+      ok: true;
+      draft: ReadyExecutionDraftRecord;
+    }
+  | {
+      ok: false;
+      status: number;
+      code: string;
+      error: string;
+    }
+> {
+  const state = getSupabaseAdminState();
+
+  if (!state.ready) {
+    return {
+      ok: false,
+      status: 503,
+      code: "SUPABASE_ADMIN_NOT_CONFIGURED",
+      error: "Supabase admin environment is not configured."
+    };
+  }
+
+  const supabase = getSupabaseAdminClient();
+
+  if (!supabase) {
+    return {
+      ok: false,
+      status: 503,
+      code: "SUPABASE_ADMIN_UNAVAILABLE",
+      error: "Supabase admin client is unavailable."
+    };
+  }
+
+  const { data: draft, error: draftError } = await supabase
+    .from("execution_drafts")
+    .select("id, planning_run_id, status")
+    .eq("draft_key", draftKey)
+    .maybeSingle();
+
+  if (draftError) {
+    return {
+      ok: false,
+      status: 502,
+      code: "EXECUTION_DRAFT_LOOKUP_FAILED",
+      error: sanitizePersistenceError(draftError.message)
+    };
+  }
+
+  if (!draft) {
+    return {
+      ok: false,
+      status: 409,
+      code: "EXECUTION_DRAFT_HISTORY_REQUIRED",
+      error: "Save the execution draft history before requesting protected test execution."
+    };
+  }
+
+  if (draft.status !== "ready") {
+    return {
+      ok: false,
+      status: 409,
+      code: "EXECUTION_DRAFT_NOT_READY",
+      error: "Only saved execution drafts with ready status can be executed."
+    };
+  }
+
+  const { count, error: resultError } = await supabase
+    .from("execution_results")
+    .select("id", { count: "exact", head: true })
+    .eq("execution_draft_id", draft.id);
+
+  if (resultError) {
+    return {
+      ok: false,
+      status: 502,
+      code: "EXECUTION_RESULT_LOOKUP_FAILED",
+      error: sanitizePersistenceError(resultError.message)
+    };
+  }
+
+  if ((count ?? 0) > 0) {
+    return {
+      ok: false,
+      status: 409,
+      code: "EXECUTION_ALREADY_RECORDED",
+      error: "This execution draft already has recorded results. Create a new saved draft before retrying."
+    };
+  }
+
+  return {
+    ok: true,
+    draft: {
+      id: draft.id as string,
+      planningRunId: draft.planning_run_id as string
+    }
+  };
+}
+
 async function persistExecutionResults(input: {
-  draftKey: string;
+  draft: ReadyExecutionDraftRecord;
+  actor: string;
   succeeded: boolean;
   results: PersistableExecutionResult[];
 }): Promise<NonNullable<ExecutionResponse["history"]>> {
@@ -207,23 +329,10 @@ async function persistExecutionResults(input: {
     };
   }
 
-  const { data: draft, error: draftError } = await supabase
-    .from("execution_drafts")
-    .select("id, planning_run_id")
-    .eq("draft_key", input.draftKey)
-    .single();
-
-  if (draftError || !draft) {
-    return {
-      saved: false,
-      warning: "Execution draft history was not found. Save history before requesting protected execution."
-    };
-  }
-
   if (input.results.length > 0) {
     const { error: resultError } = await supabase.from("execution_results").insert(
       input.results.map((result) => ({
-        execution_draft_id: draft.id,
+        execution_draft_id: input.draft.id,
         idempotency_key: result.idempotencyKey,
         payload_key: result.id,
         ok: result.ok,
@@ -238,7 +347,7 @@ async function persistExecutionResults(input: {
     if (resultError) {
       return {
         saved: false,
-        executionDraftId: draft.id as string,
+        executionDraftId: input.draft.id,
         warning: sanitizePersistenceError(resultError.message)
       };
     }
@@ -251,7 +360,7 @@ async function persistExecutionResults(input: {
       decision: input.succeeded ? "executed" : "failed",
       executed_at: executedAt
     })
-    .eq("planning_run_id", draft.planning_run_id)
+    .eq("planning_run_id", input.draft.planningRunId)
     .eq("decision", "approved")
     .select("id");
   const stagedChangeCount = stagedChanges?.length ?? 0;
@@ -261,13 +370,14 @@ async function persistExecutionResults(input: {
     .update({
       status: input.succeeded ? "executed" : "failed"
     })
-    .eq("id", draft.id);
+    .eq("id", input.draft.id);
 
   await supabase.from("audit_events").insert({
-    planning_run_id: draft.planning_run_id,
+    planning_run_id: input.draft.planningRunId,
     event_type: input.succeeded ? "execution_draft.executed" : "execution_draft.failed",
+    actor: input.actor,
     entity_type: "execution_draft",
-    entity_id: draft.id,
+    entity_id: input.draft.id,
     after_value: {
       resultCount: input.results.length,
       stagedChangeCount,
@@ -278,35 +388,9 @@ async function persistExecutionResults(input: {
 
   return {
     saved: true,
-    executionDraftId: draft.id as string,
+    executionDraftId: input.draft.id,
     stagedChangeCount,
     warning: stagedChangeError ? sanitizePersistenceError(stagedChangeError.message) : undefined
-  };
-}
-
-function verifyAdminSecret(request: Request): { ok: true } | { ok: false; status: number; error: string } {
-  const configuredSecret = process.env.CRON_SECRET;
-
-  if (!configuredSecret) {
-    return {
-      ok: false,
-      status: 503,
-      error: "Execution route is disabled because CRON_SECRET is not configured."
-    };
-  }
-
-  const providedSecret = request.headers.get("x-admin-secret");
-
-  if (providedSecret !== configuredSecret) {
-    return {
-      ok: false,
-      status: 401,
-      error: "Unauthorized."
-    };
-  }
-
-  return {
-    ok: true
   };
 }
 

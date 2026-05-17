@@ -21,3 +21,5 @@
 - `/api/naver/performance-sync/readiness` reports `automaticCronConfigured`, `cronSecretPresent`, the schedule, and the per-run limit separately.
 - The admin 예약 실행 card shows cron status, CRON_SECRET presence, target statuses, and the KST schedule.
 - Recent cron outcomes are visible through performance plan rows and ops alert filters.
+- Performance plan rows and CSV exports include run source, status code, sanitized error, queued time, and completed time so operators can distinguish dry-run, preview, manual sync, and scheduled cron history without inspecting raw payloads.
+- Every cron invocation writes an `ops.performance_sync.cron_checked` audit heartbeat with processed counts and pending backlog counts, including days where no eligible plans are processed.

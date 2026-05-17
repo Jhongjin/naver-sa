@@ -231,12 +231,29 @@ function normalizeResultSummary(value: Record<string, unknown> | null) {
     recommendationCount: readNumber(value?.recommendationCount),
     recommendationDraftCount: readNumber(value?.recommendationDraftCount),
     storedRawStats: value?.storedRawStats === true,
-    message: typeof value?.message === "string" ? value.message : null
+    source: readSource(value?.source),
+    statusCode: readNumberOrNull(value?.status),
+    error: readString(value?.error, 220),
+    queuedAt: readString(value?.queuedAt, 40),
+    completedAt: readString(value?.completedAt, 40),
+    message: readString(value?.message, 240)
   };
 }
 
 function readNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function readNumberOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readString(value: unknown, maxLength: number): string | null {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, maxLength) : null;
+}
+
+function readSource(value: unknown): "manual" | "cron" | "preview" | null {
+  return value === "manual" || value === "cron" || value === "preview" ? value : null;
 }
 
 function sanitizeError(message: string | undefined): string {

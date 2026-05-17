@@ -197,7 +197,9 @@ async function savePerformancePreviewHistory(input: {
         recommendationDraftCount: input.recommendationDrafts.length,
         recommendationDraftSummary: summarizePerformanceRecommendationDrafts(input.recommendationDrafts),
         timeIncrement: input.preview.timeIncrement,
-        storedRawStats: false
+        storedRawStats: false,
+        source: "preview",
+        completedAt: new Date().toISOString()
       }
     })
     .select("id")

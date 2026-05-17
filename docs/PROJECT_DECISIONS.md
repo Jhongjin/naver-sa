@@ -145,6 +145,7 @@ Recent operational queue:
 - Performance preview results can be re-run from saved history rows and exported as Markdown operating notes without including raw stats JSON.
 - Admin performance sync plans can be filtered by status/scope and exported as CSV for operating review.
 - Performance sync readiness now exposes scheduler state, with Vercel Cron configured for `/api/naver/performance-sync/cron` at 09:10 KST daily. It processes up to 3 `planned` or `failed` rows through read-only `GET /api/stats`, excludes `blocked`, `completed`, `ready`, and `masterReference`, and records failure alerts as `ops.performance_sync.failed`.
+- Performance sync plan rows now expose run source, sanitized error/status, queued time, and completed time in the admin UI and CSV so scheduled cron outcomes can be audited without raw stats storage. Each cron invocation also writes an `ops.performance_sync.cron_checked` heartbeat with processed and backlog counts.
 - Saved history detail supports authenticated internal link copy and Markdown operating memo export without embedding raw payload bodies.
 - Admin recent saved activities can be exported as a filter-aware CSV for handoff and QA review.
 - Admin account snapshot history can be exported as CSV with counts, diff summaries, and warning scopes.
@@ -157,6 +158,7 @@ Recent operational queue:
 - Supabase readiness reports optional limited report share-link support without failing overall readiness.
 - API route files explicitly export common method handlers so unsupported methods return no-store 405 responses instead of Next.js default cacheable responses.
 - Production verification after each queue checks `/api/health`, `/api/supabase/readiness`, and the relevant protected API route for no-store authentication/method behavior.
+- Protected test execution now requires Supabase Auth admin access, a previously saved ready execution draft, no prior execution results for that draft, and the `TEST_EXECUTION_ONLY` confirmation phrase before any Naver mutation request can be sent.
 
 ## UX Direction
 
