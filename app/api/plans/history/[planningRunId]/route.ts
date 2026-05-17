@@ -131,7 +131,6 @@ type ExecutionPayloadRow = {
   id: string;
   execution_draft_id: string;
   payload_key: string;
-  idempotency_key: string;
   method: "POST" | "PUT";
   uri: string;
   entity_type: string;
@@ -145,7 +144,6 @@ type ExecutionPayloadRow = {
 type ExecutionResultRow = {
   id: string;
   execution_draft_id: string | null;
-  idempotency_key: string;
   payload_key: string;
   ok: boolean;
   status: number;
@@ -335,16 +333,12 @@ export async function GET(request: Request, context: RouteContext) {
       ? await Promise.all([
           supabase
             .from("execution_payloads")
-            .select(
-              "id, execution_draft_id, payload_key, idempotency_key, method, uri, entity_type, target, params, body, safety, created_at"
-            )
+            .select("id, execution_draft_id, payload_key, method, uri, entity_type, target, params, body, safety, created_at")
             .in("execution_draft_id", draftIds)
             .order("created_at", { ascending: true }),
           supabase
             .from("execution_results")
-            .select(
-              "id, execution_draft_id, idempotency_key, payload_key, ok, status, target, naver_entity_id, error, response, created_at"
-            )
+            .select("id, execution_draft_id, payload_key, ok, status, target, naver_entity_id, error, response, created_at")
             .in("execution_draft_id", draftIds)
             .order("created_at", { ascending: false })
         ])
@@ -481,7 +475,6 @@ export async function GET(request: Request, context: RouteContext) {
         .map((payload) => ({
           id: payload.id,
           payloadKey: payload.payload_key,
-          idempotencyKey: payload.idempotency_key,
           method: payload.method,
           uri: payload.uri,
           entityType: payload.entity_type,
@@ -504,6 +497,7 @@ export async function GET(request: Request, context: RouteContext) {
         }))
     })),
     auditEvents: ((auditResult.data ?? []) as AuditEventRow[]).map(toSafeAuditEvent),
+    idempotencyKeysExcluded: true,
     auditRawValuesExcluded: true
   });
 }

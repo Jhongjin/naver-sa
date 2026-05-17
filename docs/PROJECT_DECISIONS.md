@@ -201,6 +201,7 @@ Recent operational queue:
 - Login/signup form errors now pass through the shared sensitive-text redaction helper before display, and API policy verification guards against raw Supabase Auth error messages being rendered directly.
 - Admin dashboard visible errors now pass through the shared sensitive-text redaction helper before display, including user, audit, share-link, Naver readiness, and performance sync panels.
 - Saved-history and public shared-report visible errors now pass through the shared sensitive-text redaction helper before display.
+- Saved-history detail now excludes execution idempotency keys from API responses and payload JSON downloads while preserving safe payload inspection fields.
 - Workspace stage/save/account-scan errors now pass through the shared sensitive-text redaction helper before display, with API policy checks guarding against raw client error messages.
 - Admin audit event responses now keep raw `before_value` excluded and sanitize all reason/summary text before it reaches the UI or CSV export.
 - Account snapshot history now explicitly marks raw Naver inventory arrays as excluded and locks the non-admin view to the authenticated user's own snapshots.

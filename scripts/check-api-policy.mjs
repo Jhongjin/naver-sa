@@ -384,6 +384,7 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request)");
     requireSourceIncludes(source, relativePath, "hasWorkspaceMembership");
     requireSourceIncludes(source, relativePath, "internalUserIdsExcluded: true");
+    requireSourceIncludes(source, relativePath, "idempotencyKeysExcluded: true");
     requireSourceIncludes(source, relativePath, "auditRawValuesExcluded: true");
     requireSourceIncludes(source, relativePath, "toSafeAuditEvent");
     requireSourceIncludes(source, relativePath, "auditEvents: ((auditResult.data ?? []) as AuditEventRow[]).map(toSafeAuditEvent)");
@@ -402,6 +403,18 @@ for (const file of routeFiles) {
       relativePath,
       "before_value",
       "history detail responses must not select or expose raw audit before values"
+    );
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "idempotency_key",
+      "history detail responses must not select or expose idempotency keys"
+    );
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "idempotencyKey:",
+      "history detail response bodies must not expose idempotency keys"
     );
     requireSourceExcludes(
       source,
@@ -997,6 +1010,7 @@ function requireProjectSurfaceChecks() {
   const historyDetailClientSource = readProjectFile(historyDetailClientPath);
 
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "internalUserIdsExcluded");
+  requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "idempotencyKeysExcluded");
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "auditRawValuesExcluded");
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "redactSensitiveErrorText");
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "visibleHistoryDetailError");
@@ -1016,6 +1030,12 @@ function requireProjectSurfaceChecks() {
     historyDetailClientPath,
     "createdByUserId",
     "history detail UI must not type or render internal creator user ids"
+  );
+  requireSourceExcludes(
+    historyDetailClientSource,
+    historyDetailClientPath,
+    "idempotencyKey:",
+    "history detail UI/download must not type or render idempotency keys"
   );
   requireSourceExcludes(
     historyDetailClientSource,

@@ -148,7 +148,6 @@ type HistoryDetailResponse = {
     payloads: Array<{
       id: string;
       payloadKey: string;
-      idempotencyKey: string;
       method: "POST" | "PUT";
       uri: string;
       entityType: string;
@@ -169,6 +168,7 @@ type HistoryDetailResponse = {
     }>;
   }>;
   internalUserIdsExcluded: true;
+  idempotencyKeysExcluded: true;
   auditEvents: Array<{
     id: string;
     eventType: string;
@@ -1100,7 +1100,6 @@ function formatPayloadJson(payload: HistoryDetailResponse["executionDrafts"][num
   return JSON.stringify(
     {
       payloadKey: payload.payloadKey,
-      idempotencyKey: payload.idempotencyKey,
       method: payload.method,
       uri: payload.uri,
       entityType: payload.entityType,
