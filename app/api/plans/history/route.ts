@@ -36,7 +36,6 @@ type PlanningRunRow = {
   } | null;
   shopping_linkage?: Record<string, unknown> | null;
   created_by: string | null;
-  created_by_user_id: string | null;
   created_at: string;
 };
 
@@ -114,7 +113,6 @@ export async function GET(request: Request) {
     "forecast",
     ...(shoppingLinkageSupport ? ["shopping_linkage"] : []),
     "created_by",
-    "created_by_user_id",
     "created_at"
   ].join(", ");
   let runsQuery = supabase
@@ -178,6 +176,7 @@ export async function GET(request: Request) {
       limit,
       nextOffset: null,
       scope: access.state.role === "admin" ? "all" : "mine",
+      internalCreatorUserIdsExcluded: true,
       filters: {
         productType: productType ?? "all",
         days: dayWindow,
@@ -261,7 +260,6 @@ export async function GET(request: Request) {
       adGroupCount: run.forecast?.adGroupCount ?? null,
       shoppingLinkage: coerceShoppingLinkageSummary(run.shopping_linkage ?? null, run.product_type),
       createdBy: run.created_by,
-      createdByUserId: run.created_by_user_id,
       workspaceId: run.workspace_id,
       workspaceName: workspace?.name ?? null,
       createdAt: run.created_at,
@@ -306,6 +304,7 @@ export async function GET(request: Request) {
     limit,
     nextOffset,
     scope: access.state.role === "admin" ? "all" : "mine",
+    internalCreatorUserIdsExcluded: true,
     filters: {
       productType: productType ?? "all",
       days: dayWindow,

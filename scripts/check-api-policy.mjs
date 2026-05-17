@@ -362,6 +362,7 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(adminClientSource, adminClientPath, "activityLinkageFilter");
   requireSourceIncludes(adminClientSource, adminClientPath, "activityLinkageFilterLabel");
   requireSourceIncludes(adminClientSource, adminClientPath, "최근 활동 쇼핑 linkage 필터");
+  requireSourceIncludes(adminClientSource, adminClientPath, "internalCreatorUserIdsExcluded");
   requireSourceIncludes(adminClientSource, adminClientPath, 'event.eventType.startsWith("ops.")');
   requireSourceIncludes(adminClientSource, adminClientPath, "ops.report_share.created");
   requireSourceIncludes(adminClientSource, adminClientPath, "ops.report_share.revoked");
@@ -372,6 +373,12 @@ function requireProjectSurfaceChecks() {
     adminClientPath,
     "ops.performance_sync.*",
     "admin ops alert summary must cover all ops.* events, not only performance sync"
+  );
+  requireSourceExcludes(
+    adminClientSource,
+    adminClientPath,
+    "createdByUserId",
+    "admin activity UI must not type or render internal creator user ids"
   );
 
   const sharedReportClientPath = "app/components/share/SharedReportClient.tsx";
@@ -394,6 +401,13 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(historyListClientSource, historyListClientPath, "coerceShoppingLinkageFilter");
   requireSourceIncludes(historyListClientSource, historyListClientPath, 'params.set("linkage", linkageFilter)');
   requireSourceIncludes(historyListClientSource, historyListClientPath, "쇼핑 linkage 필터");
+  requireSourceIncludes(historyListClientSource, historyListClientPath, "internalCreatorUserIdsExcluded");
+  requireSourceExcludes(
+    historyListClientSource,
+    historyListClientPath,
+    "createdByUserId",
+    "history list UI must not type or render internal creator user ids"
+  );
 
   const shoppingLinkagePath = "lib/shopping-linkage.ts";
   const shoppingLinkageSource = readProjectFile(shoppingLinkagePath);
@@ -406,6 +420,13 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(historyApiSource, historyApiPath, "coerceShoppingLinkageStatusFilter");
   requireSourceIncludes(historyApiSource, historyApiPath, "linkageFilter");
   requireSourceIncludes(historyApiSource, historyApiPath, "linkage: linkageFilter ?? \"all\"");
+  requireSourceIncludes(historyApiSource, historyApiPath, "internalCreatorUserIdsExcluded: true");
+  requireSourceExcludes(
+    historyApiSource,
+    historyApiPath,
+    "createdByUserId:",
+    "history list responses must not expose internal creator user ids"
+  );
 
   const adminActivityApiPath = "app/api/admin/activity/route.ts";
   const adminActivityApiSource = readProjectFile(adminActivityApiPath);
@@ -413,17 +434,31 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(adminActivityApiSource, adminActivityApiPath, "coerceShoppingLinkageStatusFilter");
   requireSourceIncludes(adminActivityApiSource, adminActivityApiPath, "linkageFilter");
   requireSourceIncludes(adminActivityApiSource, adminActivityApiPath, "linkage: linkageFilter ?? \"all\"");
+  requireSourceIncludes(adminActivityApiSource, adminActivityApiPath, "internalCreatorUserIdsExcluded: true");
+  requireSourceExcludes(
+    adminActivityApiSource,
+    adminActivityApiPath,
+    "createdByUserId:",
+    "admin activity responses must not expose internal creator user ids"
+  );
 
   const myPageClientPath = "app/components/account/MyPageClient.tsx";
   const myPageClientSource = readProjectFile(myPageClientPath);
 
   requireSourceIncludes(myPageClientSource, myPageClientPath, "internalOwnerIdExcluded");
+  requireSourceIncludes(myPageClientSource, myPageClientPath, "internalCreatorUserIdsExcluded");
   requireSourceIncludes(myPageClientSource, myPageClientPath, "workspaceOwnerLabel(workspace.isOwner");
   requireSourceExcludes(
     myPageClientSource,
     myPageClientPath,
     "ownerUserId",
     "my page workspace UI must not type or render internal owner user ids"
+  );
+  requireSourceExcludes(
+    myPageClientSource,
+    myPageClientPath,
+    "createdByUserId",
+    "my page history UI must not type or render internal creator user ids"
   );
 
   const historyDetailClientPath = "app/components/history/HistoryDetailClient.tsx";
@@ -444,6 +479,7 @@ function requireProjectSurfaceChecks() {
     "createdByUserId",
     "history detail UI must not type or render internal creator user ids"
   );
+
 }
 
 function readProjectFile(relativePath) {

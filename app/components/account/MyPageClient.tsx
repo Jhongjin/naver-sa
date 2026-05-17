@@ -77,6 +77,7 @@ type HistoryResponse = {
   runs: HistoryRun[];
   total: number;
   scope: "mine" | "all";
+  internalCreatorUserIdsExcluded: true;
 };
 
 type WorkspaceMembership = {

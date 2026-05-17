@@ -64,6 +64,7 @@ type HistoryResponse = {
   limit: number;
   nextOffset: number | null;
   scope: "mine" | "all";
+  internalCreatorUserIdsExcluded: true;
   filters: {
     productType: ProductFilter;
     days: 7 | 30 | null;

@@ -29,7 +29,6 @@ type PlanningRunActivityRow = {
   product_type: "powerlink" | "shoppingSearch";
   shopping_linkage?: Record<string, unknown> | null;
   created_by: string | null;
-  created_by_user_id: string | null;
   created_at: string;
 };
 
@@ -90,7 +89,6 @@ export async function GET(request: Request) {
     "product_type",
     ...(shoppingLinkageSupport ? ["shopping_linkage"] : []),
     "created_by",
-    "created_by_user_id",
     "created_at"
   ].join(", ");
   const { data: runs, error: runsError } = await supabase
@@ -124,7 +122,8 @@ export async function GET(request: Request) {
       filters: {
         limit,
         linkage: linkageFilter ?? "all"
-      }
+      },
+      internalCreatorUserIdsExcluded: true
     });
   }
 
@@ -179,7 +178,6 @@ export async function GET(request: Request) {
       productType: run.product_type,
       shoppingLinkage: coerceShoppingLinkageSummary(run.shopping_linkage ?? null, run.product_type),
       createdBy: run.created_by,
-      createdByUserId: run.created_by_user_id,
       createdAt: run.created_at,
       approvalSummary,
       executionDraft: draft
@@ -206,7 +204,8 @@ export async function GET(request: Request) {
     filters: {
       limit,
       linkage: linkageFilter ?? "all"
-    }
+    },
+    internalCreatorUserIdsExcluded: true
   });
 }
 

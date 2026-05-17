@@ -187,6 +187,7 @@ Recent operational queue:
 - Account snapshot history now explicitly marks raw Naver inventory arrays as excluded and locks the non-admin view to the authenticated user's own snapshots.
 - Workspace membership responses now compute ownership server-side and exclude internal owner user UUIDs from the My Page API/UI.
 - Saved history detail now derives creator/session and workspace-owner context server-side without returning internal user UUIDs to the detail UI.
+- Saved history list and admin activity responses now exclude internal creator user UUIDs while keeping display-safe creator labels.
 
 ## UX Direction
 

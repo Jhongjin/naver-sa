@@ -83,6 +83,7 @@ type AdminActivityItem = {
 type ActivityResponse = {
   ok: true;
   activities: AdminActivityItem[];
+  internalCreatorUserIdsExcluded: true;
   limit: number;
   filters: {
     limit: number;
