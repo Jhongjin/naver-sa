@@ -120,6 +120,7 @@ export async function POST(request: Request) {
     externalRequest: true,
     readOnly: true,
     request: {
+      scope: preview.scope,
       entityCount: preview.entityIds.length,
       fields: preview.fields,
       dateFrom: preview.dateFrom,
@@ -178,7 +179,7 @@ async function savePerformancePreviewHistory(input: {
     .insert({
       user_id: input.userId,
       actor_email: input.actorEmail,
-      scope: "powerlinkDailyStats",
+      scope: input.preview.scope,
       requested_from: input.preview.dateFrom,
       requested_to: input.preview.dateTo,
       status: "completed",

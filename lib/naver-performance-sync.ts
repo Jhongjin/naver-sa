@@ -71,6 +71,7 @@ export type PerformanceSyncPlan = PerformanceSyncPlanInput & {
 };
 
 export type PerformanceStatsPreviewRequest = {
+  scope: PerformanceSyncScope;
   entityIds: string[];
   fields: string[];
   dateFrom: string;
@@ -160,17 +161,24 @@ export function createPerformanceSyncPlan(input: {
 }
 
 export function createPerformanceStatsPreviewRequest(input: {
+  scope?: unknown;
   entityIds?: unknown;
   fields?: unknown;
   dateFrom?: unknown;
   dateTo?: unknown;
 }): PerformanceStatsPreviewRequest {
+  const requestedScope = coerceScope(input.scope);
+  const scope = requestedScope === "masterReference" ? "powerlinkDailyStats" : requestedScope;
   const requestedDateFrom = coerceDate(input.dateFrom);
   const requestedDateTo = coerceDate(input.dateTo);
   const [dateFrom, dateTo, dateOrderWarning] = normalizeDateRange(requestedDateFrom, requestedDateTo);
   const entityIds = coerceEntityIds(input.entityIds).slice(0, 10);
-  const fields = coerceFields(input.fields, "powerlinkDailyStats").slice(0, 8);
+  const fields = coerceFields(input.fields, scope).slice(0, 8);
   const warnings: string[] = [];
+
+  if (requestedScope === "masterReference") {
+    warnings.push("Master reference scope는 stats preview에서 제외됩니다. report job 생성이 필요 없는 stats scope를 선택해 주세요.");
+  }
 
   if (dateOrderWarning) {
     warnings.push(dateOrderWarning);
@@ -185,6 +193,7 @@ export function createPerformanceStatsPreviewRequest(input: {
   }
 
   return {
+    scope,
     entityIds,
     fields,
     dateFrom,

@@ -389,6 +389,7 @@ type PerformanceStatsPreviewResponse = {
   externalRequest: true;
   readOnly: true;
   request: {
+    scope: PerformanceSyncPlanItem["scope"];
     entityCount: number;
     fields: string[];
     dateFrom: string;
@@ -1200,7 +1201,7 @@ function AdminUsersContent() {
   }
 
   async function runPerformanceStatsPreview(
-    overrides: { idsText?: string; dateFrom?: string; dateTo?: string } = {}
+    overrides: { idsText?: string; dateFrom?: string; dateTo?: string; fields?: string[]; scope?: PerformanceSyncPlanItem["scope"] } = {}
   ) {
     const idsText = overrides.idsText ?? performancePreviewIds;
     const dateFrom = overrides.dateFrom ?? performancePreviewFrom;
@@ -1234,9 +1235,10 @@ function AdminUsersContent() {
       },
       body: JSON.stringify({
         entityIds,
+        scope: overrides.scope ?? "powerlinkDailyStats",
         dateFrom,
         dateTo,
-        fields: ["impCnt", "clkCnt", "salesAmt", "ctr", "cpc", "avgRnk"]
+        fields: overrides.fields ?? ["impCnt", "clkCnt", "salesAmt", "ctr", "cpc", "avgRnk"]
       })
     });
     const data = (await response.json().catch(() => ({}))) as
@@ -1281,7 +1283,9 @@ function AdminUsersContent() {
     await runPerformanceStatsPreview({
       idsText,
       dateFrom: plan.requestedFrom,
-      dateTo: plan.requestedTo
+      dateTo: plan.requestedTo,
+      fields: plan.fields.length > 0 ? plan.fields : undefined,
+      scope: plan.scope
     });
   }
 
@@ -1924,8 +1928,8 @@ function AdminUsersContent() {
                 <span>preview result</span>
                 <strong>{countPreviewRows(performancePreviewResult.stats)} rows</strong>
                 <small>
-                  {performancePreviewResult.request.dateFrom} ~ {performancePreviewResult.request.dateTo} /{" "}
-                  {performancePreviewResult.request.fields.join(", ")}
+                  {performanceScopeLabel(performancePreviewResult.request.scope)} / {performancePreviewResult.request.dateFrom} ~{" "}
+                  {performancePreviewResult.request.dateTo} / {performancePreviewResult.request.fields.join(", ")}
                 </small>
                 <button className="icon-button subtle compact" type="button" onClick={downloadPerformancePreviewMarkdown}>
                   <Download size={15} />
@@ -2674,6 +2678,7 @@ function buildPerformancePreviewMarkdown(result: PerformanceStatsPreviewResponse
     "# Naver SA Performance Preview",
     "",
     `- 생성 시각: ${new Date().toISOString()}`,
+    `- 범위: ${performanceScopeLabel(result.request.scope)}`,
     `- 기간: ${result.request.dateFrom} ~ ${result.request.dateTo}`,
     `- 연결 ID: ${result.request.entityCount}개`,
     `- 필드: ${result.request.fields.join(", ")}`,

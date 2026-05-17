@@ -171,6 +171,7 @@ Recent operational queue:
 - Admins now have a read-only report share-link registry that shows active, expired, revoked, and accessed link counts without exposing public tokens or token hashes. Share link creation and revocation also write token-free `ops.report_share.*` audit events on a best-effort basis.
 - Performance sync readiness now includes read-only ops backlog visibility: planned/failed cron-eligible counts, blocked/stale-ready counts, oldest cron-eligible plan, latest cron heartbeat, and latest sync alert.
 - Live Naver account inventory scans now require Supabase Auth admin access because they use the configured account credentials. Non-admin members can still save planning history but cannot trigger the external account snapshot route.
+- Performance stats preview now preserves the requested stats scope in the response and saved sync history, so Shopping Search plan re-runs are no longer recorded as generic Powerlink previews.
 
 ## UX Direction
 
