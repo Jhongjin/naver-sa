@@ -2001,6 +2001,17 @@ td span {
   font-weight: 600;
 }
 
+.snapshot-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.snapshot-bulk-actions .icon-button {
+  min-height: 34px;
+  padding: 8px 10px;
+}
+
 .snapshot-warning-list {
   background: rgba(180, 83, 9, 0.08);
   border: 1px solid rgba(180, 83, 9, 0.2);

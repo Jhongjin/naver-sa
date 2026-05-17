@@ -2082,6 +2082,10 @@ function AccountSnapshotNotice({
   const isShoppingSearch = productType === "shoppingSearch";
   const productGroups = (state.response.productGroups ?? []).filter((productGroup) => productGroup.id);
   const campaigns = (state.response.campaigns ?? []).filter((campaign) => campaign.nccCampaignId);
+  const campaignIds = campaigns
+    .map((campaign) => campaign.nccCampaignId)
+    .filter((campaignId): campaignId is string => Boolean(campaignId));
+  const campaignIdsText = campaignIds.join(", ");
   const snapshotWarnings = Object.entries(state.response.errors ?? {}).filter((entry): entry is [string, string] =>
     Boolean(entry[1])
   );
@@ -2107,6 +2111,17 @@ function AccountSnapshotNotice({
         {isShoppingSearch ? <span>상품그룹 {productGroups.length}개</span> : null}
         <span>캠페인 {campaigns.length}개</span>
       </div>
+      {campaignIds.length > 0 ? (
+        <div className="snapshot-bulk-actions" aria-label="캠페인 성과 조회 연결">
+          <button className="icon-button subtle" type="button" onClick={() => copySnapshotId(campaignIdsText)}>
+            {copiedValue === campaignIdsText ? "전체 ID 복사됨" : "캠페인 ID 전체 복사"}
+          </button>
+          <Link className="icon-button subtle" href={`/admin/users?performanceIds=${encodeURIComponent(campaignIds.join(","))}`}>
+            <BarChart3 size={17} />
+            전체 성과 조회
+          </Link>
+        </div>
+      ) : null}
       {state.response.partial && snapshotWarnings.length > 0 ? (
         <div className="snapshot-warning-list">
           <strong>일부 항목은 조회하지 못했습니다</strong>
