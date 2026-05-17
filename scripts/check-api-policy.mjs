@@ -251,6 +251,10 @@ function requireProjectSurfaceChecks() {
   const adminClientPath = "app/components/admin/AdminUsersClient.tsx";
   const adminClientSource = readProjectFile(adminClientPath);
 
+  requireSourceIncludes(adminClientSource, adminClientPath, "optionalFeatures");
+  requireSourceIncludes(adminClientSource, adminClientPath, "formatOptionalFeatureDetail");
+  requireSourceIncludes(adminClientSource, adminClientPath, "admin-health-feature-list");
+  requireSourceIncludes(adminClientSource, adminClientPath, "선택 기능");
   requireSourceIncludes(adminClientSource, adminClientPath, 'event.eventType.startsWith("ops.")');
   requireSourceIncludes(adminClientSource, adminClientPath, "ops.report_share.created");
   requireSourceIncludes(adminClientSource, adminClientPath, "ops.report_share.revoked");

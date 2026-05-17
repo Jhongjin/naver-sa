@@ -179,6 +179,7 @@ Recent operational queue:
 - If core child-history persistence fails after a planning run parent row is created, the save response now returns the partial planning run id and attempts to write an `ops.planning_save.failed` audit alert, improving recovery visibility without deleting or rolling back production data.
 - Planner-generated industry templates, benchmark features, and operating rules can now be persisted on `planning_runs` and shown in saved-history detail/memo exports, preserving the operational rationale behind each saved plan.
 - API policy verification now guards those newer history surfaces too: public reports must stay redacted while allowing safe product-group summaries, planning-save failure alerts must remain visible, readiness must list the optional persistence features, and admin ops summaries must cover every `ops.*` event family.
+- The admin operational health panel now surfaces Supabase optional feature readiness counts and per-feature status pills, so operators can see whether share links, Shopping Search linkage/product groups, execution context, and planner metadata migrations are installed.
 
 ## UX Direction
 

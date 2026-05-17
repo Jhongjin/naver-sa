@@ -5119,6 +5119,17 @@ td span {
   line-height: 1.45;
 }
 
+.admin-health-feature-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-health-feature-list .status-pill {
+  max-width: 100%;
+  white-space: normal;
+}
+
 .admin-invite-panel {
   align-items: stretch;
   grid-template-columns: minmax(260px, 0.68fr) minmax(0, 1.32fr);

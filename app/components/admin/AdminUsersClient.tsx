@@ -144,6 +144,16 @@ type SupabaseReadinessResponse = {
     requiredColumnCount: number;
     presentColumnCount: number;
   };
+  optionalFeatures: SupabaseOptionalFeature[];
+  note: string | null;
+};
+
+type SupabaseOptionalFeature = {
+  feature: string;
+  table: string;
+  column: string | null;
+  ready: boolean;
+  rowCount: number | null;
   note: string | null;
 };
 
@@ -686,6 +696,8 @@ function AdminUsersContent() {
     const appVariableCount = operationalHealth.app.environment.requiredTotalCount;
     const recommendedMissing =
       operationalHealth.app.environment.recommendedTotalCount - operationalHealth.app.environment.recommendedPresentCount;
+    const optionalFeatures = operationalHealth.supabase.optionalFeatures ?? [];
+    const optionalReadyCount = optionalFeatures.filter((feature) => feature.ready).length;
 
     return [
       {
@@ -701,6 +713,12 @@ function AdminUsersContent() {
         detail: operationalHealth.supabase.ready
           ? "스키마와 admin API 정상"
           : "스키마 또는 연결 확인 필요"
+      },
+      {
+        label: "선택 기능",
+        value: optionalFeatures.length > 0 ? `${optionalReadyCount}/${optionalFeatures.length}` : "-",
+        ok: optionalFeatures.length === 0 || optionalReadyCount === optionalFeatures.length,
+        detail: formatOptionalFeatureDetail(optionalFeatures)
       },
       {
         label: "Naver API",
@@ -1522,6 +1540,18 @@ function AdminUsersContent() {
             </article>
           )}
         </div>
+        {operationalHealth?.supabase.optionalFeatures?.length ? (
+          <div className="admin-health-feature-list" aria-label="Supabase 선택 기능 준비 상태">
+            {operationalHealth.supabase.optionalFeatures.map((feature) => (
+              <span
+                className={`status-pill ${feature.ready ? "include" : "review"}`}
+                key={`${feature.table}:${feature.column ?? "table"}`}
+              >
+                {feature.feature}: {feature.ready ? "ready" : "migration"}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <section className="account-panel admin-invite-panel" aria-label="회원 초대">
@@ -2992,6 +3022,23 @@ function escapeCsvCell(value: unknown): string {
   const text = String(value ?? "");
 
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function formatOptionalFeatureDetail(features: SupabaseOptionalFeature[]) {
+  if (features.length === 0) {
+    return "선택 스키마 없음";
+  }
+
+  const missing = features.filter((feature) => !feature.ready).map((feature) => feature.feature);
+
+  if (missing.length === 0) {
+    return "공유/쇼핑/메타데이터 준비";
+  }
+
+  const preview = missing.slice(0, 2).join(", ");
+  const suffix = missing.length > 2 ? ` 외 ${missing.length - 2}개` : "";
+
+  return `${preview}${suffix} 확인`;
 }
 
 function activityFilterLabel(value: ActivityFilter) {
