@@ -167,6 +167,7 @@ Recent operational queue:
 - Blocked staged changes, including Shopping Search channel/product-group preconditions, are now persisted with `approval_required = true` so saved history and audit exports do not understate required operator review.
 - Public `/api/health` now returns aggregate environment counts instead of per-secret variable names, reducing configuration fingerprint exposure while keeping admin operational health counts.
 - Admin audit events now support server-side group/event-type filtering, so ops-alert views can fetch relevant events directly instead of relying only on client-side filtering of the latest mixed events.
+- Performance sync cron heartbeat writes are now best-effort; a heartbeat audit insert failure does not fail an otherwise completed read-only cron run, and the response only exposes whether the heartbeat was recorded.
 
 ## UX Direction
 

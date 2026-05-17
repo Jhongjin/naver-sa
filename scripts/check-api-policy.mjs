@@ -55,6 +55,12 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
     requireSourceIncludes(source, relativePath, "createdByUserId = access.user.id");
   }
+
+  if (relativePath === "app/api/naver/performance-sync/cron/route.ts") {
+    requireSourceIncludes(source, relativePath, "authorization !== `Bearer ${cronSecret}`");
+    requireSourceIncludes(source, relativePath, "heartbeatRecorded");
+    requireSourceIncludes(source, relativePath, "catch {");
+  }
 }
 
 if (failures.length > 0) {

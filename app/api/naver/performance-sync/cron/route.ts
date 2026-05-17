@@ -110,7 +110,7 @@ export async function GET(request: Request) {
   }
 
   const remainingAfter = await countPendingCronPlans(supabase.client);
-  await recordCronHeartbeat(supabase.client, {
+  const heartbeatRecorded = await recordCronHeartbeat(supabase.client, {
     processed: results.length,
     pendingBefore,
     remainingAfter,
@@ -126,6 +126,7 @@ export async function GET(request: Request) {
     processed: results.length,
     pendingBefore,
     remainingAfter,
+    heartbeatRecorded,
     maxRunsPerInvocation: performanceSyncCronPolicy.maxRunsPerInvocation,
     policy: {
       scheduleUtc: performanceSyncCronPolicy.scheduleUtc,
@@ -199,23 +200,29 @@ async function recordCronHeartbeat(
     failed: number;
     blocked: number;
   }
-) {
-  await client.from("audit_events").insert({
-    event_type: "ops.performance_sync.cron_checked",
-    actor: "system:cron",
-    entity_type: "naver_performance_sync_run",
-    entity_id: null,
-    after_value: {
-      ...summary,
-      scheduleUtc: performanceSyncCronPolicy.scheduleUtc,
-      scheduleKst: performanceSyncCronPolicy.scheduleKst,
-      maxRunsPerInvocation: performanceSyncCronPolicy.maxRunsPerInvocation,
-      readOnly: true,
-      storedRawStats: false
-    },
-    reason:
-      summary.processed > 0
-        ? `Scheduled performance sync checked ${summary.processed} plan(s).`
-        : "Scheduled performance sync checked with no eligible plans."
-  });
+): Promise<boolean> {
+  try {
+    const { error } = await client.from("audit_events").insert({
+      event_type: "ops.performance_sync.cron_checked",
+      actor: "system:cron",
+      entity_type: "naver_performance_sync_run",
+      entity_id: null,
+      after_value: {
+        ...summary,
+        scheduleUtc: performanceSyncCronPolicy.scheduleUtc,
+        scheduleKst: performanceSyncCronPolicy.scheduleKst,
+        maxRunsPerInvocation: performanceSyncCronPolicy.maxRunsPerInvocation,
+        readOnly: true,
+        storedRawStats: false
+      },
+      reason:
+        summary.processed > 0
+          ? `Scheduled performance sync checked ${summary.processed} plan(s).`
+          : "Scheduled performance sync checked with no eligible plans."
+    });
+
+    return !error;
+  } catch {
+    return false;
+  }
 }
