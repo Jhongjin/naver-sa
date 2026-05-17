@@ -145,6 +145,33 @@ type NaverPublicReadinessResponse = {
   deleteExecution: string;
 };
 
+type AccountSnapshotHistoryItem = {
+  id: string;
+  userId: string;
+  actorEmail: string | null;
+  productType: "powerlink" | "shoppingSearch" | null;
+  brandName: string | null;
+  siteUrl: string | null;
+  partial: boolean;
+  counts: {
+    channels: number;
+    campaigns: number;
+    productGroups: number;
+  };
+  errorScopes: string[];
+  createdAt: string;
+};
+
+type AccountSnapshotHistoryResponse = {
+  ok: true;
+  installed: boolean;
+  snapshots: AccountSnapshotHistoryItem[];
+  total: number;
+  limit: number;
+  scope: "all" | "mine";
+  warning: string | null;
+};
+
 type OperationalHealth = {
   app: AppHealthResponse;
   supabase: SupabaseReadinessResponse;
@@ -178,8 +205,12 @@ function AdminUsersContent() {
   const [activitySummary, setActivitySummary] = useState<ActivityResponse["summary"]>(emptyActivitySummary);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [activityStatus, setActivityStatus] = useState<"idle" | "loading" | "error">("loading");
+  const [snapshotStatus, setSnapshotStatus] = useState<"idle" | "loading" | "error">("loading");
   const [naverCheckStatus, setNaverCheckStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [naverCheckMessage, setNaverCheckMessage] = useState("");
+  const [snapshotHistory, setSnapshotHistory] = useState<AccountSnapshotHistoryItem[]>([]);
+  const [snapshotTotal, setSnapshotTotal] = useState(0);
+  const [snapshotMessage, setSnapshotMessage] = useState("");
   const [operationalHealth, setOperationalHealth] = useState<OperationalHealth | null>(null);
   const [healthStatus, setHealthStatus] = useState<"idle" | "loading" | "error">("loading");
   const [healthMessage, setHealthMessage] = useState("");
@@ -357,6 +388,38 @@ function AdminUsersContent() {
     }
   }, []);
 
+  const loadAccountSnapshotHistory = useCallback(async () => {
+    setSnapshotStatus("loading");
+    setSnapshotMessage("");
+    const token = await getAccessToken();
+
+    if (!token) {
+      setSnapshotStatus("error");
+      setSnapshotMessage("로그인이 필요합니다.");
+      return;
+    }
+
+    const response = await fetch("/api/naver/account-snapshot/history?limit=8", {
+      headers: {
+        authorization: `Bearer ${token}`
+      }
+    });
+    const data = (await response.json().catch(() => ({}))) as
+      | AccountSnapshotHistoryResponse
+      | { ok?: false; error?: string };
+
+    if (!response.ok || data.ok !== true) {
+      setSnapshotStatus("error");
+      setSnapshotMessage("error" in data && data.error ? data.error : "계정 스캔 이력을 불러오지 못했습니다.");
+      return;
+    }
+
+    setSnapshotHistory(data.snapshots);
+    setSnapshotTotal(data.total);
+    setSnapshotStatus("idle");
+    setSnapshotMessage(data.warning ?? "");
+  }, [getAccessToken]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       loadUsers().catch(() => {
@@ -368,12 +431,16 @@ function AdminUsersContent() {
         setHealthStatus("error");
         setHealthMessage("운영 헬스 정보를 불러오지 못했습니다.");
       });
+      loadAccountSnapshotHistory().catch(() => {
+        setSnapshotStatus("error");
+        setSnapshotMessage("계정 스캔 이력을 불러오지 못했습니다.");
+      });
     }, 0);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [loadOperationalHealth, loadUsers]);
+  }, [loadAccountSnapshotHistory, loadOperationalHealth, loadUsers]);
 
   async function updateRole(userId: string, role: "member" | "admin") {
     setStatus("loading");
@@ -644,6 +711,82 @@ function AdminUsersContent() {
             </em>
           ) : null}
         </form>
+      </section>
+
+      <section className="account-panel admin-snapshot-panel" aria-label="최근 계정 스캔">
+        <div className="admin-snapshot-heading">
+          <div>
+            <Network size={22} />
+            <strong>최근 계정 스캔</strong>
+            <span>Naver 비즈채널, 캠페인, 상품그룹 조회 결과를 감사용으로 추적합니다.</span>
+            {snapshotMessage ? <em className="admin-check-result error">{snapshotMessage}</em> : null}
+          </div>
+          <button
+            className="icon-button subtle"
+            disabled={snapshotStatus === "loading"}
+            type="button"
+            onClick={loadAccountSnapshotHistory}
+          >
+            <RefreshCw size={17} />
+            {snapshotStatus === "loading" ? "불러오는 중" : "스캔 이력 새로고침"}
+          </button>
+        </div>
+        <div className="admin-snapshot-summary">
+          <span>저장된 스캔 {snapshotTotal}건</span>
+          <Link className="icon-button subtle" href="/workspace">
+            <Search size={17} />
+            새 스캔
+          </Link>
+        </div>
+        {snapshotStatus === "loading" ? (
+          <div className="admin-activity-empty">
+            <span className="skeleton-line wide" />
+            <span className="skeleton-line" />
+            <span className="skeleton-line short" />
+          </div>
+        ) : null}
+        {snapshotStatus === "idle" && snapshotHistory.length === 0 ? (
+          <div className="admin-activity-empty">
+            <Network size={20} />
+            <strong>저장된 계정 스캔이 없습니다</strong>
+            <span>워크스페이스에서 계정 스캔을 실행하면 최근 결과가 표시됩니다.</span>
+          </div>
+        ) : null}
+        {snapshotStatus === "idle" && snapshotHistory.length > 0 ? (
+          <div className="admin-snapshot-list">
+            {snapshotHistory.map((snapshot) => (
+              <article className={snapshot.partial ? "partial" : ""} key={snapshot.id}>
+                <div>
+                  <span className="status-pill include">
+                    {snapshot.productType ? productTypeLabel(snapshot.productType) : "계정 스캔"}
+                  </span>
+                  <strong>{snapshot.brandName ?? snapshot.actorEmail ?? "브랜드 미지정"}</strong>
+                  <p>
+                    {snapshot.actorEmail ?? "unknown"} / {formatKoreanDateTime(snapshot.createdAt)}
+                  </p>
+                </div>
+                <dl>
+                  <div>
+                    <dt>채널</dt>
+                    <dd>{snapshot.counts.channels}개</dd>
+                  </div>
+                  <div>
+                    <dt>캠페인</dt>
+                    <dd>{snapshot.counts.campaigns}개</dd>
+                  </div>
+                  <div>
+                    <dt>상품그룹</dt>
+                    <dd>{snapshot.counts.productGroups}개</dd>
+                  </div>
+                  <div>
+                    <dt>상태</dt>
+                    <dd>{snapshot.partial ? `${snapshot.errorScopes.length}개 경고` : "정상"}</dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <section className="admin-summary-grid" aria-label="회원 요약">
