@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, DatabaseZap, LockKeyhole, Mail, ShieldCheck, UserPlus } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type AuthFormProps = {
@@ -87,7 +88,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
     if (result.error) {
       setStatus("error");
-      setMessage(result.error.message);
+      setMessage(redactSensitiveErrorText(result.error.message, "인증 요청에 실패했습니다."));
       return;
     }
 
@@ -126,7 +127,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
     if (error) {
       setStatus("error");
-      setMessage(error.message);
+      setMessage(redactSensitiveErrorText(error.message, "가입 확인 메일을 다시 보내지 못했습니다."));
       return;
     }
 

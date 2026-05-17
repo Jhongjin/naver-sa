@@ -738,6 +738,15 @@ function requireProjectSurfaceChecks() {
     "shared report UI must not type or render internal payload ids"
   );
 
+  const authFormPath = "app/components/auth/AuthForm.tsx";
+  const authFormSource = readProjectFile(authFormPath);
+
+  requireSourceIncludes(authFormSource, authFormPath, "redactSensitiveErrorText");
+  requireSourceIncludes(authFormSource, authFormPath, 'redactSensitiveErrorText(result.error.message, "인증 요청에 실패했습니다.")');
+  requireSourceIncludes(authFormSource, authFormPath, 'redactSensitiveErrorText(error.message, "가입 확인 메일을 다시 보내지 못했습니다.")');
+  requireSourceExcludes(authFormSource, authFormPath, "setMessage(result.error.message)", "auth form errors must be redacted before display");
+  requireSourceExcludes(authFormSource, authFormPath, "setMessage(error.message)", "auth form errors must be redacted before display");
+
   const historyListClientPath = "app/components/history/HistoryListClient.tsx";
   const historyListClientSource = readProjectFile(historyListClientPath);
 
