@@ -239,3 +239,13 @@ Implementation rule:
 - convert network, abort, timeout, and invalid JSON responses into sanitized failure results
 - do not retry mutation requests automatically
 - store only sanitized errors and summarized outcomes in operational history
+
+## 12. Shopping Search Linkage
+
+Shopping Search execution drafts must preserve channel/product-group linkage evidence.
+
+Implementation rule:
+
+- product groups applied from account scans carry their source business channel ID into execution context
+- saved/staged drafts block execution when the selected shopping channel does not match the product group's business channel
+- manually typed product group IDs without scan linkage remain warning-only and require operator review before test execution

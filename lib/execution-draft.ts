@@ -23,6 +23,7 @@ export type NaverExecutionContext = {
   mobileChannelId?: string;
   shoppingChannelId?: string;
   productGroupId?: string;
+  productGroupBusinessChannelId?: string;
   adgroupIdsByName?: Record<string, string>;
 };
 
@@ -185,7 +186,10 @@ export function createNaverExecutionDraft(
     }
   }
 
-  const validation = validateNaverExecutionPayloads(payloads);
+  const validation = validateNaverExecutionPayloads(payloads, {
+    productType: plan.input.productType,
+    context
+  });
 
   const generatedAt = new Date().toISOString();
 
@@ -215,7 +219,13 @@ function withIdempotency(
   };
 }
 
-export function validateNaverExecutionPayloads(payloads: NaverExecutionPayload[]): NaverExecutionValidation {
+export function validateNaverExecutionPayloads(
+  payloads: NaverExecutionPayload[],
+  options: {
+    productType?: PlannerPlan["input"]["productType"];
+    context?: NaverExecutionContext;
+  } = {}
+): NaverExecutionValidation {
   const blockers: NaverExecutionBlocker[] = [];
   const warnings: NaverExecutionWarning[] = [];
 
@@ -264,6 +274,26 @@ export function validateNaverExecutionPayloads(payloads: NaverExecutionPayload[]
         code: "HIGH_TEST_DAILY_BUDGET",
         payloadId: payload.id,
         message: "Daily budget is above the MVP test-budget review threshold."
+      });
+    }
+  }
+
+  if (options.productType === "shoppingSearch" && payloads.some((payload) => payload.entityType === "Shopping Ad Group")) {
+    const shoppingChannelId = options.context?.shoppingChannelId;
+    const productGroupId = options.context?.productGroupId;
+    const productGroupBusinessChannelId = options.context?.productGroupBusinessChannelId;
+
+    if (shoppingChannelId && productGroupId && productGroupBusinessChannelId && shoppingChannelId !== productGroupBusinessChannelId) {
+      blockers.push({
+        code: "SHOPPING_PRODUCT_GROUP_CHANNEL_MISMATCH",
+        message: "Selected shopping channel does not match the product group's business channel."
+      });
+    }
+
+    if (shoppingChannelId && productGroupId && !productGroupBusinessChannelId) {
+      warnings.push({
+        code: "SHOPPING_PRODUCT_GROUP_LINK_UNVERIFIED",
+        message: "Apply the product group from the latest account scan to verify its shopping channel linkage."
       });
     }
   }

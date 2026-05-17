@@ -160,6 +160,7 @@ Recent operational queue:
 - Production verification after each queue checks `/api/health`, `/api/supabase/readiness`, and the relevant protected API route for no-store authentication/method behavior.
 - Protected test execution now requires Supabase Auth admin access, a previously saved ready execution draft, no prior execution results for that draft, and the `TEST_EXECUTION_ONLY` confirmation phrase before any Naver mutation request can be sent.
 - Naver Search Ad client calls now fail closed on timeout, abort, network failure, or invalid JSON, returning sanitized errors instead of letting external API failures crash cron, account scan, preview, or protected execution routes.
+- Shopping Search product groups applied from account scans now carry their linked business channel into execution context; staged drafts block mismatched shopping channel/product-group pairs and warn when linkage was manually typed rather than scan-verified.
 
 ## UX Direction
 

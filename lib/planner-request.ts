@@ -62,6 +62,7 @@ export function coerceExecutionContext(value: unknown): NaverExecutionContext {
     mobileChannelId: stringValueOrUndefined(value.mobileChannelId),
     shoppingChannelId: stringValueOrUndefined(value.shoppingChannelId),
     productGroupId: stringValueOrUndefined(value.productGroupId),
+    productGroupBusinessChannelId: stringValueOrUndefined(value.productGroupBusinessChannelId),
     adgroupIdsByName: recordStringValue(value.adgroupIdsByName)
   };
 }

@@ -250,6 +250,7 @@ type WorkspaceDraftSnapshot = {
     mobileChannelId?: string;
     shoppingChannelId?: string;
     productGroupId?: string;
+    productGroupBusinessChannelId?: string;
   };
 };
 
@@ -293,6 +294,9 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     initialDraftSnapshot?.executionContext.shoppingChannelId ?? ""
   );
   const [productGroupId, setProductGroupId] = useState(initialDraftSnapshot?.executionContext.productGroupId ?? "");
+  const [productGroupBusinessChannelId, setProductGroupBusinessChannelId] = useState(
+    initialDraftSnapshot?.executionContext.productGroupBusinessChannelId ?? ""
+  );
   const workspaceDraftStorageKey = useMemo(
     () => `${WORKSPACE_DRAFT_STORAGE_PREFIX}:${user?.id ?? "anonymous"}`,
     [user?.id]
@@ -326,9 +330,10 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
       pcChannelId: pcChannelId.trim() || undefined,
       mobileChannelId: mobileChannelId.trim() || undefined,
       shoppingChannelId: shoppingChannelId.trim() || undefined,
-      productGroupId: productGroupId.trim() || undefined
+      productGroupId: productGroupId.trim() || undefined,
+      productGroupBusinessChannelId: productGroupBusinessChannelId.trim() || undefined
     }),
-    [campaignId, mobileChannelId, pcChannelId, productGroupId, shoppingChannelId]
+    [campaignId, mobileChannelId, pcChannelId, productGroupBusinessChannelId, productGroupId, shoppingChannelId]
   );
 
   const plan = useMemo(() => generatePlannerPlan(input), [input]);
@@ -776,6 +781,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
     setMobileChannelId("");
     setShoppingChannelId("");
     setProductGroupId("");
+    setProductGroupBusinessChannelId("");
     setStageDraftState({ status: "idle" });
     setSaveDraftState({ status: "idle" });
     setAccountSnapshotState({ status: "idle" });
@@ -953,6 +959,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
 
   function applyProductGroup(productGroupIdValue: string, businessChannelId: string) {
     setProductGroupId(productGroupIdValue);
+    setProductGroupBusinessChannelId(businessChannelId);
 
     if (businessChannelId) {
       setShoppingChannelId(businessChannelId);
@@ -1496,7 +1503,13 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
                     </label>
                     <label className="field">
                       <span>상품그룹 ID</span>
-                      <input value={productGroupId} onChange={(event) => setProductGroupId(event.target.value)} />
+                      <input
+                        value={productGroupId}
+                        onChange={(event) => {
+                          setProductGroupId(event.target.value);
+                          setProductGroupBusinessChannelId("");
+                        }}
+                      />
                     </label>
                   </>
                 ) : (
@@ -2399,7 +2412,8 @@ function parseExecutionContext(value: unknown): WorkspaceDraftSnapshot["executio
     pcChannelId: stringOrUndefined(value.pcChannelId),
     mobileChannelId: stringOrUndefined(value.mobileChannelId),
     shoppingChannelId: stringOrUndefined(value.shoppingChannelId),
-    productGroupId: stringOrUndefined(value.productGroupId)
+    productGroupId: stringOrUndefined(value.productGroupId),
+    productGroupBusinessChannelId: stringOrUndefined(value.productGroupBusinessChannelId)
   };
 }
 
