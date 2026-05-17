@@ -269,6 +269,12 @@ type PerformanceStatsPreviewResponse = {
     timeIncrement: "allDays";
   };
   stats: unknown;
+  history?: {
+    saved: boolean;
+    id?: string;
+    rowCount?: number;
+    warning?: string;
+  };
 };
 
 type OperationalHealth = {
@@ -899,7 +905,13 @@ function AdminUsersContent() {
 
     setPerformancePreviewStatus("success");
     setPerformancePreviewResult(data);
-    setPerformanceMessage(`read-only stats preview 완료: ${data.request.entityCount}개 ID 조회`);
+    await loadPerformanceSyncStatus();
+    setPerformancePreviewStatus("success");
+    setPerformanceMessage(
+      data.history?.saved
+        ? `read-only stats preview 완료: ${data.request.entityCount}개 ID / ${data.history.rowCount ?? 0} rows 저장`
+        : `read-only stats preview 완료: ${data.request.entityCount}개 ID 조회`
+    );
   }
 
   return (
