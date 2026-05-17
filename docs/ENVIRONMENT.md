@@ -38,7 +38,7 @@ Do not commit real secret values. Use `.env.local` for local development and Ver
 
 | Variable | Scope | Notes |
 |---|---|---|
-| `CRON_SECRET` | Server only | Protects scheduled sync endpoints. |
+| `CRON_SECRET` | Server only | Protects scheduled sync endpoints. Vercel Cron calls `/api/naver/performance-sync/cron` with `Authorization: Bearer <CRON_SECRET>`. |
 | `ENCRYPTION_KEY` | Server only | Used for encrypting stored external credentials. |
 | `ADMIN_EMAILS` | Server only | Recommended comma-separated admin allowlist for first 회원관리 bootstrap. User sessions still come from Supabase Auth. Alternatively set `app_metadata.role = admin` directly in Supabase. |
 
@@ -70,3 +70,13 @@ Register Naver keys in Supabase only if we later build Supabase Edge Functions t
 Create `.env.local` from `.env.example` and fill local values.
 
 Never commit `.env.local`.
+
+## Scheduled Performance Sync
+
+The production Vercel Cron schedule is defined in `vercel.json`:
+
+- Route: `/api/naver/performance-sync/cron`
+- Schedule: `10 0 * * *` UTC, which is 09:10 KST daily
+- Target rows: `naver_performance_sync_runs` with `planned` or `failed` status
+- Per run limit: 3 rows
+- Safety: read-only `GET /api/stats` only, no master report job creation/deletion, no raw stats persistence

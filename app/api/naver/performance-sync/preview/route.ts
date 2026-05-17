@@ -15,6 +15,7 @@ import {
   type PerformanceRecommendation,
   type PerformanceRecommendationDraft
 } from "@/lib/performance-recommendations";
+import { countStatsRows } from "@/lib/performance-sync-runner";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
 export function GET() {
@@ -216,34 +217,6 @@ async function savePerformancePreviewHistory(input: {
     id: data.id as string,
     rowCount
   };
-}
-
-function countStatsRows(value: unknown): number {
-  if (Array.isArray(value)) {
-    return value.length;
-  }
-
-  if (value && typeof value === "object" && "data" in value && Array.isArray(value.data)) {
-    return value.data.length;
-  }
-
-  if (value && typeof value === "object" && "summaryStatResponse" in value && isRecord(value.summaryStatResponse)) {
-    const data = value.summaryStatResponse.data;
-
-    return Array.isArray(data) ? data.length : 0;
-  }
-
-  if (value && typeof value === "object" && "dailyStatResponse" in value && isRecord(value.dailyStatResponse)) {
-    const data = value.dailyStatResponse.data;
-
-    return Array.isArray(data) ? data.length : 0;
-  }
-
-  return value ? 1 : 0;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function isMissingTableError(error: { code?: string; message?: string } | null): boolean {

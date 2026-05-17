@@ -3,6 +3,7 @@ import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { getNaverConfigState } from "@/lib/naver-search-ad";
 import {
   naverPerformanceDocs,
+  performanceSyncCronPolicy,
   performanceSyncSafeguards,
   performanceSyncTableName
 } from "@/lib/naver-performance-sync";
@@ -34,10 +35,11 @@ export async function GET(request: Request) {
   const naver = getNaverConfigState();
   const database = await checkPerformanceSyncTable();
   const scheduler = getSchedulerReadiness();
+  const ready = naver.ready && database.present && scheduler.ready;
 
   return jsonNoStore({
-    ok: naver.ready && database.present,
-    ready: naver.ready && database.present,
+    ok: ready,
+    ready,
     authAccess: access.state,
     externalRequest: false,
     naver: {
@@ -49,20 +51,46 @@ export async function GET(request: Request) {
     scheduler,
     docs: naverPerformanceDocs,
     safeguards: performanceSyncSafeguards,
-    nextStep: database.present
-      ? "성과 동기화 계획 저장과 관리자 수동 read-only sync가 가능합니다. 자동 cron 실행은 아직 대기 상태입니다."
-      : "Supabase migration 20260517111500_create_naver_performance_sync_runs.sql 적용 후 계획 저장을 사용할 수 있습니다."
+    nextStep: getNextStep({ naverReady: naver.ready, databasePresent: database.present, schedulerReady: scheduler.ready })
   });
 }
 
 function getSchedulerReadiness() {
+  const cronSecretPresent = Boolean(process.env.CRON_SECRET?.trim());
+
   return {
-    automaticCronConfigured: false,
-    cronSecretPresent: Boolean(process.env.CRON_SECRET?.trim()),
-    externalRequestOnSchedule: false,
-    nextStep:
-      "예약 실행은 아직 자동으로 켜지지 않았습니다. 수동 sync 안정화 후 대상 ID, 실행 주기, 실패 알림 정책을 확정합니다."
+    ready: cronSecretPresent,
+    automaticCronConfigured: true,
+    cronSecretPresent,
+    endpoint: performanceSyncCronPolicy.endpoint,
+    scheduleUtc: performanceSyncCronPolicy.scheduleUtc,
+    scheduleKst: performanceSyncCronPolicy.scheduleKst,
+    maxRunsPerInvocation: performanceSyncCronPolicy.maxRunsPerInvocation,
+    targetStatuses: performanceSyncCronPolicy.targetStatuses,
+    excludedStatuses: performanceSyncCronPolicy.excludedStatuses,
+    excludesMasterReference: performanceSyncCronPolicy.excludesMasterReference,
+    automaticRetry: performanceSyncCronPolicy.automaticRetry,
+    externalRequestOnSchedule: true,
+    nextStep: cronSecretPresent
+      ? "예약 실행은 하루 1회 planned/failed 계획 최대 3건을 read-only GET /api/stats로 처리합니다."
+      : "CRON_SECRET 등록 후 Vercel Cron이 보호된 성과 sync route를 호출할 수 있습니다."
   };
+}
+
+function getNextStep(input: { naverReady: boolean; databasePresent: boolean; schedulerReady: boolean }) {
+  if (!input.databasePresent) {
+    return "Supabase migration 20260517111500_create_naver_performance_sync_runs.sql 적용 후 계획 저장을 사용할 수 있습니다.";
+  }
+
+  if (!input.naverReady) {
+    return "Naver Search Ad API 환경 변수를 등록해야 read-only 성과 sync를 실행할 수 있습니다.";
+  }
+
+  if (!input.schedulerReady) {
+    return "CRON_SECRET 등록 후 예약 실행까지 ready 상태가 됩니다. 수동 read-only sync는 계속 사용할 수 있습니다.";
+  }
+
+  return "성과 동기화 계획 저장, 관리자 수동 sync, Vercel Cron 예약 실행이 가능합니다.";
 }
 
 async function checkPerformanceSyncTable() {

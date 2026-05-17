@@ -126,8 +126,8 @@ Positioning difference:
 Current MVP implementation status:
 
 - Implemented: membership auth, signup confirmation resend, admin email confirmation fallback, admin member invite, my page session/retry/email-confirmation status, admin user management with user/activity filters and CSV export, admin operational health panel, recent account scan panel with snapshot diff summaries, recent admin audit event panel with summary/export, in-app ops alert filtering, setup planner, keyword/search-query expansion/classification, ad group draft, bid/budget guardrails, approval queue, current-step execution rail, CSV/Excel/Markdown/PDF-ready report exports, dry-run optimization recommendations, Naver execution payload preview, protected test execution route, Naver API readiness layer, admin read-only Naver campaign check, Shopping Search product-group scan, Supabase planning/audit/execution history schema, Naver account snapshot history schema, dry-run Naver performance sync planning schema/routes, admin manual read-only performance sync queue, token-hash limited public report share links, protected read-only Naver stats preview route with safe recommendations and approval-only draft suggestions, URL-synced searchable saved history browser, execution draft detail with payload inspection and audit counts, saved draft success summaries, explicit no-store API method handlers, and performance safety checks in `npm run verify`.
-- Partial: real performance sync execution, live bidding automation, and multi-account role separation beyond the current workspace membership model.
-- Planned: scheduled read-only Naver performance sync, performance-based bidding recommendations, deeper execution audit analytics, and production live-mode approval workflow.
+- Partial: real performance sync execution beyond read-only stats, live bidding automation, and multi-account role separation beyond the current workspace membership model.
+- Planned: performance-based bidding recommendations, deeper execution audit analytics, and production live-mode approval workflow.
 
 Recent operational queue:
 
@@ -144,7 +144,7 @@ Recent operational queue:
 - Performance stats recommendations and their approval draft suggestions are safe-draft-only and never create, update, or delete Naver entities.
 - Performance preview results can be re-run from saved history rows and exported as Markdown operating notes without including raw stats JSON.
 - Admin performance sync plans can be filtered by status/scope and exported as CSV for operating review.
-- Performance sync readiness now exposes scheduler state, but automatic cron execution remains off until target IDs, cadence, and failure notification policy are confirmed.
+- Performance sync readiness now exposes scheduler state, with Vercel Cron configured for `/api/naver/performance-sync/cron` at 09:10 KST daily. It processes up to 3 `planned` or `failed` rows through read-only `GET /api/stats`, excludes `blocked`, `completed`, `ready`, and `masterReference`, and records failure alerts as `ops.performance_sync.failed`.
 - Saved history detail supports authenticated internal link copy and Markdown operating memo export without embedding raw payload bodies.
 - Admin recent saved activities can be exported as a filter-aware CSV for handoff and QA review.
 - Admin account snapshot history can be exported as CSV with counts, diff summaries, and warning scopes.

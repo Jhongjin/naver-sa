@@ -160,8 +160,17 @@ type PerformanceSyncReadinessResponse = {
     errorCode: string | null;
   };
   scheduler?: {
+    ready: boolean;
     automaticCronConfigured: boolean;
     cronSecretPresent: boolean;
+    endpoint: string;
+    scheduleUtc: string;
+    scheduleKst: string;
+    maxRunsPerInvocation: number;
+    targetStatuses: string[];
+    excludedStatuses: string[];
+    excludesMasterReference: boolean;
+    automaticRetry: boolean;
     externalRequestOnSchedule: boolean;
     nextStep: string;
   };
@@ -604,6 +613,9 @@ function AdminUsersContent() {
 
     return {
       ready: performanceReadiness?.ready ?? false,
+      schedulerReady: performanceReadiness?.scheduler?.ready ?? false,
+      cronConfigured: performanceReadiness?.scheduler?.automaticCronConfigured ?? false,
+      cronSecretPresent: performanceReadiness?.scheduler?.cronSecretPresent ?? false,
       rowCount: performanceReadiness?.database.rowCount ?? 0,
       blocked,
       planned
@@ -1551,12 +1563,16 @@ function AdminUsersContent() {
             <strong>{performanceSummary.blocked}건</strong>
             <small>연결 ID 또는 범위 보정이 필요한 항목입니다.</small>
           </article>
-          <article className="needs-check">
+          <article className={performanceSummary.schedulerReady ? "ok" : "needs-check"}>
             <span>예약 실행</span>
-            <strong>{performanceReadiness?.scheduler?.automaticCronConfigured ? "cron on" : "manual"}</strong>
+            <strong>{performanceSummary.cronConfigured ? "cron on" : "manual"}</strong>
             <small>
-              {performanceReadiness?.scheduler?.cronSecretPresent ? "CRON_SECRET 등록됨" : "CRON_SECRET 확인 필요"} / 자동 실행은 아직
-              대기
+              {performanceReadiness?.scheduler?.scheduleKst ?? "매일 오전 9:10 KST"} / 최대{" "}
+              {performanceReadiness?.scheduler?.maxRunsPerInvocation ?? 3}건
+            </small>
+            <small>
+              {performanceSummary.cronSecretPresent ? "CRON_SECRET 등록됨" : "CRON_SECRET 확인 필요"} /{" "}
+              {performanceReadiness?.scheduler?.targetStatuses?.join(", ") ?? "planned, failed"}
             </small>
           </article>
           <article>

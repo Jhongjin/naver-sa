@@ -42,6 +42,17 @@ export const performanceSyncSafeguards = {
 
 export type PerformanceSyncScope = "powerlinkDailyStats" | "shoppingKeywordDailyStats" | "masterReference";
 
+export const performanceSyncCronPolicy = {
+  endpoint: "/api/naver/performance-sync/cron",
+  scheduleUtc: "10 0 * * *",
+  scheduleKst: "매일 오전 9:10 KST",
+  maxRunsPerInvocation: 3,
+  targetStatuses: ["planned", "failed"] as const,
+  excludedStatuses: ["blocked", "completed", "ready"] as const,
+  excludesMasterReference: true,
+  automaticRetry: false
+} as const;
+
 export type PerformanceSyncPlanInput = {
   productType: "powerlink" | "shoppingSearch" | null;
   brandName: string | null;
