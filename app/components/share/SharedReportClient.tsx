@@ -54,6 +54,13 @@ type SharedReportResponse =
         expectedClicks: number;
         avgBid: number;
       }>;
+      productGroups: Array<{
+        name: string;
+        sourceGroup: string;
+        queryCount: number;
+        productHints: string[];
+        feedActions: string[];
+      }>;
       stagedChanges: Array<{
         entityType: string;
         target: string;
@@ -347,6 +354,33 @@ export function SharedReportClient({ token }: { token: string }) {
                 ))}
               </div>
             </article>
+
+            {data.run.productType === "shoppingSearch" ? (
+              <article className="history-detail-panel">
+                <div className="history-panel-title">
+                  <FileText size={19} />
+                  <div>
+                    <p className="eyebrow">Product Groups</p>
+                    <h2>상품그룹 추천</h2>
+                  </div>
+                </div>
+                <div className="history-keyword-list">
+                  {data.productGroups.length === 0 ? (
+                    <span>공유 가능한 상품그룹 추천이 없습니다.</span>
+                  ) : (
+                    data.productGroups.map((group, index) => (
+                      <div key={`${group.name}-${index}`}>
+                        <strong>{group.name}</strong>
+                        <span>
+                          {group.sourceGroup} / query {formatKoreanNumber(group.queryCount)}
+                        </span>
+                        <em>{group.productHints.join(", ") || "상품 힌트 없음"}</em>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </article>
+            ) : null}
           </section>
         </>
       ) : null}

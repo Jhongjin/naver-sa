@@ -71,6 +71,10 @@ const optionalTables = [
   {
     name: "report_share_links",
     feature: "Limited public report share links"
+  },
+  {
+    name: "planning_product_groups",
+    feature: "Shopping product-group recommendation history"
   }
 ];
 

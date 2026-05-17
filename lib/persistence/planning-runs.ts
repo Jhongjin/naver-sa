@@ -38,9 +38,10 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
   const { plan, decisions } = input;
   const decisionNotes = input.decisionNotes ?? {};
   const warnings: string[] = [];
-  const [ownershipSupport, shoppingLinkageSupport] = await Promise.all([
+  const [ownershipSupport, shoppingLinkageSupport, productGroupSupport] = await Promise.all([
     getWorkspaceOwnershipSupport(supabase),
-    getPlanningRunShoppingLinkageSupport(supabase)
+    getPlanningRunShoppingLinkageSupport(supabase),
+    getPlanningProductGroupSupport(supabase)
   ]);
   const workspaceResult = await getOrCreateWorkspace({
     supabase,
@@ -199,7 +200,9 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
         decisions,
         decisionNotes,
         shoppingLinkage,
-        shoppingLinkageCaptured: shoppingLinkageSupport
+        shoppingLinkageCaptured: shoppingLinkageSupport,
+        productGroupRecommendationCount: plan.productGroups.length,
+        productGroupRecommendationsCaptured: productGroupSupport
       },
       reason: "MVP planner dry-run saved."
     })
@@ -219,6 +222,23 @@ export async function savePlanningRun(input: SavePlanningRunInput): Promise<Save
 
     if (decisionAuditError) {
       warnings.push(`Approval decision audit was not saved: ${sanitizeSupabaseError(decisionAuditError.message)}`);
+    }
+  }
+
+  if (productGroupSupport && plan.productGroups.length > 0) {
+    const { error: productGroupError } = await supabase.from("planning_product_groups").insert(
+      plan.productGroups.map((group) => ({
+        planning_run_id: planningRunId,
+        name: group.name,
+        source_group: group.sourceGroup,
+        query_count: group.queryCount,
+        product_hints: group.productHints,
+        feed_actions: group.feedActions
+      }))
+    );
+
+    if (productGroupError) {
+      warnings.push(`Shopping product-group recommendations were not saved: ${sanitizeSupabaseError(productGroupError.message)}`);
     }
   }
 
@@ -286,6 +306,16 @@ async function getPlanningRunShoppingLinkageSupport(
   supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
 ): Promise<boolean> {
   const { error } = await supabase.from("planning_runs").select("id,shopping_linkage", {
+    head: true
+  });
+
+  return !error;
+}
+
+async function getPlanningProductGroupSupport(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
+): Promise<boolean> {
+  const { error } = await supabase.from("planning_product_groups").select("id", {
     head: true
   });
 

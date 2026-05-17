@@ -79,6 +79,14 @@ type PlanningAdGroupRow = {
   avg_bid: number;
 };
 
+type PlanningProductGroupRow = {
+  name: string;
+  source_group: string;
+  query_count: number;
+  product_hints: string[];
+  feed_actions: string[];
+};
+
 type StagedChangeRow = {
   entity_type: string;
   target: string;
@@ -188,7 +196,8 @@ export async function GET(_request: Request, context: RouteContext) {
     workspace = (workspaceData ?? null) as WorkspaceRow | null;
   }
 
-  const [keywordsResult, adGroupsResult, changesResult, draftResult] = await Promise.all([
+  const productGroupSupport = await hasPlanningProductGroupSupport(supabase);
+  const [keywordsResult, adGroupsResult, productGroupsResult, changesResult, draftResult] = await Promise.all([
     supabase
       .from("planning_keywords")
       .select("term, intent, ad_group_name, bid, expected_clicks, expected_cost, status, reason")
@@ -201,6 +210,14 @@ export async function GET(_request: Request, context: RouteContext) {
       .eq("planning_run_id", run.id)
       .order("expected_clicks", { ascending: false })
       .limit(8),
+    productGroupSupport
+      ? supabase
+          .from("planning_product_groups")
+          .select("name, source_group, query_count, product_hints, feed_actions")
+          .eq("planning_run_id", run.id)
+          .order("query_count", { ascending: false })
+          .limit(8)
+      : { data: [], error: null },
     supabase
       .from("staged_changes")
       .select("entity_type, target, action, risk, details, decision, decision_note, created_at")
@@ -216,7 +233,8 @@ export async function GET(_request: Request, context: RouteContext) {
       .maybeSingle()
   ]);
 
-  const lookupError = keywordsResult.error ?? adGroupsResult.error ?? changesResult.error ?? draftResult.error;
+  const lookupError =
+    keywordsResult.error ?? adGroupsResult.error ?? productGroupsResult.error ?? changesResult.error ?? draftResult.error;
 
   if (lookupError) {
     return jsonNoStore({ ok: false, error: sanitizeShareError(lookupError.message) }, { status: 502 });
@@ -279,6 +297,13 @@ export async function GET(_request: Request, context: RouteContext) {
       expectedClicks: group.expected_clicks,
       avgBid: group.avg_bid
     })),
+    productGroups: ((productGroupsResult.data ?? []) as PlanningProductGroupRow[]).map((group) => ({
+      name: group.name,
+      sourceGroup: group.source_group,
+      queryCount: group.query_count,
+      productHints: group.product_hints,
+      feedActions: group.feed_actions
+    })),
     stagedChanges: changes.map((change) => ({
       entityType: change.entity_type,
       target: change.target,
@@ -326,6 +351,16 @@ async function getExecutionPayloadCount(
   }
 
   return count ?? 0;
+}
+
+async function hasPlanningProductGroupSupport(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
+): Promise<boolean> {
+  const { error } = await supabase.from("planning_product_groups").select("id", {
+    head: true
+  });
+
+  return !error;
 }
 
 function summarizeChanges(changes: StagedChangeRow[]) {

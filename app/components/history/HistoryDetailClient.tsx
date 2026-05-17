@@ -75,6 +75,16 @@ type HistoryDetailResponse = {
     expectedClicks: number;
     avgBid: number;
   }>;
+  productGroups: Array<{
+    id: string;
+    name: string;
+    sourceGroup: string;
+    queryCount: number;
+    productHints: string[];
+    feedActions: string[];
+    createdAt: string;
+  }>;
+  productGroupsCaptured: boolean;
   stagedChanges: Array<{
     id: string;
     externalKey: string;
@@ -845,6 +855,33 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
               </div>
             </article>
 
+            {data.run.productType === "shoppingSearch" ? (
+              <article className="history-detail-panel">
+                <div className="history-panel-title">
+                  <ListChecks size={19} />
+                  <div>
+                    <p className="eyebrow">Product Groups</p>
+                    <h2>상품그룹 추천</h2>
+                  </div>
+                </div>
+                <div className="history-keyword-list">
+                  {data.productGroups.length === 0 ? (
+                    <span>{data.productGroupsCaptured ? "저장된 상품그룹 추천이 없습니다." : "상품그룹 추천 이력 테이블이 아직 적용되지 않았습니다."}</span>
+                  ) : (
+                    data.productGroups.map((group) => (
+                      <div key={group.id}>
+                        <strong>{group.name}</strong>
+                        <span>
+                          {group.sourceGroup} / query {formatKoreanNumber(group.queryCount)}
+                        </span>
+                        <em>{group.productHints.join(", ") || "상품 힌트 없음"}</em>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </article>
+            ) : null}
+
             <article className="history-detail-panel">
               <div className="history-panel-title">
                 <History size={19} />
@@ -1071,6 +1108,18 @@ function buildHistoryMemoMarkdown(data: HistoryDetailResponse) {
     "## Top Keywords",
     "",
     ...data.keywords.slice(0, 12).map((keyword) => `- ${keyword.term} (${keyword.adGroupName}) / bid ${keyword.bid}`),
+    ...(data.productGroups.length > 0
+      ? [
+          "",
+          "## Shopping Product Groups",
+          "",
+          ...data.productGroups.flatMap((group) => [
+            `- ${group.name} (${group.sourceGroup}) / queries ${group.queryCount}`,
+            `  - Product hints: ${group.productHints.join(", ") || "not recorded"}`,
+            `  - Feed actions: ${group.feedActions.join(" / ") || "not recorded"}`
+          ])
+        ]
+      : []),
     "",
     "## Recent Audit Events",
     "",

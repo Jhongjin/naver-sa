@@ -74,6 +74,16 @@ type PlanningAdGroupRow = {
   sample_ads: unknown;
 };
 
+type PlanningProductGroupRow = {
+  id: string;
+  name: string;
+  source_group: string;
+  query_count: number;
+  product_hints: string[];
+  feed_actions: string[];
+  created_at: string;
+};
+
 type StagedChangeRow = {
   id: string;
   external_key: string;
@@ -232,6 +242,7 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   const executionContextSupport = await hasExecutionDraftContextSupport(supabase);
+  const productGroupSupport = await hasPlanningProductGroupSupport(supabase);
   const executionDraftSelect = [
     "id",
     "draft_key",
@@ -245,7 +256,7 @@ export async function GET(request: Request, context: RouteContext) {
     "generated_at",
     "created_at"
   ].join(", ");
-  const [keywordsResult, adGroupsResult, changesResult, draftsResult, auditResult] = await Promise.all([
+  const [keywordsResult, adGroupsResult, productGroupsResult, changesResult, draftsResult, auditResult] = await Promise.all([
     supabase
       .from("planning_keywords")
       .select(
@@ -260,6 +271,13 @@ export async function GET(request: Request, context: RouteContext) {
       )
       .eq("planning_run_id", planningRun.id)
       .order("expected_clicks", { ascending: false }),
+    productGroupSupport
+      ? supabase
+          .from("planning_product_groups")
+          .select("id, name, source_group, query_count, product_hints, feed_actions, created_at")
+          .eq("planning_run_id", planningRun.id)
+          .order("query_count", { ascending: false })
+      : { data: [], error: null },
     supabase
       .from("staged_changes")
       .select(
@@ -281,7 +299,12 @@ export async function GET(request: Request, context: RouteContext) {
   ]);
 
   const lookupError =
-    keywordsResult.error ?? adGroupsResult.error ?? changesResult.error ?? draftsResult.error ?? auditResult.error;
+    keywordsResult.error ??
+    adGroupsResult.error ??
+    productGroupsResult.error ??
+    changesResult.error ??
+    draftsResult.error ??
+    auditResult.error;
 
   if (lookupError) {
     return jsonNoStore({ ok: false, error: sanitizeError(lookupError.message) }, { status: 502 });
@@ -388,6 +411,16 @@ export async function GET(request: Request, context: RouteContext) {
       avgBid: group.avg_bid,
       sampleAds: group.sample_ads
     })),
+    productGroups: ((productGroupsResult.data ?? []) as PlanningProductGroupRow[]).map((group) => ({
+      id: group.id,
+      name: group.name,
+      sourceGroup: group.source_group,
+      queryCount: group.query_count,
+      productHints: group.product_hints,
+      feedActions: group.feed_actions,
+      createdAt: group.created_at
+    })),
+    productGroupsCaptured: productGroupSupport,
     stagedChanges: changes.map((change) => ({
       id: change.id,
       externalKey: change.external_key,
@@ -508,6 +541,16 @@ async function hasShoppingLinkageSupport(
   supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
 ): Promise<boolean> {
   const { error } = await supabase.from("planning_runs").select("id,shopping_linkage", {
+    head: true
+  });
+
+  return !error;
+}
+
+async function hasPlanningProductGroupSupport(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>
+): Promise<boolean> {
+  const { error } = await supabase.from("planning_product_groups").select("id", {
     head: true
   });
 
