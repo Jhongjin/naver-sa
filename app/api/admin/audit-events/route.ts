@@ -59,7 +59,7 @@ export async function GET(request: Request) {
   const { data, error, count } = await supabase
     .from("audit_events")
     .select("id, event_type, actor, entity_type, entity_id, after_value, reason, created_at", { count: "exact" })
-    .like("event_type", "admin.%")
+    .or("event_type.like.admin.%,event_type.like.ops.%")
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -104,11 +104,30 @@ function summarizeAuditEvent(eventType: string, value: Record<string, unknown> |
     return [email, role ? `role ${role}` : null].filter(Boolean).join(" / ") || "User role changed";
   }
 
+  if (eventType.startsWith("ops.")) {
+    const error = stringValue(value?.error);
+    const warning = Array.isArray(value?.warnings) ? stringValue(value.warnings[0]) : null;
+    const status = scalarValue(value?.status);
+    return [error ?? warning ?? "Operational alert", status ? `status ${status}` : null].filter(Boolean).join(" / ");
+  }
+
   return eventType;
 }
 
 function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim().slice(0, 160) : null;
+}
+
+function scalarValue(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim().slice(0, 80);
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return null;
 }
 
 function clampLimit(value: string | null): number {

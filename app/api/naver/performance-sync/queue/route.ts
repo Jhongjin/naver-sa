@@ -98,6 +98,17 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString()
       })
       .eq("id", plan.id);
+    await recordOpsAlert(supabase.client, {
+      actor: access.user.email ?? access.user.id,
+      eventType: "ops.performance_sync.blocked",
+      entityId: plan.id,
+      afterValue: {
+        scope: plan.scope,
+        status: "blocked",
+        warnings: validation
+      },
+      reason: validation[0] ?? "Manual performance sync plan blocked."
+    });
 
     return jsonNoStore(
       {
@@ -114,6 +125,18 @@ export async function POST(request: Request) {
   const naverState = getNaverConfigState();
 
   if (!naverState.ready) {
+    await recordOpsAlert(supabase.client, {
+      actor: access.user.email ?? access.user.id,
+      eventType: "ops.performance_sync.config_missing",
+      entityId: plan.id,
+      afterValue: {
+        scope: plan.scope,
+        status: "config_missing",
+        missingCount: naverState.missing.length
+      },
+      reason: "Naver Search Ad API environment variables are incomplete."
+    });
+
     return jsonNoStore(
       {
         ok: false,
@@ -154,6 +177,8 @@ export async function POST(request: Request) {
   });
 
   if (!result.ok) {
+    const sanitizedError = sanitizeError(result.error);
+
     await supabase.client
       .from(performanceSyncTableName)
       .update({
@@ -166,11 +191,24 @@ export async function POST(request: Request) {
           storedRawStats: false,
           message: "Manual read-only sync failed.",
           status: result.status,
-          error: sanitizeError(result.error)
+          error: sanitizedError
         },
         updated_at: new Date().toISOString()
       })
       .eq("id", plan.id);
+    await recordOpsAlert(supabase.client, {
+      actor: access.user.email ?? access.user.id,
+      eventType: "ops.performance_sync.failed",
+      entityId: plan.id,
+      afterValue: {
+        scope: plan.scope,
+        status: result.status,
+        entityCount: entityIds.length,
+        fieldCount: fields.length,
+        error: sanitizedError
+      },
+      reason: "Manual read-only performance sync failed."
+    });
 
     return jsonNoStore(
       {
@@ -297,6 +335,26 @@ function getReadySupabase():
     ok: true,
     client
   };
+}
+
+async function recordOpsAlert(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  input: {
+    actor: string;
+    eventType: string;
+    entityId: string;
+    afterValue: Record<string, unknown>;
+    reason: string;
+  }
+) {
+  await supabase.from("audit_events").insert({
+    event_type: input.eventType,
+    actor: input.actor,
+    entity_type: "naver_performance_sync_run",
+    entity_id: input.entityId,
+    after_value: input.afterValue,
+    reason: input.reason
+  });
 }
 
 function countStatsRows(value: unknown): number {

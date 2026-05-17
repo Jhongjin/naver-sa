@@ -404,7 +404,7 @@ type OperationalHealth = {
 
 type ActivityFilter = "all" | "ready" | "blocked" | "missingDraft";
 type ActivityLimit = 8 | 20;
-type AuditEventFilter = "all" | "invited" | "emailConfirmed" | "roleChanged" | "other";
+type AuditEventFilter = "all" | "ops" | "invited" | "emailConfirmed" | "roleChanged" | "other";
 type UserStatusFilter = "all" | "unconfirmed" | "neverSignedIn" | "noWorkspace";
 
 const emptyActivitySummary: ActivityResponse["summary"] = {
@@ -535,6 +535,8 @@ function AdminUsersContent() {
             summary.emailConfirmed += 1;
           } else if (event.eventType === "admin.user.role_changed") {
             summary.roleChanged += 1;
+          } else if (event.eventType.startsWith("ops.")) {
+            summary.ops += 1;
           } else {
             summary.other += 1;
           }
@@ -548,6 +550,7 @@ function AdminUsersContent() {
           invited: 0,
           emailConfirmed: 0,
           roleChanged: 0,
+          ops: 0,
           other: 0
         }
       ),
@@ -1809,7 +1812,7 @@ function AdminUsersContent() {
           <div>
             <ShieldCheck size={22} />
             <strong>최근 관리 이벤트</strong>
-            <span>회원 초대, 메일 확인 처리, 권한 변경 기록을 추적합니다.</span>
+            <span>회원 관리와 운영 실패/차단 알림을 함께 추적합니다.</span>
             {auditMessage ? <em className="admin-check-result error">{auditMessage}</em> : null}
           </div>
           <div className="admin-audit-actions">
@@ -1849,6 +1852,11 @@ function AdminUsersContent() {
             </em>
           </article>
           <article>
+            <span>운영 알림</span>
+            <strong>{auditSummary.ops}건</strong>
+            <em>ops.performance_sync.*</em>
+          </article>
+          <article>
             <span>초대</span>
             <strong>{auditSummary.invited}건</strong>
             <em>admin.user.invited</em>
@@ -1865,7 +1873,7 @@ function AdminUsersContent() {
           </article>
         </div>
         <div className="segmented-control admin-audit-filter" aria-label="관리 이벤트 타입 필터">
-          {(["all", "invited", "emailConfirmed", "roleChanged", "other"] as const).map((filter) => (
+          {(["all", "ops", "invited", "emailConfirmed", "roleChanged", "other"] as const).map((filter) => (
             <button
               aria-pressed={auditEventFilter === filter}
               className={auditEventFilter === filter ? "active" : ""}
@@ -1903,7 +1911,7 @@ function AdminUsersContent() {
             {filteredAuditEvents.map((event) => (
               <article key={event.id}>
                 <div>
-                  <span className="status-pill include">{adminEventLabel(event.eventType)}</span>
+                  <span className={`status-pill ${adminEventTone(event.eventType)}`}>{adminEventLabel(event.eventType)}</span>
                   <strong>{event.summary}</strong>
                   <p>
                     {event.actor ?? "unknown"} / {formatKoreanDateTime(event.createdAt)}
@@ -2595,6 +2603,7 @@ function activityFilterLabel(value: ActivityFilter) {
 function auditEventFilterLabel(value: AuditEventFilter) {
   const labels = {
     all: "전체",
+    ops: "운영 알림",
     invited: "초대",
     emailConfirmed: "메일 확인",
     roleChanged: "권한 변경",
@@ -2609,6 +2618,10 @@ function auditEventMatchesFilter(event: AdminAuditEventItem, filter: AuditEventF
     return true;
   }
 
+  if (filter === "ops") {
+    return event.eventType.startsWith("ops.");
+  }
+
   if (filter === "invited") {
     return event.eventType === "admin.user.invited";
   }
@@ -2621,7 +2634,10 @@ function auditEventMatchesFilter(event: AdminAuditEventItem, filter: AuditEventF
     return event.eventType === "admin.user.role_changed";
   }
 
-  return !["admin.user.invited", "admin.user.email_confirmed", "admin.user.role_changed"].includes(event.eventType);
+  return (
+    !event.eventType.startsWith("ops.") &&
+    !["admin.user.invited", "admin.user.email_confirmed", "admin.user.role_changed"].includes(event.eventType)
+  );
 }
 
 function roleSourceLabel(value: ManagedUser["roleSource"]) {
@@ -2638,10 +2654,17 @@ function adminEventLabel(value: string) {
   const labels: Record<string, string> = {
     "admin.user.invited": "초대",
     "admin.user.email_confirmed": "메일 확인",
-    "admin.user.role_changed": "권한 변경"
+    "admin.user.role_changed": "권한 변경",
+    "ops.performance_sync.blocked": "Sync 차단",
+    "ops.performance_sync.config_missing": "설정 경고",
+    "ops.performance_sync.failed": "Sync 실패"
   };
 
-  return labels[value] ?? "관리 이벤트";
+  return labels[value] ?? (value.startsWith("ops.") ? "운영 알림" : "관리 이벤트");
+}
+
+function adminEventTone(value: string) {
+  return value.startsWith("ops.") ? "review" : "include";
 }
 
 function performancePlanStatusLabel(value: PerformanceSyncPlanItem["status"]) {
