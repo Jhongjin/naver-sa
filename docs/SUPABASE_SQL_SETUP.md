@@ -21,6 +21,7 @@ The manual setup file is idempotent. It can be run again if:
 - `planning_runs.product_type` is missing,
 - `planning_runs.product_type` exists but lacks its default or not-null rule,
 - the old global `execution_payloads.idempotency_key` unique constraint still exists.
+- optional Naver account snapshot or performance sync planning tables are missing.
 
 ## First Admin Options
 
@@ -62,7 +63,9 @@ select
   to_regclass('public.planning_runs') as planning_runs,
   to_regclass('public.execution_drafts') as execution_drafts,
   to_regclass('public.execution_payloads') as execution_payloads,
-  to_regclass('public.workspace_members') as workspace_members;
+  to_regclass('public.workspace_members') as workspace_members,
+  to_regclass('public.naver_account_snapshots') as naver_account_snapshots,
+  to_regclass('public.naver_performance_sync_runs') as naver_performance_sync_runs;
 ```
 
 Check required membership and decision columns:

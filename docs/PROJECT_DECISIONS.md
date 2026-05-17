@@ -125,9 +125,9 @@ Positioning difference:
 
 Current MVP implementation status:
 
-- Implemented: membership auth, signup confirmation resend, admin email confirmation fallback, admin member invite, my page session/retry/email-confirmation status, admin user management with user/activity filters, admin operational health panel, recent account scan panel with snapshot diff summaries, recent admin audit event panel, setup planner, keyword/search-query expansion/classification, ad group draft, bid/budget guardrails, approval queue, current-step execution rail, CSV/Excel/Markdown/PDF-ready report exports, dry-run optimization recommendations, Naver execution payload preview, protected test execution route, Naver API readiness layer, admin read-only Naver campaign check, Shopping Search product-group scan, Supabase planning/audit/execution history schema, Naver account snapshot history schema, URL-synced searchable saved history browser, execution draft detail with payload inspection and audit counts, saved draft success summaries, and no-store protected API response policy with `npm run verify`.
-- Partial: real performance sync, live bidding automation, and multi-account role separation beyond the current workspace membership model.
-- Planned: scheduled Naver performance sync, performance-based bidding recommendations, share-link reports, deeper execution audit analytics, account snapshot diffing, and production live-mode approval workflow.
+- Implemented: membership auth, signup confirmation resend, admin email confirmation fallback, admin member invite, my page session/retry/email-confirmation status, admin user management with user/activity filters, admin operational health panel, recent account scan panel with snapshot diff summaries, recent admin audit event panel, setup planner, keyword/search-query expansion/classification, ad group draft, bid/budget guardrails, approval queue, current-step execution rail, CSV/Excel/Markdown/PDF-ready report exports, dry-run optimization recommendations, Naver execution payload preview, protected test execution route, Naver API readiness layer, admin read-only Naver campaign check, Shopping Search product-group scan, Supabase planning/audit/execution history schema, Naver account snapshot history schema, dry-run Naver performance sync planning schema/routes, URL-synced searchable saved history browser, execution draft detail with payload inspection and audit counts, saved draft success summaries, and no-store protected API response policy with `npm run verify`.
+- Partial: real performance sync execution, live bidding automation, and multi-account role separation beyond the current workspace membership model.
+- Planned: scheduled read-only Naver performance sync, performance-based bidding recommendations, share-link reports, deeper execution audit analytics, and production live-mode approval workflow.
 
 Recent operational queue:
 
@@ -136,6 +136,8 @@ Recent operational queue:
 - Naver account scans are persisted to `naver_account_snapshots` when the optional table is available.
 - Naver account scan history compares the latest scan with the nearest matching previous scan by user/product/brand/site context.
 - Supabase readiness reports optional snapshot-history support without failing overall readiness.
+- Supabase readiness reports optional performance-sync planning support without failing overall readiness.
+- Performance sync planning stores dry-run requests only; Naver stat/master report job creation and deletion remain blocked.
 - Production verification after each queue checks `/api/health`, `/api/supabase/readiness`, and the relevant protected API route for no-store authentication/method behavior.
 
 ## UX Direction

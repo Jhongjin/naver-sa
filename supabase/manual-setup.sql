@@ -220,6 +220,48 @@ create table if not exists public.execution_results (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.naver_account_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  actor_email text,
+  product_type text check (product_type in ('powerlink', 'shoppingSearch')),
+  brand_name text,
+  site_url text,
+  partial boolean not null default false,
+  external_request boolean not null default true,
+  channels jsonb not null default '[]'::jsonb,
+  campaigns jsonb not null default '[]'::jsonb,
+  product_groups jsonb not null default '[]'::jsonb,
+  errors jsonb not null default '{}'::jsonb,
+  summary jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.naver_performance_sync_runs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  actor_email text,
+  product_type text check (product_type in ('powerlink', 'shoppingSearch')),
+  brand_name text,
+  site_url text,
+  scope text not null default 'powerlinkDailyStats'
+    check (scope in ('powerlinkDailyStats', 'shoppingKeywordDailyStats', 'masterReference')),
+  requested_from date not null,
+  requested_to date not null,
+  status text not null default 'planned'
+    check (status in ('planned', 'blocked', 'ready', 'failed', 'completed')),
+  external_request boolean not null default false,
+  read_only_endpoint text not null,
+  entity_ids text[] not null default '{}',
+  fields text[] not null default '{}',
+  safeguards jsonb not null default '{}'::jsonb,
+  warnings text[] not null default '{}',
+  result_summary jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (requested_from <= requested_to)
+);
+
 alter table public.execution_payloads
   drop constraint if exists execution_payloads_idempotency_key_key;
 
@@ -258,6 +300,8 @@ alter table public.execution_drafts enable row level security;
 alter table public.execution_payloads enable row level security;
 alter table public.execution_results enable row level security;
 alter table public.workspace_members enable row level security;
+alter table public.naver_account_snapshots enable row level security;
+alter table public.naver_performance_sync_runs enable row level security;
 
 create index if not exists planning_runs_created_at_idx
   on public.planning_runs(created_at desc);
@@ -289,6 +333,15 @@ create index if not exists planning_runs_created_by_user_id_idx
   where created_by_user_id is not null;
 create index if not exists workspace_members_user_id_idx
   on public.workspace_members(user_id);
+create index if not exists naver_account_snapshots_user_created_idx
+  on public.naver_account_snapshots(user_id, created_at desc);
+create index if not exists naver_account_snapshots_product_created_idx
+  on public.naver_account_snapshots(product_type, created_at desc)
+  where product_type is not null;
+create index if not exists naver_performance_sync_runs_user_created_idx
+  on public.naver_performance_sync_runs(user_id, created_at desc);
+create index if not exists naver_performance_sync_runs_status_created_idx
+  on public.naver_performance_sync_runs(status, created_at desc);
 
 -- Optional admin bootstrap after a user signs up through /signup.
 -- Prefer ADMIN_EMAILS in Vercel for the first admin. Use this SQL only when
@@ -310,7 +363,9 @@ create index if not exists workspace_members_user_id_idx
 --   to_regclass('public.workspaces') as workspaces,
 --   to_regclass('public.planning_runs') as planning_runs,
 --   to_regclass('public.execution_drafts') as execution_drafts,
---   to_regclass('public.execution_payloads') as execution_payloads;
+--   to_regclass('public.execution_payloads') as execution_payloads,
+--   to_regclass('public.naver_account_snapshots') as naver_account_snapshots,
+--   to_regclass('public.naver_performance_sync_runs') as naver_performance_sync_runs;
 --
 -- select column_name
 -- from information_schema.columns

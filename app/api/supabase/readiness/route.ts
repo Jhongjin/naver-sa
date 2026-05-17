@@ -51,6 +51,10 @@ const optionalTables = [
   {
     name: "naver_account_snapshots",
     feature: "Naver account snapshot history"
+  },
+  {
+    name: "naver_performance_sync_runs",
+    feature: "Naver performance sync planning"
   }
 ];
 
