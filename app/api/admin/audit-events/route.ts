@@ -81,6 +81,8 @@ export async function GET(request: Request) {
   return jsonNoStore({
     ok: true,
     events: ((data ?? []) as AuditEventRow[]).map(toAuditEventItem),
+    rawValuesExcluded: true,
+    auditTextSanitized: true,
     total: count ?? data?.length ?? 0,
     limit,
     filter
@@ -94,7 +96,7 @@ function toAuditEventItem(row: AuditEventRow) {
     actor: row.actor,
     entityType: row.entity_type,
     entityId: row.entity_id,
-    reason: row.reason,
+    reason: sanitizeAuditText(row.reason, 220),
     createdAt: row.created_at,
     summary: summarizeAuditEvent(row.event_type, row.after_value)
   };
@@ -156,12 +158,12 @@ function summarizeAuditEvent(eventType: string, value: Record<string, unknown> |
 }
 
 function stringValue(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim().slice(0, 160) : null;
+  return typeof value === "string" && value.trim() ? sanitizeAuditText(value, 160) : null;
 }
 
 function scalarValue(value: unknown): string | null {
   if (typeof value === "string" && value.trim()) {
-    return value.trim().slice(0, 80);
+    return sanitizeAuditText(value, 80);
   }
 
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -210,8 +212,26 @@ function coerceAuditFilter(searchParams: URLSearchParams): {
 }
 
 function sanitizeAuditError(message: string): string {
-  return message
-    .replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer [REDACTED]")
-    .replace(/apikey[=:]\s*[^,\s}]+/gi, "apikey=[REDACTED]")
-    .slice(0, 220);
+  return sanitizeAuditText(message, 220) ?? "Supabase audit events request failed.";
+}
+
+function sanitizeAuditText(value: string | null | undefined, maxLength: number): string | null {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/g, "Bearer [REDACTED]")
+    .replace(
+      /([?&](?:access_token|refresh_token|token|api_key|apikey|secret|client_secret)=)[^&\s]+/gi,
+      "$1[REDACTED]"
+    )
+    .replace(
+      /\b(api[-_ ]?key|apikey|x-api-key|secret[-_ ]?key|client[-_ ]?secret|access[-_ ]?token|refresh[-_ ]?token|token_hash|customer[-_ ]?id)[=:]\s*["']?[^"',\s}]+/gi,
+      "$1=[REDACTED]"
+    )
+    .replace(/\b(authorization|cookie):\s*[^,\n]+/gi, "$1: [REDACTED]")
+    .slice(0, maxLength);
 }

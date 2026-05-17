@@ -110,6 +110,19 @@ for (const file of routeFiles) {
     requireSourceExcludes(source, relativePath, "shareUrl", "admin share-link registry must not reconstruct public URLs");
   }
 
+  if (relativePath === "app/api/admin/audit-events/route.ts") {
+    requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
+    requireSourceIncludes(source, relativePath, "rawValuesExcluded: true");
+    requireSourceIncludes(source, relativePath, "auditTextSanitized: true");
+    requireSourceIncludes(source, relativePath, "reason: sanitizeAuditText(row.reason, 220)");
+    requireSourceIncludes(source, relativePath, "sanitizeAuditText(value, 160)");
+    requireSourceIncludes(source, relativePath, "return sanitizeAuditText(value, 80)");
+    requireSourceIncludes(source, relativePath, "function sanitizeAuditText");
+    requireSourceExcludes(source, relativePath, "before_value", "admin audit event API must not select or return raw before values");
+    requireSourceExcludes(source, relativePath, "beforeValue:", "admin audit event API must not return raw before values");
+    requireSourceExcludes(source, relativePath, "afterValue:", "admin audit event API must not return raw after values");
+  }
+
   if (relativePath === "app/api/plans/history/[planningRunId]/share-links/route.ts") {
     requireSourceIncludes(source, relativePath, "hashReportShareToken(token)");
     requireSourceIncludes(source, relativePath, "token_hash: tokenHash");

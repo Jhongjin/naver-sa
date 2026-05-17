@@ -311,6 +311,8 @@ type AdminAuditEventItem = {
 type AdminAuditEventsResponse = {
   ok: true;
   events: AdminAuditEventItem[];
+  rawValuesExcluded: true;
+  auditTextSanitized: true;
   total: number;
   limit: number;
   filter?: {
