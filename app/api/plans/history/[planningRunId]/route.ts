@@ -1,4 +1,5 @@
 import { verifyUserAccess } from "@/lib/auth-access";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import type { NaverExecutionContext } from "@/lib/execution-draft";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { coercePlannerMetadata } from "@/lib/planner-metadata";
@@ -660,7 +661,7 @@ function createDraftPayloadResultKey(executionDraftId: string, payloadKey: strin
 }
 
 function sanitizeError(message: string | undefined): string {
-  return message?.slice(0, 220) ?? "History detail lookup failed.";
+  return redactSensitiveErrorText(message, "History detail lookup failed.");
 }
 
 function auditTextValue(value: Record<string, unknown>, key: string, maxLength: number): string | null {

@@ -1,4 +1,5 @@
 import { verifyUserAccess } from "@/lib/auth-access";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
 
@@ -203,5 +204,5 @@ function summarizePlanningRuns(rows: PlanningRunWorkspaceRow[]) {
 }
 
 function sanitizeError(message: string | undefined): string {
-  return message?.slice(0, 220) ?? "Workspace lookup failed.";
+  return redactSensitiveErrorText(message, "Workspace lookup failed.");
 }

@@ -1,4 +1,5 @@
 import { verifyUserAccess } from "@/lib/auth-access";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { coerceShoppingLinkageStatusFilter, coerceShoppingLinkageSummary } from "@/lib/shopping-linkage";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
@@ -385,5 +386,5 @@ async function hasShoppingLinkageSupport(
 }
 
 function sanitizeError(message: string | undefined): string {
-  return message?.slice(0, 220) ?? "History lookup failed.";
+  return redactSensitiveErrorText(message, "History lookup failed.");
 }

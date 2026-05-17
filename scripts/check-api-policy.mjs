@@ -422,6 +422,13 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(persistenceSource, persistencePath, "benchmark_features");
   requireSourceIncludes(persistenceSource, persistencePath, "operation_rules");
 
+  const errorRedactionPath = "lib/error-redaction.ts";
+  const errorRedactionSource = readProjectFile(errorRedactionPath);
+
+  requireSourceIncludes(errorRedactionSource, errorRedactionPath, "redactSensitiveErrorText");
+  requireSourceIncludes(errorRedactionSource, errorRedactionPath, "Bearer [REDACTED]");
+  requireSourceIncludes(errorRedactionSource, errorRedactionPath, "authorization|cookie");
+
   const adminClientPath = "app/components/admin/AdminUsersClient.tsx";
   const adminClientSource = readProjectFile(adminClientPath);
 
@@ -491,11 +498,18 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(historyApiSource, historyApiPath, "linkageFilter");
   requireSourceIncludes(historyApiSource, historyApiPath, "linkage: linkageFilter ?? \"all\"");
   requireSourceIncludes(historyApiSource, historyApiPath, "internalCreatorUserIdsExcluded: true");
+  requireSourceIncludes(historyApiSource, historyApiPath, "redactSensitiveErrorText");
   requireSourceExcludes(
     historyApiSource,
     historyApiPath,
     "createdByUserId:",
     "history list responses must not expose internal creator user ids"
+  );
+  requireSourceExcludes(
+    historyApiSource,
+    historyApiPath,
+    "message?.slice(0, 220)",
+    "history list errors must pass through shared sensitive text redaction"
   );
 
   const adminActivityApiPath = "app/api/admin/activity/route.ts";
@@ -505,11 +519,18 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(adminActivityApiSource, adminActivityApiPath, "linkageFilter");
   requireSourceIncludes(adminActivityApiSource, adminActivityApiPath, "linkage: linkageFilter ?? \"all\"");
   requireSourceIncludes(adminActivityApiSource, adminActivityApiPath, "internalCreatorUserIdsExcluded: true");
+  requireSourceIncludes(adminActivityApiSource, adminActivityApiPath, "redactSensitiveErrorText");
   requireSourceExcludes(
     adminActivityApiSource,
     adminActivityApiPath,
     "createdByUserId:",
     "admin activity responses must not expose internal creator user ids"
+  );
+  requireSourceExcludes(
+    adminActivityApiSource,
+    adminActivityApiPath,
+    "message?.slice(0, 220)",
+    "admin activity errors must pass through shared sensitive text redaction"
   );
 
   const myPageClientPath = "app/components/account/MyPageClient.tsx";
@@ -570,6 +591,27 @@ function requireProjectSurfaceChecks() {
     "history detail UI must consume mapped camelCase audit event fields"
   );
 
+  const historyDetailApiPath = "app/api/plans/history/[planningRunId]/route.ts";
+  const historyDetailApiSource = readProjectFile(historyDetailApiPath);
+
+  requireSourceIncludes(historyDetailApiSource, historyDetailApiPath, "redactSensitiveErrorText");
+  requireSourceExcludes(
+    historyDetailApiSource,
+    historyDetailApiPath,
+    "message?.slice(0, 220)",
+    "history detail errors must pass through shared sensitive text redaction"
+  );
+
+  const workspacesMinePath = "app/api/workspaces/mine/route.ts";
+  const workspacesMineSource = readProjectFile(workspacesMinePath);
+
+  requireSourceIncludes(workspacesMineSource, workspacesMinePath, "redactSensitiveErrorText");
+  requireSourceExcludes(
+    workspacesMineSource,
+    workspacesMinePath,
+    "message?.slice(0, 220)",
+    "workspace lookup errors must pass through shared sensitive text redaction"
+  );
 }
 
 function readProjectFile(relativePath) {
