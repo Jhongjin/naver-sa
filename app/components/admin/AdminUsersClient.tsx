@@ -848,6 +848,9 @@ function AdminUsersContent() {
                           ].join(" / ")
                         : "같은 계정 조건의 이전 스캔이 아직 없습니다."}
                     </em>
+                    {snapshot.diff && snapshotDiffPreview(snapshot.diff) ? (
+                      <small>{snapshotDiffPreview(snapshot.diff)}</small>
+                    ) : null}
                   </div>
                 </div>
                 <dl>
@@ -1294,6 +1297,26 @@ function snapshotDiffLabel(metric: SnapshotDiffMetric) {
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(" ") : "변화 없음";
+}
+
+function snapshotDiffPreview(diff: NonNullable<AccountSnapshotHistoryItem["diff"]>) {
+  const previews = [
+    snapshotDiffMetricPreview("채널", diff.channels),
+    snapshotDiffMetricPreview("캠페인", diff.campaigns),
+    snapshotDiffMetricPreview("상품그룹", diff.productGroups)
+  ].filter(Boolean);
+
+  return previews.length > 0 ? previews.join(" / ") : null;
+}
+
+function snapshotDiffMetricPreview(label: string, metric: SnapshotDiffMetric) {
+  const items = [
+    ...metric.addedLabels.map((item) => `+ ${item}`),
+    ...metric.removedLabels.map((item) => `- ${item}`),
+    ...metric.changedLabels.map((item) => `수정 ${item}`)
+  ].slice(0, 3);
+
+  return items.length > 0 ? `${label}: ${items.join(", ")}` : null;
 }
 
 function historySearchKey(user: ManagedUser) {
