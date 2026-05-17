@@ -750,6 +750,13 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   }
 
   function resetWorkspaceDraft() {
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm("현재 입력값, 승인 상태, 연결 ID를 기본값으로 되돌릴까요?")
+    ) {
+      return;
+    }
+
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(workspaceDraftStorageKey);
     }

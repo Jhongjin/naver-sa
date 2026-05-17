@@ -148,6 +148,7 @@ Recent operational queue:
 - Admin account snapshot history can be exported as CSV with counts, diff summaries, and warning scopes.
 - Admin audit events can be filtered by event type, and CSV export follows the active audit filter.
 - Workspace auto-save status now updates with the latest local draft save timestamp instead of only the first restored timestamp.
+- Workspace local draft reset now asks for confirmation before clearing input, approval decisions, and connection IDs.
 - API route files explicitly export common method handlers so unsupported methods return no-store 405 responses instead of Next.js default cacheable responses.
 - Production verification after each queue checks `/api/health`, `/api/supabase/readiness`, and the relevant protected API route for no-store authentication/method behavior.
 
