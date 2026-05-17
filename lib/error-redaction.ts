@@ -16,7 +16,11 @@ export function redactSensitiveErrorText(
       "$1[REDACTED]"
     )
     .replace(
-      /\b(api[-_ ]?key|apikey|x-api-key|secret[-_ ]?key|client[-_ ]?secret|access[-_ ]?token|refresh[-_ ]?token|token_hash|customer[-_ ]?id)[=:]\s*["']?[^"',&\s}]+/gi,
+      /(["'])(api[-_ ]?key|apikey|x-api-key|secret[-_ ]?key|client[-_ ]?secret|access[-_ ]?token|refresh[-_ ]?token|token[-_ ]?hash|customer[-_ ]?id)\1\s*:\s*(["'])[^"'\r\n]*\3/gi,
+      "$1$2$1: $3[REDACTED]$3"
+    )
+    .replace(
+      /\b(api[-_ ]?key|apikey|x-api-key|secret[-_ ]?key|client[-_ ]?secret|access[-_ ]?token|refresh[-_ ]?token|token[-_ ]?hash|customer[-_ ]?id)[=:]\s*["']?[^"',&\s}]+/gi,
       "$1=[REDACTED]"
     )
     .replace(/\b(authorization|cookie):\s*[^,\n]+/gi, "$1: [REDACTED]")

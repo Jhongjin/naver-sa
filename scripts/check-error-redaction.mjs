@@ -48,6 +48,16 @@ assertExcludes(keyValueRedacted, "hash-456", "masks token hash values");
 assertExcludes(keyValueRedacted, "789", "masks customer id values");
 assertExcludes(keyValueRedacted, "refresh-000", "masks refresh token values");
 
+const jsonKeyRedacted = redactSensitiveErrorText(
+  '{"apiKey":"key-json-123","secretKey":"secret-json-456","tokenHash":"hash-json-789","customerId":"customer-json-000","ok":true}',
+  "fallback"
+);
+assertExcludes(jsonKeyRedacted, "key-json-123", "masks JSON apiKey values");
+assertExcludes(jsonKeyRedacted, "secret-json-456", "masks JSON secretKey values");
+assertExcludes(jsonKeyRedacted, "hash-json-789", "masks JSON tokenHash values");
+assertExcludes(jsonKeyRedacted, "customer-json-000", "masks JSON customerId values");
+assertIncludes(jsonKeyRedacted, '"apiKey": "[REDACTED]"', "keeps JSON apiKey redaction marker");
+
 const limited = redactSensitiveErrorText("A".repeat(40), "fallback", 12);
 assertEqual(limited.length, 12, "respects max length");
 
