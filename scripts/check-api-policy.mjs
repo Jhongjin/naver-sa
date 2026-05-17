@@ -455,6 +455,54 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(errorRedactionSource, errorRedactionPath, "Bearer [REDACTED]");
   requireSourceIncludes(errorRedactionSource, errorRedactionPath, "authorization|cookie");
 
+  const reportSharePath = "lib/report-share.ts";
+  const reportShareSource = readProjectFile(reportSharePath);
+
+  requireSourceIncludes(reportShareSource, reportSharePath, "redactSensitiveErrorText");
+  requireSourceIncludes(reportShareSource, reportSharePath, "sanitizeShareError");
+  requireSourceExcludes(
+    reportShareSource,
+    reportSharePath,
+    ".replace(/Bearer",
+    "report share errors must pass through shared sensitive text redaction"
+  );
+  requireSourceExcludes(
+    reportShareSource,
+    reportSharePath,
+    "message?.replace",
+    "report share errors must pass through shared sensitive text redaction"
+  );
+  requireSourceExcludes(
+    reportShareSource,
+    reportSharePath,
+    ".slice(0, 220)",
+    "report share errors must pass through shared sensitive text redaction"
+  );
+
+  const performanceSyncRunnerPath = "lib/performance-sync-runner.ts";
+  const performanceSyncRunnerSource = readProjectFile(performanceSyncRunnerPath);
+
+  requireSourceIncludes(performanceSyncRunnerSource, performanceSyncRunnerPath, "redactSensitiveErrorText");
+  requireSourceIncludes(performanceSyncRunnerSource, performanceSyncRunnerPath, "sanitizePerformanceSyncError");
+  requireSourceExcludes(
+    performanceSyncRunnerSource,
+    performanceSyncRunnerPath,
+    ".replace(/Bearer",
+    "performance sync errors must pass through shared sensitive text redaction"
+  );
+  requireSourceExcludes(
+    performanceSyncRunnerSource,
+    performanceSyncRunnerPath,
+    ".replace(/apikey",
+    "performance sync errors must pass through shared sensitive text redaction"
+  );
+  requireSourceExcludes(
+    performanceSyncRunnerSource,
+    performanceSyncRunnerPath,
+    ".slice(0, 220)",
+    "performance sync errors must pass through shared sensitive text redaction"
+  );
+
   const adminClientPath = "app/components/admin/AdminUsersClient.tsx";
   const adminClientSource = readProjectFile(adminClientPath);
 

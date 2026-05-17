@@ -183,6 +183,7 @@ Recent operational queue:
 - Limited public reports now include sanitized planner metadata, including the industry template name, benchmark feature summaries, and operation rules, while continuing to exclude full planner template internals, raw payloads, audit internals, idempotency keys, payload ids, and creator identity.
 - Saved-history and admin recent-activity screens and APIs now support Shopping Search linkage status filters, making verified, mismatch, unverified, and not-applicable runs easier to review without changing persistence or Naver execution behavior.
 - Public Supabase readiness now redacts optional feature row counts; detailed row-count diagnostics stay behind admin-gated `?detail=1`.
+- Report-share and performance-sync error sanitizers now use the shared sensitive-text redaction helper, so Bearer tokens, API keys, cookies, and token-like query values are masked consistently before errors reach responses, stored summaries, or ops audit text.
 - Admin audit event responses now keep raw `before_value` excluded and sanitize all reason/summary text before it reaches the UI or CSV export.
 - Account snapshot history now explicitly marks raw Naver inventory arrays as excluded and locks the non-admin view to the authenticated user's own snapshots.
 - Workspace membership responses now compute ownership server-side and exclude internal owner user UUIDs from the My Page API/UI.

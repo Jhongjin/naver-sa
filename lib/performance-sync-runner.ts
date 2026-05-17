@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import { getNaverConfigState, requestNaverSearchAd } from "@/lib/naver-search-ad";
 import {
   performanceSyncSafeguards,
@@ -293,12 +294,7 @@ export function isMissingPerformanceSyncTableError(error: { code?: string; messa
 }
 
 export function sanitizePerformanceSyncError(message: string | undefined, fallback = "Performance sync request failed."): string {
-  return message
-    ? message
-        .replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer [REDACTED]")
-        .replace(/apikey[=:]\s*[^,\s}]+/gi, "apikey=[REDACTED]")
-        .slice(0, 220)
-    : fallback;
+  return redactSensitiveErrorText(message, fallback);
 }
 
 function validatePerformanceSyncPlan(

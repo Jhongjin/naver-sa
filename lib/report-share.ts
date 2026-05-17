@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 
 const tokenPattern = /^[A-Za-z0-9_-]{32,160}$/;
 const defaultExpiryDays = 7;
@@ -46,8 +47,5 @@ export function isMissingReportShareTableError(error: { code?: string; message?:
 }
 
 export function sanitizeShareError(message: string | undefined): string {
-  return message
-    ?.replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer [REDACTED]")
-    .replace(/apikey[=:]\s*[^,\s}]+/gi, "apikey=[REDACTED]")
-    .slice(0, 220) ?? "Report share request failed.";
+  return redactSensitiveErrorText(message, "Report share request failed.");
 }
