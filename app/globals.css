@@ -5132,6 +5132,12 @@ td span {
   max-width: 460px;
 }
 
+.admin-audit-filter {
+  grid-template-columns: repeat(5, minmax(86px, 1fr));
+  justify-self: start;
+  max-width: 620px;
+}
+
 .admin-activity-list {
   display: grid;
   gap: 10px;
@@ -6694,6 +6700,12 @@ td span {
   }
 
   .admin-activity-filter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: none;
+    width: 100%;
+  }
+
+  .admin-audit-filter {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     max-width: none;
     width: 100%;

@@ -378,6 +378,7 @@ type OperationalHealth = {
 
 type ActivityFilter = "all" | "ready" | "blocked" | "missingDraft";
 type ActivityLimit = 8 | 20;
+type AuditEventFilter = "all" | "invited" | "emailConfirmed" | "roleChanged" | "other";
 type UserStatusFilter = "all" | "unconfirmed" | "neverSignedIn" | "noWorkspace";
 
 const emptyActivitySummary: ActivityResponse["summary"] = {
@@ -442,6 +443,7 @@ function AdminUsersContent() {
   const [userStatusFilter, setUserStatusFilter] = useState<UserStatusFilter>("all");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
   const [activityLimit, setActivityLimit] = useState<ActivityLimit>(8);
+  const [auditEventFilter, setAuditEventFilter] = useState<AuditEventFilter>("all");
 
   const summary = useMemo(
     () => ({
@@ -520,6 +522,10 @@ function AdminUsersContent() {
         }
       ),
     [auditEvents, auditTotal]
+  );
+  const filteredAuditEvents = useMemo(
+    () => auditEvents.filter((event) => auditEventMatchesFilter(event, auditEventFilter)),
+    [auditEventFilter, auditEvents]
   );
   const operationalHealthItems = useMemo(() => {
     if (!operationalHealth) {
@@ -1126,13 +1132,17 @@ function AdminUsersContent() {
   }
 
   function downloadAdminAuditCsv() {
-    if (auditEvents.length === 0) {
+    if (filteredAuditEvents.length === 0) {
       return;
     }
 
     const dateStamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
 
-    downloadTextFile(createAdminAuditCsv(auditEvents), `naver-sa-admin-audit-${dateStamp}.csv`, "text/csv;charset=utf-8");
+    downloadTextFile(
+      createAdminAuditCsv(filteredAuditEvents),
+      `naver-sa-admin-audit-${auditEventFilter}-${dateStamp}.csv`,
+      "text/csv;charset=utf-8"
+    );
   }
 
   function downloadFilteredUsersCsv() {
@@ -1698,7 +1708,7 @@ function AdminUsersContent() {
           <div className="admin-audit-actions">
             <button
               className="icon-button subtle"
-              disabled={auditEvents.length === 0}
+              disabled={filteredAuditEvents.length === 0}
               type="button"
               onClick={downloadAdminAuditCsv}
             >
@@ -1717,7 +1727,9 @@ function AdminUsersContent() {
           </div>
         </div>
         <div className="admin-snapshot-summary">
-          <span>관리 이벤트 {auditTotal}건</span>
+          <span>
+            관리 이벤트 {auditTotal}건 / 필터 {filteredAuditEvents.length}건
+          </span>
         </div>
         <div className="admin-activity-summary admin-audit-summary" aria-label="관리 이벤트 요약">
           <article>
@@ -1745,6 +1757,19 @@ function AdminUsersContent() {
             <em>admin.user.role_changed</em>
           </article>
         </div>
+        <div className="segmented-control admin-audit-filter" aria-label="관리 이벤트 타입 필터">
+          {(["all", "invited", "emailConfirmed", "roleChanged", "other"] as const).map((filter) => (
+            <button
+              aria-pressed={auditEventFilter === filter}
+              className={auditEventFilter === filter ? "active" : ""}
+              key={filter}
+              type="button"
+              onClick={() => setAuditEventFilter(filter)}
+            >
+              {auditEventFilterLabel(filter)}
+            </button>
+          ))}
+        </div>
         {auditStatus === "loading" ? (
           <div className="admin-activity-empty">
             <span className="skeleton-line wide" />
@@ -1759,9 +1784,16 @@ function AdminUsersContent() {
             <span>회원 초대나 권한 변경이 발생하면 이곳에 표시됩니다.</span>
           </div>
         ) : null}
-        {auditStatus === "idle" && auditEvents.length > 0 ? (
+        {auditStatus === "idle" && auditEvents.length > 0 && filteredAuditEvents.length === 0 ? (
+          <div className="admin-activity-empty">
+            <ShieldCheck size={20} />
+            <strong>필터에 맞는 관리 이벤트가 없습니다</strong>
+            <span>이벤트 타입 필터를 전체로 바꿔 주세요.</span>
+          </div>
+        ) : null}
+        {auditStatus === "idle" && filteredAuditEvents.length > 0 ? (
           <div className="admin-audit-list">
-            {auditEvents.map((event) => (
+            {filteredAuditEvents.map((event) => (
               <article key={event.id}>
                 <div>
                   <span className="status-pill include">{adminEventLabel(event.eventType)}</span>
@@ -2451,6 +2483,38 @@ function activityFilterLabel(value: ActivityFilter) {
   };
 
   return labels[value];
+}
+
+function auditEventFilterLabel(value: AuditEventFilter) {
+  const labels = {
+    all: "전체",
+    invited: "초대",
+    emailConfirmed: "메일 확인",
+    roleChanged: "권한 변경",
+    other: "기타"
+  };
+
+  return labels[value];
+}
+
+function auditEventMatchesFilter(event: AdminAuditEventItem, filter: AuditEventFilter) {
+  if (filter === "all") {
+    return true;
+  }
+
+  if (filter === "invited") {
+    return event.eventType === "admin.user.invited";
+  }
+
+  if (filter === "emailConfirmed") {
+    return event.eventType === "admin.user.email_confirmed";
+  }
+
+  if (filter === "roleChanged") {
+    return event.eventType === "admin.user.role_changed";
+  }
+
+  return !["admin.user.invited", "admin.user.email_confirmed", "admin.user.role_changed"].includes(event.eventType);
 }
 
 function roleSourceLabel(value: ManagedUser["roleSource"]) {
