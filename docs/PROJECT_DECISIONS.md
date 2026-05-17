@@ -182,6 +182,7 @@ Recent operational queue:
 - The admin operational health panel now surfaces Supabase optional feature readiness counts and per-feature status pills, so operators can see whether share links, Shopping Search linkage/product groups, execution context, and planner metadata migrations are installed.
 - Limited public reports now include sanitized planner metadata, including the industry template name, benchmark feature summaries, and operation rules, while continuing to exclude full planner template internals, raw payloads, audit internals, idempotency keys, payload ids, and creator identity.
 - Saved-history and admin recent-activity screens and APIs now support Shopping Search linkage status filters, making verified, mismatch, unverified, and not-applicable runs easier to review without changing persistence or Naver execution behavior.
+- Public Supabase readiness now redacts optional feature row counts; detailed row-count diagnostics stay behind admin-gated `?detail=1`.
 
 ## UX Direction
 

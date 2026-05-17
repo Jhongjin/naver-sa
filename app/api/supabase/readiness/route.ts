@@ -344,7 +344,7 @@ function toPublicReadiness(report: SupabaseReadinessReport) {
         table: table.name,
         column: null,
         ready: table.present,
-        rowCount: table.rowCount,
+        rowCount: null,
         note: table.present ? null : "Optional table is not installed yet."
       })),
       ...report.optionalColumns.map((column) => ({

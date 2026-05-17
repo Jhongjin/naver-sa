@@ -63,6 +63,7 @@ for (const file of routeFiles) {
   }
 
   if (relativePath === "app/api/supabase/readiness/route.ts") {
+    requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
     requireSourceIncludes(source, relativePath, "optionalFeatures");
     requireSourceIncludes(source, relativePath, "planning_product_groups");
     requireSourceIncludes(source, relativePath, "shopping_linkage");
@@ -70,6 +71,12 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "industry_template");
     requireSourceIncludes(source, relativePath, "benchmark_features");
     requireSourceIncludes(source, relativePath, "operation_rules");
+    requireSourceExcludes(
+      source,
+      relativePath,
+      "rowCount: table.rowCount",
+      "public Supabase readiness must not expose optional table row counts"
+    );
   }
 
   if (relativePath === "app/api/naver/performance-sync/preview/route.ts") {
