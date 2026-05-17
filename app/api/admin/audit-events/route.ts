@@ -117,6 +117,18 @@ function summarizeAuditEvent(eventType: string, value: Record<string, unknown> |
   }
 
   if (eventType.startsWith("ops.")) {
+    if (eventType === "ops.report_share.created" || eventType === "ops.report_share.revoked") {
+      const status = stringValue(value?.status);
+      const planningRunId = stringValue(value?.planningRunId);
+      return [
+        eventType === "ops.report_share.created" ? "report share created" : "report share revoked",
+        status ? `status ${status}` : null,
+        planningRunId ? `run ${planningRunId.slice(0, 8)}` : null
+      ]
+        .filter(Boolean)
+        .join(" / ");
+    }
+
     if (eventType === "ops.performance_sync.cron_checked") {
       const processed = scalarValue(value?.processed);
       const remaining = scalarValue(value?.remainingAfter);

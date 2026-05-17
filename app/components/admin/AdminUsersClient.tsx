@@ -9,6 +9,7 @@ import {
   Network,
   RefreshCw,
   Search,
+  Share2,
   ShieldCheck,
   UserCheck,
   UserCog,
@@ -261,6 +262,48 @@ type AdminAuditEventsResponse = {
   };
 };
 
+type ReportShareLinkItem = {
+  id: string;
+  planningRunId: string;
+  createdByEmail: string | null;
+  status: "active" | "revoked";
+  expiresAt: string;
+  lastAccessedAt: string | null;
+  accessCount: number;
+  createdAt: string;
+  updatedAt: string;
+  isExpired: boolean;
+  tokenAvailable: false;
+  planningRun: {
+    id: string;
+    brandName: string;
+    siteUrl: string;
+    productType: "powerlink" | "shoppingSearch";
+    createdBy: string | null;
+    createdAt: string;
+  } | null;
+};
+
+type ReportShareSummary = {
+  total: number;
+  active: number;
+  activeUsable: number;
+  activeExpired: number;
+  revoked: number;
+  accessed: number;
+};
+
+type AdminReportShareLinksResponse = {
+  ok: true;
+  installed: boolean;
+  tokenExcluded: boolean;
+  tokenHashExcluded: boolean;
+  links: ReportShareLinkItem[];
+  total: number;
+  limit: number;
+  summary: ReportShareSummary;
+};
+
 type PerformanceSyncPlanItem = {
   id: string;
   actorEmail: string | null;
@@ -429,6 +472,14 @@ const emptyActivitySummary: ActivityResponse["summary"] = {
   blocked: 0,
   readyDrafts: 0
 };
+const emptyReportShareSummary: ReportShareSummary = {
+  total: 0,
+  active: 0,
+  activeUsable: 0,
+  activeExpired: 0,
+  revoked: 0,
+  accessed: 0
+};
 const defaultPreviewRange = getDefaultPerformancePreviewRange();
 
 export function AdminUsersClient() {
@@ -448,6 +499,7 @@ function AdminUsersContent() {
   const [activityStatus, setActivityStatus] = useState<"idle" | "loading" | "error">("loading");
   const [snapshotStatus, setSnapshotStatus] = useState<"idle" | "loading" | "error">("loading");
   const [auditStatus, setAuditStatus] = useState<"idle" | "loading" | "error">("loading");
+  const [shareLinkStatus, setShareLinkStatus] = useState<"idle" | "loading" | "error">("loading");
   const [naverCheckStatus, setNaverCheckStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [naverCheckMessage, setNaverCheckMessage] = useState("");
   const [snapshotHistory, setSnapshotHistory] = useState<AccountSnapshotHistoryItem[]>([]);
@@ -456,6 +508,10 @@ function AdminUsersContent() {
   const [auditEvents, setAuditEvents] = useState<AdminAuditEventItem[]>([]);
   const [auditTotal, setAuditTotal] = useState(0);
   const [auditMessage, setAuditMessage] = useState("");
+  const [shareLinks, setShareLinks] = useState<ReportShareLinkItem[]>([]);
+  const [shareLinkTotal, setShareLinkTotal] = useState(0);
+  const [shareLinkSummary, setShareLinkSummary] = useState<ReportShareSummary>(emptyReportShareSummary);
+  const [shareLinkMessage, setShareLinkMessage] = useState("");
   const [performanceReadiness, setPerformanceReadiness] = useState<PerformanceSyncReadinessResponse | null>(null);
   const [performancePlans, setPerformancePlans] = useState<PerformanceSyncPlanItem[]>([]);
   const [performanceStatus, setPerformanceStatus] = useState<"idle" | "loading" | "error">("loading");
@@ -792,6 +848,39 @@ function AdminUsersContent() {
     setAuditStatus("idle");
   }, [getAccessToken]);
 
+  const loadReportShareLinks = useCallback(async () => {
+    setShareLinkStatus("loading");
+    setShareLinkMessage("");
+    const token = await getAccessToken();
+
+    if (!token) {
+      setShareLinkStatus("error");
+      setShareLinkMessage("로그인이 필요합니다.");
+      return;
+    }
+
+    const response = await fetch("/api/admin/report-share-links?limit=12", {
+      cache: "no-store",
+      headers: {
+        authorization: `Bearer ${token}`
+      }
+    });
+    const data = (await response.json().catch(() => ({}))) as
+      | AdminReportShareLinksResponse
+      | { ok?: false; error?: string };
+
+    if (!response.ok || data.ok !== true) {
+      setShareLinkStatus("error");
+      setShareLinkMessage("error" in data && data.error ? data.error : "공유 링크 현황을 불러오지 못했습니다.");
+      return;
+    }
+
+    setShareLinks(data.links);
+    setShareLinkTotal(data.total);
+    setShareLinkSummary(data.summary);
+    setShareLinkStatus("idle");
+  }, [getAccessToken]);
+
   const loadPerformanceSyncStatus = useCallback(async () => {
     setPerformanceStatus("loading");
     setPerformanceMessage("");
@@ -865,6 +954,10 @@ function AdminUsersContent() {
         setAuditStatus("error");
         setAuditMessage("관리 이벤트를 불러오지 못했습니다.");
       });
+      loadReportShareLinks().catch(() => {
+        setShareLinkStatus("error");
+        setShareLinkMessage("공유 링크 현황을 불러오지 못했습니다.");
+      });
       loadPerformanceSyncStatus().catch(() => {
         setPerformanceStatus("error");
         setPerformanceMessage("성과 sync 준비 상태를 불러오지 못했습니다.");
@@ -874,7 +967,14 @@ function AdminUsersContent() {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [loadAccountSnapshotHistory, loadAdminAuditEvents, loadOperationalHealth, loadPerformanceSyncStatus, loadUsers]);
+  }, [
+    loadAccountSnapshotHistory,
+    loadAdminAuditEvents,
+    loadOperationalHealth,
+    loadPerformanceSyncStatus,
+    loadReportShareLinks,
+    loadUsers
+  ]);
 
   async function updateRole(userId: string, role: "member" | "admin") {
     setStatus("loading");
@@ -1263,6 +1363,20 @@ function AdminUsersContent() {
     );
   }
 
+  function downloadReportShareLinksCsv() {
+    if (shareLinks.length === 0) {
+      return;
+    }
+
+    const dateStamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+
+    downloadTextFile(
+      createReportShareLinksCsv(shareLinks),
+      `naver-sa-report-share-links-${dateStamp}.csv`,
+      "text/csv;charset=utf-8"
+    );
+  }
+
   function downloadFilteredUsersCsv() {
     if (filteredUsers.length === 0) {
       return;
@@ -1506,6 +1620,118 @@ function AdminUsersContent() {
                   <div>
                     <dt>상태</dt>
                     <dd>{snapshot.partial ? `${snapshot.errorScopes.length}개 경고` : "정상"}</dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section className="account-panel admin-share-panel" aria-label="리포트 공유 링크">
+        <div className="admin-share-heading">
+          <div>
+            <Share2 size={22} />
+            <strong>리포트 공유 링크</strong>
+            <span>공개 리포트 링크의 활성, 만료, 폐기, 접근 상태를 토큰 없이 추적합니다.</span>
+            {shareLinkMessage ? <em className="admin-check-result error">{shareLinkMessage}</em> : null}
+          </div>
+          <div className="admin-share-actions">
+            <button
+              className="icon-button subtle"
+              disabled={shareLinks.length === 0}
+              type="button"
+              onClick={downloadReportShareLinksCsv}
+            >
+              <Download size={17} />
+              CSV
+            </button>
+            <button
+              className="icon-button subtle"
+              disabled={shareLinkStatus === "loading"}
+              type="button"
+              onClick={loadReportShareLinks}
+            >
+              <RefreshCw size={17} />
+              {shareLinkStatus === "loading" ? "불러오는 중" : "공유 링크 새로고침"}
+            </button>
+          </div>
+        </div>
+        <div className="admin-activity-summary admin-share-summary" aria-label="리포트 공유 링크 요약">
+          <article>
+            <span>전체 링크</span>
+            <strong>{shareLinkSummary.total}건</strong>
+            <em>최근 {shareLinks.length}/{shareLinkTotal}건 표시</em>
+          </article>
+          <article>
+            <span>사용 가능</span>
+            <strong>{shareLinkSummary.activeUsable}건</strong>
+            <em>active + not expired</em>
+          </article>
+          <article>
+            <span>만료 대기</span>
+            <strong>{shareLinkSummary.activeExpired}건</strong>
+            <em>active 상태지만 만료 시각 지남</em>
+          </article>
+          <article>
+            <span>폐기됨</span>
+            <strong>{shareLinkSummary.revoked}건</strong>
+            <em>revoked</em>
+          </article>
+          <article>
+            <span>접근 기록</span>
+            <strong>{shareLinkSummary.accessed}건</strong>
+            <em>access_count &gt; 0</em>
+          </article>
+        </div>
+        {shareLinkStatus === "loading" ? (
+          <div className="admin-activity-empty">
+            <span className="skeleton-line wide" />
+            <span className="skeleton-line" />
+            <span className="skeleton-line short" />
+          </div>
+        ) : null}
+        {shareLinkStatus === "idle" && shareLinks.length === 0 ? (
+          <div className="admin-activity-empty">
+            <Share2 size={20} />
+            <strong>공유 링크가 없습니다</strong>
+            <span>저장 이력 상세에서 제한형 공개 리포트 링크를 만들면 이곳에 표시됩니다.</span>
+          </div>
+        ) : null}
+        {shareLinks.length > 0 ? (
+          <div className="admin-share-list">
+            {shareLinks.map((link) => (
+              <article className={link.status === "revoked" || link.isExpired ? "partial" : ""} key={link.id}>
+                <div>
+                  <span className={`status-pill ${reportShareLinkTone(link)}`}>{reportShareLinkStatusLabel(link)}</span>
+                  <strong>{link.planningRun?.brandName ?? "저장 이력 확인 필요"}</strong>
+                  <p>
+                    {link.createdByEmail ?? "unknown"} / {formatKoreanDateTime(link.createdAt)}
+                  </p>
+                  <small>
+                    token 미노출 / hash 미노출 / 링크 ID {link.id.slice(0, 8)}
+                  </small>
+                  <Link className="icon-button subtle compact" href={`/history/${link.planningRunId}`}>
+                    <FileClock size={15} />
+                    저장 이력
+                  </Link>
+                </div>
+                <dl>
+                  <div>
+                    <dt>만료</dt>
+                    <dd>{formatKoreanDateTime(link.expiresAt)}</dd>
+                  </div>
+                  <div>
+                    <dt>최근 접근</dt>
+                    <dd>{link.lastAccessedAt ? formatKoreanDateTime(link.lastAccessedAt) : "없음"}</dd>
+                  </div>
+                  <div>
+                    <dt>접근 수</dt>
+                    <dd>{link.accessCount}회</dd>
+                  </div>
+                  <div>
+                    <dt>상품</dt>
+                    <dd>{link.planningRun ? productTypeLabel(link.planningRun.productType) : "unknown"}</dd>
                   </div>
                 </dl>
               </article>
@@ -2474,6 +2700,39 @@ function createAdminAuditCsv(events: AdminAuditEventItem[]) {
   return rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
 }
 
+function createReportShareLinksCsv(links: ReportShareLinkItem[]) {
+  const rows = [
+    [
+      "created_at",
+      "status",
+      "expired",
+      "planning_run_id",
+      "brand_name",
+      "product_type",
+      "created_by_email",
+      "expires_at",
+      "last_accessed_at",
+      "access_count",
+      "token_exposed"
+    ],
+    ...links.map((link) => [
+      link.createdAt,
+      link.status,
+      link.isExpired ? "true" : "false",
+      link.planningRunId,
+      link.planningRun?.brandName ?? "",
+      link.planningRun?.productType ?? "",
+      link.createdByEmail ?? "",
+      link.expiresAt,
+      link.lastAccessedAt ?? "",
+      link.accessCount,
+      link.tokenAvailable ? "true" : "false"
+    ])
+  ];
+
+  return rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
+}
+
 function createPerformancePlansCsv(plans: PerformanceSyncPlanItem[]) {
   const rows = [
     [
@@ -2750,6 +3009,8 @@ function adminEventLabel(value: string) {
     "admin.user.invited": "초대",
     "admin.user.email_confirmed": "메일 확인",
     "admin.user.role_changed": "권한 변경",
+    "ops.report_share.created": "공유 생성",
+    "ops.report_share.revoked": "공유 폐기",
     "ops.performance_sync.blocked": "Sync 차단",
     "ops.performance_sync.cron_checked": "Cron 확인",
     "ops.performance_sync.config_missing": "설정 경고",
@@ -2761,6 +3022,18 @@ function adminEventLabel(value: string) {
 
 function adminEventTone(value: string) {
   return value.startsWith("ops.") ? "review" : "include";
+}
+
+function reportShareLinkStatusLabel(link: ReportShareLinkItem) {
+  if (link.status === "revoked") {
+    return "폐기됨";
+  }
+
+  return link.isExpired ? "만료됨" : "활성";
+}
+
+function reportShareLinkTone(link: ReportShareLinkItem) {
+  return link.status === "active" && !link.isExpired ? "include" : "review";
 }
 
 function performancePlanStatusLabel(value: PerformanceSyncPlanItem["status"]) {

@@ -168,6 +168,7 @@ Recent operational queue:
 - Public `/api/health` now returns aggregate environment counts instead of per-secret variable names, reducing configuration fingerprint exposure while keeping admin operational health counts.
 - Admin audit events now support server-side group/event-type filtering, so ops-alert views can fetch relevant events directly instead of relying only on client-side filtering of the latest mixed events.
 - Performance sync cron heartbeat writes are now best-effort; a heartbeat audit insert failure does not fail an otherwise completed read-only cron run, and the response only exposes whether the heartbeat was recorded.
+- Admins now have a read-only report share-link registry that shows active, expired, revoked, and accessed link counts without exposing public tokens or token hashes. Share link creation and revocation also write token-free `ops.report_share.*` audit events on a best-effort basis.
 
 ## UX Direction
 

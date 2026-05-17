@@ -114,6 +114,17 @@ export async function POST(request: Request, context: RouteContext) {
     return jsonNoStore({ ok: false, error: sanitizeShareError(error?.message) }, { status: 502 });
   }
 
+  await recordReportShareAudit(setup.supabase, {
+    eventType: "ops.report_share.created",
+    actor: setup.access.email ?? setup.access.userId,
+    entityId: (data as ReportShareLinkRow).id,
+    planningRunId: setup.planningRun.id,
+    status: (data as ReportShareLinkRow).status,
+    expiresAt,
+    createdByEmail: setup.access.email,
+    reason: "Limited public report share link created without storing or exposing the raw token."
+  });
+
   return jsonNoStore(
     {
       ok: true,
@@ -165,6 +176,17 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!data) {
     return jsonNoStore({ ok: false, error: "Share link was not found." }, { status: 404 });
   }
+
+  await recordReportShareAudit(setup.supabase, {
+    eventType: "ops.report_share.revoked",
+    actor: setup.access.email ?? setup.access.userId,
+    entityId: (data as ReportShareLinkRow).id,
+    planningRunId: setup.planningRun.id,
+    status: (data as ReportShareLinkRow).status,
+    expiresAt: (data as ReportShareLinkRow).expires_at,
+    createdByEmail: (data as ReportShareLinkRow).created_by_email,
+    reason: "Limited public report share link revoked by an authorized user."
+  });
 
   return jsonNoStore({
     ok: true,
@@ -313,4 +335,38 @@ function getMigrationRequiredResponse() {
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+async function recordReportShareAudit(
+  supabase: SupabaseAdminClient,
+  event: {
+    eventType: "ops.report_share.created" | "ops.report_share.revoked";
+    actor: string;
+    entityId: string;
+    planningRunId: string;
+    status: "active" | "revoked";
+    expiresAt: string;
+    createdByEmail: string | null;
+    reason: string;
+  }
+): Promise<void> {
+  try {
+    await supabase.from("audit_events").insert({
+      event_type: event.eventType,
+      actor: event.actor,
+      entity_type: "report_share_link",
+      entity_id: event.entityId,
+      after_value: {
+        planningRunId: event.planningRunId,
+        status: event.status,
+        expiresAt: event.expiresAt,
+        createdByEmail: event.createdByEmail,
+        tokenStored: false,
+        tokenHashOnly: true
+      },
+      reason: event.reason
+    });
+  } catch {
+    // Audit visibility must not block creating or revoking a share link.
+  }
 }
