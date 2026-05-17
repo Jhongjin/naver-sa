@@ -62,6 +62,16 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "catch {");
   }
 
+  if (relativePath === "app/api/supabase/readiness/route.ts") {
+    requireSourceIncludes(source, relativePath, "optionalFeatures");
+    requireSourceIncludes(source, relativePath, "planning_product_groups");
+    requireSourceIncludes(source, relativePath, "shopping_linkage");
+    requireSourceIncludes(source, relativePath, "execution_context");
+    requireSourceIncludes(source, relativePath, "industry_template");
+    requireSourceIncludes(source, relativePath, "benchmark_features");
+    requireSourceIncludes(source, relativePath, "operation_rules");
+  }
+
   if (relativePath === "app/api/naver/performance-sync/preview/route.ts") {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request, { requireAdmin: true })");
     requireSourceIncludes(source, relativePath, 'requestNaverSearchAd<unknown>("GET", "/api/stats"');
@@ -111,6 +121,9 @@ for (const file of routeFiles) {
     requireSourceIncludes(source, relativePath, "rawPayloadExcluded: true");
     requireSourceIncludes(source, relativePath, "idempotencyKeysExcluded: true");
     requireSourceIncludes(source, relativePath, "auditExcluded: true");
+    requireSourceIncludes(source, relativePath, "productGroups:");
+    requireSourceIncludes(source, relativePath, "planning_product_groups");
+    requireSourceIncludes(source, relativePath, "sanitizePublicValidation(draft.validation)");
     requireSourceIncludes(source, relativePath, 'select("id",');
     requireSourceIncludes(source, relativePath, "head: true");
     requireSourceExcludes(source, relativePath, '.select("body', "public report route must not select raw execution payload bodies");
@@ -118,8 +131,33 @@ for (const file of routeFiles) {
     requireSourceExcludes(source, relativePath, "before_value", "public report route must not expose audit before values");
     requireSourceExcludes(source, relativePath, "after_value", "public report route must not expose audit after values");
     requireSourceExcludes(source, relativePath, '.from("audit_events")', "public report route must not expose internal audit events");
+
+    const publicReportBody = getSourceSegment(
+      source,
+      relativePath,
+      "return jsonNoStore({\n    ok: true,",
+      "\n  });\n}\n\nasync function getExecutionPayloadCount"
+    );
+
+    requireSourceIncludes(publicReportBody, relativePath, "productGroups:");
+    requireSourceIncludes(publicReportBody, relativePath, "sourceGroup: group.source_group");
+    requireSourceIncludes(publicReportBody, relativePath, "queryCount: group.query_count");
+    requireSourceIncludes(publicReportBody, relativePath, "productHints: group.product_hints");
+    requireSourceIncludes(publicReportBody, relativePath, "feedActions: group.feed_actions");
+    requireSourceExcludes(publicReportBody, relativePath, "planningRunId", "public report body must not expose internal planning run ids");
+    requireSourceExcludes(publicReportBody, relativePath, "planning_run_id", "public report body must not expose internal planning run ids");
+    requireSourceExcludes(publicReportBody, relativePath, "workspaceId", "public report body must not expose internal workspace ids");
+    requireSourceExcludes(publicReportBody, relativePath, "workspace_id", "public report body must not expose internal workspace ids");
+    requireSourceExcludes(publicReportBody, relativePath, "executionDraftId", "public report body must not expose internal execution draft ids");
+    requireSourceExcludes(publicReportBody, relativePath, "draftKey", "public report body must not expose execution draft keys");
+    requireSourceExcludes(publicReportBody, relativePath, "draftId", "public report body must not expose execution draft ids");
+    requireSourceExcludes(publicReportBody, relativePath, "idempotencyKey:", "public report body must not expose idempotency keys");
+    requireSourceExcludes(publicReportBody, relativePath, "payloadId", "public report body must not expose internal payload ids");
+    requireSourceExcludes(publicReportBody, relativePath, "share.id", "public report body must not expose share-link row ids");
   }
 }
+
+requireProjectSurfaceChecks();
 
 if (failures.length > 0) {
   console.error("API policy check failed:");
@@ -157,6 +195,26 @@ function requireSourceExcludes(source, relativePath, forbidden, reason) {
   }
 }
 
+function getSourceSegment(source, relativePath, startMarker, endMarker) {
+  const start = source.indexOf(startMarker);
+
+  if (start === -1) {
+    failures.push(`${relativePath}: missing required policy segment start: ${startMarker}`);
+
+    return "";
+  }
+
+  const end = source.indexOf(endMarker, start + startMarker.length);
+
+  if (end === -1) {
+    failures.push(`${relativePath}: missing required policy segment end: ${endMarker}`);
+
+    return "";
+  }
+
+  return source.slice(start, end);
+}
+
 function requireSourceCount(source, relativePath, expected, count) {
   const actual = source.split(expected).length - 1;
 
@@ -172,4 +230,40 @@ function requireSourceOrder(source, relativePath, before, after) {
   if (beforeIndex === -1 || afterIndex === -1 || beforeIndex > afterIndex) {
     failures.push(`${relativePath}: ${before} must appear before ${after}`);
   }
+}
+
+function requireProjectSurfaceChecks() {
+  const persistencePath = "lib/persistence/planning-runs.ts";
+  const persistenceSource = readProjectFile(persistencePath);
+
+  requireSourceIncludes(persistenceSource, persistencePath, "recordPlanningSaveFailure");
+  requireSourceIncludes(persistenceSource, persistencePath, "ops.planning_save.failed");
+  requireSourceIncludes(persistenceSource, persistencePath, "planningRunId,");
+  requireSourceIncludes(persistenceSource, persistencePath, "partial: true");
+  requireSourceIncludes(persistenceSource, persistencePath, "core_child_history");
+  requireSourceIncludes(persistenceSource, persistencePath, "getPlanningProductGroupSupport");
+  requireSourceIncludes(persistenceSource, persistencePath, "getPlanningRunMetadataSupport");
+  requireSourceIncludes(persistenceSource, persistencePath, "planning_product_groups");
+  requireSourceIncludes(persistenceSource, persistencePath, "industry_template");
+  requireSourceIncludes(persistenceSource, persistencePath, "benchmark_features");
+  requireSourceIncludes(persistenceSource, persistencePath, "operation_rules");
+
+  const adminClientPath = "app/components/admin/AdminUsersClient.tsx";
+  const adminClientSource = readProjectFile(adminClientPath);
+
+  requireSourceIncludes(adminClientSource, adminClientPath, 'event.eventType.startsWith("ops.")');
+  requireSourceIncludes(adminClientSource, adminClientPath, "ops.report_share.created");
+  requireSourceIncludes(adminClientSource, adminClientPath, "ops.report_share.revoked");
+  requireSourceIncludes(adminClientSource, adminClientPath, "ops.planning_save.failed");
+  requireSourceIncludes(adminClientSource, adminClientPath, "ops.performance_sync.failed");
+  requireSourceExcludes(
+    adminClientSource,
+    adminClientPath,
+    "ops.performance_sync.*",
+    "admin ops alert summary must cover all ops.* events, not only performance sync"
+  );
+}
+
+function readProjectFile(relativePath) {
+  return readFileSync(path.join(root, ...relativePath.split("/")), "utf8");
 }

@@ -319,7 +319,7 @@ export async function GET(_request: Request, context: RouteContext) {
           status: draft.status,
           approvedChangeCount: draft.approved_change_count,
           payloadCount,
-          validation: draft.validation,
+          validation: sanitizePublicValidation(draft.validation),
           generatedAt: draft.generated_at,
           createdAt: draft.created_at
         }
@@ -351,6 +351,26 @@ async function getExecutionPayloadCount(
   }
 
   return count ?? 0;
+}
+
+function sanitizePublicValidation(validation: ExecutionDraftRow["validation"]) {
+  if (!validation) {
+    return null;
+  }
+
+  return {
+    canExecuteTest: Boolean(validation.canExecuteTest),
+    blockerCount: validation.blockerCount ?? validation.blockers?.length ?? 0,
+    warningCount: validation.warningCount ?? validation.warnings?.length ?? 0,
+    blockers: (validation.blockers ?? []).map((blocker) => ({
+      code: blocker.code,
+      message: blocker.message
+    })),
+    warnings: (validation.warnings ?? []).map((warning) => ({
+      code: warning.code,
+      message: warning.message
+    }))
+  };
 }
 
 async function hasPlanningProductGroupSupport(

@@ -2196,7 +2196,7 @@ function AdminUsersContent() {
           <article>
             <span>운영 알림</span>
             <strong>{auditSummary.ops}건</strong>
-            <em>ops.performance_sync.*</em>
+            <em>ops.* alerts</em>
           </article>
           <article>
             <span>초대</span>
