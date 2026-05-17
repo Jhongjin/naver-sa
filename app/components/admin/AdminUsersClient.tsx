@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/app/components/auth/AuthGate";
 import { useAuth } from "@/app/components/auth/AuthProvider";
 import { formatKoreanDate, formatKoreanDateTime } from "@/lib/formatters";
+import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import {
   shoppingLinkageStatusClass,
   shoppingLinkageStatusLabel,
@@ -531,6 +532,10 @@ type ActivityLimit = 8 | 20;
 type AuditEventFilter = "all" | "ops" | "invited" | "emailConfirmed" | "roleChanged" | "other";
 type UserStatusFilter = "all" | "unconfirmed" | "neverSignedIn" | "noWorkspace";
 
+function visibleAdminError(message: string | null | undefined, fallback: string) {
+  return redactSensitiveErrorText(message, fallback);
+}
+
 const emptyActivitySummary: ActivityResponse["summary"] = {
   total: 0,
   approved: 0,
@@ -831,7 +836,12 @@ function AdminUsersContent() {
     if (!response.ok || data.ok !== true) {
       setStatus("error");
       setActivityStatus("error");
-      setMessage("error" in data && data.error ? data.error : "관리자 권한이 필요하거나 사용자 목록을 불러오지 못했습니다.");
+      setMessage(
+        visibleAdminError(
+          "error" in data ? data.error : undefined,
+          "관리자 권한이 필요하거나 사용자 목록을 불러오지 못했습니다."
+        )
+      );
       return;
     }
 
@@ -896,7 +906,7 @@ function AdminUsersContent() {
 
     if (!response.ok || data.ok !== true) {
       setSnapshotStatus("error");
-      setSnapshotMessage("error" in data && data.error ? data.error : "계정 스캔 이력을 불러오지 못했습니다.");
+      setSnapshotMessage(visibleAdminError("error" in data ? data.error : undefined, "계정 스캔 이력을 불러오지 못했습니다."));
       return;
     }
 
@@ -938,7 +948,7 @@ function AdminUsersContent() {
 
     if (!response.ok || data.ok !== true) {
       setAuditStatus("error");
-      setAuditMessage("error" in data && data.error ? data.error : "관리 이벤트를 불러오지 못했습니다.");
+      setAuditMessage(visibleAdminError("error" in data ? data.error : undefined, "관리 이벤트를 불러오지 못했습니다."));
       return;
     }
 
@@ -970,7 +980,7 @@ function AdminUsersContent() {
 
     if (!response.ok || data.ok !== true) {
       setShareLinkStatus("error");
-      setShareLinkMessage("error" in data && data.error ? data.error : "공유 링크 현황을 불러오지 못했습니다.");
+      setShareLinkMessage(visibleAdminError("error" in data ? data.error : undefined, "공유 링크 현황을 불러오지 못했습니다."));
       return;
     }
 
@@ -1015,9 +1025,10 @@ function AdminUsersContent() {
     if (!readinessResponse.ok || !("ready" in readinessData)) {
       setPerformanceStatus("error");
       setPerformanceMessage(
-        "error" in readinessData && readinessData.error
-          ? readinessData.error
-          : "성과 sync 준비 상태를 불러오지 못했습니다."
+        visibleAdminError(
+          "error" in readinessData ? readinessData.error : undefined,
+          "성과 sync 준비 상태를 불러오지 못했습니다."
+        )
       );
       return;
     }
@@ -1097,7 +1108,7 @@ function AdminUsersContent() {
     if (!response.ok) {
       setStatus("error");
       const data = (await response.json().catch(() => ({}))) as { error?: string };
-      setMessage(data.error ?? "권한을 변경하지 못했습니다.");
+      setMessage(visibleAdminError(data.error, "권한을 변경하지 못했습니다."));
       return;
     }
 
@@ -1126,7 +1137,7 @@ function AdminUsersContent() {
     if (!response.ok) {
       setStatus("error");
       const data = (await response.json().catch(() => ({}))) as { error?: string };
-      setMessage(data.error ?? "메일 확인 상태를 변경하지 못했습니다.");
+      setMessage(visibleAdminError(data.error, "메일 확인 상태를 변경하지 못했습니다."));
       return;
     }
 
@@ -1168,7 +1179,7 @@ function AdminUsersContent() {
 
     if (!response.ok || data.ok !== true) {
       setInviteStatus("error");
-      setInviteMessage("error" in data && data.error ? data.error : "회원 초대 요청을 완료하지 못했습니다.");
+      setInviteMessage(visibleAdminError("error" in data ? data.error : undefined, "회원 초대 요청을 완료하지 못했습니다."));
       return;
     }
 
@@ -1204,7 +1215,7 @@ function AdminUsersContent() {
     setNaverCheckMessage(
       readOnlyOk
         ? "Naver 캠페인 read-only 연결이 정상입니다."
-        : data.error ?? data.readOnlyCheck?.error ?? "Naver read-only 점검에 실패했습니다."
+        : visibleAdminError(data.error ?? data.readOnlyCheck?.error, "Naver read-only 점검에 실패했습니다.")
     );
   }
 
@@ -1242,7 +1253,7 @@ function AdminUsersContent() {
 
     if (!response.ok || data.ok !== true) {
       setPerformancePlanStatus("error");
-      setPerformanceMessage("error" in data && data.error ? data.error : "dry-run 계획을 저장하지 못했습니다.");
+      setPerformanceMessage(visibleAdminError("error" in data ? data.error : undefined, "dry-run 계획을 저장하지 못했습니다."));
       return;
     }
 
@@ -1250,7 +1261,7 @@ function AdminUsersContent() {
     setPerformancePlanStatus("success");
     setPerformanceMessage(
       data.plan.status === "blocked"
-        ? `dry-run 계획을 저장했습니다. ${data.plan.warnings[0] ?? "실제 조회 전 연결 ID가 필요합니다."}`
+        ? `dry-run 계획을 저장했습니다. ${visibleAdminError(data.plan.warnings[0], "실제 조회 전 연결 ID가 필요합니다.")}`
         : `dry-run 성과 sync 계획을 저장했습니다. ${entityIds.length}개 ID가 수동 sync 대기 상태입니다.`
     );
   }
@@ -1304,11 +1315,10 @@ function AdminUsersContent() {
       setPerformancePreviewStatus("error");
       setPerformancePreviewResult(null);
       setPerformanceMessage(
-        "warnings" in data && data.warnings?.length
-          ? data.warnings[0]
-          : "error" in data && data.error
-            ? data.error
-            : "성과 preview를 불러오지 못했습니다."
+        visibleAdminError(
+          "warnings" in data && data.warnings?.length ? data.warnings[0] : "error" in data ? data.error : undefined,
+          "성과 preview를 불러오지 못했습니다."
+        )
       );
       return;
     }
@@ -1380,11 +1390,10 @@ function AdminUsersContent() {
       setPerformanceQueueStatus("error");
       setPerformanceQueuePlanId(null);
       setPerformanceMessage(
-        "warnings" in data && data.warnings?.length
-          ? data.warnings[0]
-          : "error" in data && data.error
-            ? data.error
-            : "수동 performance sync를 실행하지 못했습니다."
+        visibleAdminError(
+          "warnings" in data && data.warnings?.length ? data.warnings[0] : "error" in data ? data.error : undefined,
+          "수동 performance sync를 실행하지 못했습니다."
+        )
       );
       await loadPerformanceSyncStatus();
       return;

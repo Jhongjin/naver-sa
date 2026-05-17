@@ -671,6 +671,8 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(adminClientSource, adminClientPath, "ops.report_share.revoked");
   requireSourceIncludes(adminClientSource, adminClientPath, "ops.planning_save.failed");
   requireSourceIncludes(adminClientSource, adminClientPath, "ops.performance_sync.failed");
+  requireSourceIncludes(adminClientSource, adminClientPath, "redactSensitiveErrorText");
+  requireSourceIncludes(adminClientSource, adminClientPath, "visibleAdminError");
   requireSourceIncludes(adminClientSource, adminClientPath, 'fetch("/api/admin/users", {\n      cache: "no-store"');
   requireSourceIncludes(adminClientSource, adminClientPath, 'fetch(`/api/admin/activity?${activityParams.toString()}`, {\n      cache: "no-store"');
   requireSourceIncludes(adminClientSource, adminClientPath, 'fetch("/api/naver/account-snapshot/history?limit=8", {\n      cache: "no-store"');
@@ -687,6 +689,54 @@ function requireProjectSurfaceChecks() {
     adminClientPath,
     "createdByUserId",
     "admin activity UI must not type or render internal creator user ids"
+  );
+  requireSourceExcludes(
+    adminClientSource,
+    adminClientPath,
+    "setMessage(data.error ??",
+    "admin visible errors must be redacted before display"
+  );
+  requireSourceExcludes(
+    adminClientSource,
+    adminClientPath,
+    "setMessage(\"error\" in data && data.error ? data.error",
+    "admin visible errors must be redacted before display"
+  );
+  requireSourceExcludes(
+    adminClientSource,
+    adminClientPath,
+    "setSnapshotMessage(\"error\" in data && data.error ? data.error",
+    "admin visible errors must be redacted before display"
+  );
+  requireSourceExcludes(
+    adminClientSource,
+    adminClientPath,
+    "setAuditMessage(\"error\" in data && data.error ? data.error",
+    "admin visible errors must be redacted before display"
+  );
+  requireSourceExcludes(
+    adminClientSource,
+    adminClientPath,
+    "setShareLinkMessage(\"error\" in data && data.error ? data.error",
+    "admin visible errors must be redacted before display"
+  );
+  requireSourceExcludes(
+    adminClientSource,
+    adminClientPath,
+    "setInviteMessage(\"error\" in data && data.error ? data.error",
+    "admin visible errors must be redacted before display"
+  );
+  requireSourceExcludes(
+    adminClientSource,
+    adminClientPath,
+    "setPerformanceMessage(\"error\" in data && data.error ? data.error",
+    "admin visible errors must be redacted before display"
+  );
+  requireSourceExcludes(
+    adminClientSource,
+    adminClientPath,
+    ": data.error ?? data.readOnlyCheck?.error ??",
+    "admin Naver check errors must be redacted before display"
   );
 
   requireCsvExportSafety(
