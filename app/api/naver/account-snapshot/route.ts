@@ -8,7 +8,16 @@ import {
 } from "@/lib/naver-search-ad";
 import { verifyUserAccess } from "@/lib/auth-access";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
+import { createAccountSnapshotDiff, type AccountSnapshotDiff } from "@/lib/naver-account-snapshot-diff";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
+
+type PreviousSnapshotRow = {
+  id: string;
+  created_at: string;
+  channels: unknown[] | null;
+  campaigns: unknown[] | null;
+  product_groups: unknown[] | null;
+};
 
 export function POST() {
   return methodNotAllowed(["GET"]);
@@ -127,6 +136,8 @@ async function saveAccountSnapshotHistory(input: {
         campaigns: number;
         productGroups: number;
       };
+      diff: AccountSnapshotDiff | null;
+      diffWarning?: string;
     }
   | {
       saved: false;
@@ -152,6 +163,11 @@ async function saveAccountSnapshotHistory(input: {
   }
 
   const createdAt = new Date().toISOString();
+  const previousSnapshotPromise = findPreviousAccountSnapshot({
+    supabase,
+    userId: input.userId,
+    context: input.context
+  });
   const { data, error } = await supabase
     .from("naver_account_snapshots")
     .insert({
@@ -185,15 +201,69 @@ async function saveAccountSnapshotHistory(input: {
     };
   }
 
+  const previousSnapshotResult = await previousSnapshotPromise;
+  const savedAt = (data.created_at as string | null) ?? createdAt;
+  const diff =
+    previousSnapshotResult.snapshot
+      ? createAccountSnapshotDiff(
+          {
+            id: data.id as string,
+            createdAt: savedAt,
+            channels: input.channels,
+            campaigns: input.campaigns,
+            productGroups: input.productGroups
+          },
+          {
+            id: previousSnapshotResult.snapshot.id,
+            createdAt: previousSnapshotResult.snapshot.created_at,
+            channels: previousSnapshotResult.snapshot.channels,
+            campaigns: previousSnapshotResult.snapshot.campaigns,
+            productGroups: previousSnapshotResult.snapshot.product_groups
+          }
+        )
+      : null;
+
   return {
     saved: true,
     id: data.id as string,
-    savedAt: (data.created_at as string | null) ?? createdAt,
+    savedAt,
     counts: {
       channels: input.channels.length,
       campaigns: input.campaigns.length,
       productGroups: input.productGroups.length
-    }
+    },
+    diff,
+    ...(previousSnapshotResult.warning ? { diffWarning: previousSnapshotResult.warning } : {})
+  };
+}
+
+async function findPreviousAccountSnapshot(input: {
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdminClient>>;
+  userId: string;
+  context: ReturnType<typeof readSnapshotContext>;
+}): Promise<{ snapshot: PreviousSnapshotRow | null; warning?: string }> {
+  let query = input.supabase
+    .from("naver_account_snapshots")
+    .select("id, created_at, channels, campaigns, product_groups")
+    .eq("user_id", input.userId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  query = input.context.productType ? query.eq("product_type", input.context.productType) : query.is("product_type", null);
+  query = input.context.brandName ? query.eq("brand_name", input.context.brandName) : query.is("brand_name", null);
+  query = input.context.siteUrl ? query.eq("site_url", input.context.siteUrl) : query.is("site_url", null);
+
+  const { data, error } = await query;
+
+  if (error) {
+    return {
+      snapshot: null,
+      warning: `Previous account snapshot was not loaded: ${sanitizeSnapshotError(error.message)}`
+    };
+  }
+
+  return {
+    snapshot: ((data ?? []) as PreviousSnapshotRow[])[0] ?? null
   };
 }
 

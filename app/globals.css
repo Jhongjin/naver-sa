@@ -2049,6 +2049,14 @@ td span {
   line-height: 1.4;
 }
 
+.snapshot-history-note em {
+  color: #0f766e;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
 .channel-list {
   display: grid;
   gap: 8px;
@@ -5824,7 +5832,8 @@ td span {
 }
 
 .execution-rail .snapshot-warning-list span,
-.execution-rail .snapshot-history-note span {
+.execution-rail .snapshot-history-note span,
+.execution-rail .snapshot-history-note em {
   color: rgba(249, 244, 234, 0.7);
 }
 

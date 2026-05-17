@@ -124,6 +124,8 @@ type AccountSnapshotResponse = {
     id?: string;
     savedAt?: string;
     warning?: string;
+    diff?: AccountSnapshotDiff | null;
+    diffWarning?: string;
     counts?: {
       channels: number;
       campaigns: number;
@@ -156,6 +158,20 @@ type AccountSnapshotResponse = {
     productCount: number | null;
     excludeCount: number | null;
   }>;
+};
+
+type AccountSnapshotDiff = {
+  comparedSnapshotId: string;
+  comparedAt: string;
+  channels: AccountSnapshotDiffMetric;
+  campaigns: AccountSnapshotDiffMetric;
+  productGroups: AccountSnapshotDiffMetric;
+};
+
+type AccountSnapshotDiffMetric = {
+  added: number;
+  removed: number;
+  changed: number;
 };
 
 type AccountSnapshotState =
@@ -2096,6 +2112,15 @@ function AccountSnapshotNotice({
               ? `${formatKoreanDateTime(state.response.history.savedAt ?? new Date().toISOString())} 기준으로 계정 스냅샷을 보관했습니다.`
               : state.response.history.warning ?? "스캔 결과를 저장하지 못했습니다."}
           </span>
+          {state.response.history.saved ? (
+            <em>
+              {state.response.history.diff
+                ? `직전 스캔 대비: 채널 ${snapshotDiffLabel(state.response.history.diff.channels)} / 캠페인 ${snapshotDiffLabel(
+                    state.response.history.diff.campaigns
+                  )} / 상품그룹 ${snapshotDiffLabel(state.response.history.diff.productGroups)}`
+                : state.response.history.diffWarning ?? "같은 조건의 이전 스캔이 아직 없어 비교는 생략했습니다."}
+            </em>
+          ) : null}
         </div>
       ) : null}
       <div className="channel-list">
@@ -2428,6 +2453,16 @@ function snapshotScopeLabel(scope: string): string {
   };
 
   return labels[scope] ?? scope;
+}
+
+function snapshotDiffLabel(metric: AccountSnapshotDiffMetric): string {
+  const parts = [
+    metric.added > 0 ? `+${metric.added}` : null,
+    metric.removed > 0 ? `-${metric.removed}` : null,
+    metric.changed > 0 ? `수정 ${metric.changed}` : null
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" ") : "변화 없음";
 }
 
 function decisionLabel(decision: ApprovalDecision): string {
