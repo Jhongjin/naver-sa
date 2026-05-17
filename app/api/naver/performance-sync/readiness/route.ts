@@ -33,6 +33,7 @@ export async function GET(request: Request) {
 
   const naver = getNaverConfigState();
   const database = await checkPerformanceSyncTable();
+  const scheduler = getSchedulerReadiness();
 
   return jsonNoStore({
     ok: naver.ready && database.present,
@@ -45,12 +46,23 @@ export async function GET(request: Request) {
       customerIdPresent: naver.customerIdPresent
     },
     database,
+    scheduler,
     docs: naverPerformanceDocs,
     safeguards: performanceSyncSafeguards,
     nextStep: database.present
       ? "성과 동기화 계획 저장이 가능합니다. 실제 Naver stats 호출은 별도 승인 큐에서 read-only로만 연결합니다."
       : "Supabase migration 20260517111500_create_naver_performance_sync_runs.sql 적용 후 계획 저장을 사용할 수 있습니다."
   });
+}
+
+function getSchedulerReadiness() {
+  return {
+    automaticCronConfigured: false,
+    cronSecretPresent: Boolean(process.env.CRON_SECRET?.trim()),
+    externalRequestOnSchedule: false,
+    nextStep:
+      "예약 실행은 아직 자동으로 켜지지 않았습니다. 대상 ID, 실행 주기, 실패 알림 정책 확정 후 cron route와 vercel.json을 추가합니다."
+  };
 }
 
 async function checkPerformanceSyncTable() {

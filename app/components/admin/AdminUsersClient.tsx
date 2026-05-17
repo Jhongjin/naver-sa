@@ -159,6 +159,12 @@ type PerformanceSyncReadinessResponse = {
     error: string | null;
     errorCode: string | null;
   };
+  scheduler?: {
+    automaticCronConfigured: boolean;
+    cronSecretPresent: boolean;
+    externalRequestOnSchedule: boolean;
+    nextStep: string;
+  };
   safeguards: {
     externalRequest: false;
     readOnlyStatsOnly: boolean;
@@ -1364,6 +1370,14 @@ function AdminUsersContent() {
             <span>차단 계획</span>
             <strong>{performanceSummary.blocked}건</strong>
             <small>연결 ID 또는 범위 보정이 필요한 항목입니다.</small>
+          </article>
+          <article className="needs-check">
+            <span>예약 실행</span>
+            <strong>{performanceReadiness?.scheduler?.automaticCronConfigured ? "cron on" : "manual"}</strong>
+            <small>
+              {performanceReadiness?.scheduler?.cronSecretPresent ? "CRON_SECRET 등록됨" : "CRON_SECRET 확인 필요"} / 자동 실행은 아직
+              대기
+            </small>
           </article>
           <article>
             <span>안전 가드</span>

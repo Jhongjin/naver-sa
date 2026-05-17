@@ -141,6 +141,7 @@ Recent operational queue:
 - Performance stats preview can call only `GET /api/stats` after an admin provides explicit entity IDs; missing IDs block before any external request.
 - Performance stats recommendations and their approval draft suggestions are safe-draft-only and never create, update, or delete Naver entities.
 - Performance preview results can be re-run from saved history rows and exported as Markdown operating notes without including raw stats JSON.
+- Performance sync readiness now exposes scheduler state, but automatic cron execution remains off until target IDs, cadence, and failure notification policy are confirmed.
 - API route files explicitly export common method handlers so unsupported methods return no-store 405 responses instead of Next.js default cacheable responses.
 - Production verification after each queue checks `/api/health`, `/api/supabase/readiness`, and the relevant protected API route for no-store authentication/method behavior.
 
