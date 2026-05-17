@@ -331,6 +331,32 @@ type PerformanceStatsPreviewResponse = {
   };
 };
 
+type PerformanceManualQueueResponse =
+  | {
+      ok: true;
+      externalRequest: true;
+      readOnly: true;
+      plan: {
+        id: string;
+        status: "completed";
+        entityCount: number;
+        fieldCount: number;
+        rowCount: number;
+        recommendationCount: number;
+        recommendationDraftCount: number;
+        storedRawStats: false;
+        completedAt: string;
+      };
+    }
+  | {
+      ok?: false;
+      externalRequest?: boolean;
+      readOnly?: boolean;
+      status?: number;
+      error?: string;
+      warnings?: string[];
+    };
+
 type PerformanceRecommendationItem = {
   id: string;
   entityId: string;
@@ -419,6 +445,10 @@ function AdminUsersContent() {
   const [performancePlans, setPerformancePlans] = useState<PerformanceSyncPlanItem[]>([]);
   const [performanceStatus, setPerformanceStatus] = useState<"idle" | "loading" | "error">("loading");
   const [performancePlanStatus, setPerformancePlanStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [performanceQueueStatus, setPerformanceQueueStatus] = useState<"idle" | "loading" | "success" | "error">(
+    "idle"
+  );
+  const [performanceQueuePlanId, setPerformanceQueuePlanId] = useState<string | null>(null);
   const [performancePreviewStatus, setPerformancePreviewStatus] = useState<"idle" | "loading" | "success" | "error">(
     "idle"
   );
@@ -949,6 +979,8 @@ function AdminUsersContent() {
 
   async function createDryRunPerformancePlan() {
     setPerformancePlanStatus("loading");
+    setPerformanceQueueStatus("idle");
+    setPerformanceQueuePlanId(null);
     setPerformanceMessage("");
     const token = await getAccessToken();
 
@@ -958,10 +990,7 @@ function AdminUsersContent() {
       return;
     }
 
-    const dateTo = new Date();
-    dateTo.setDate(dateTo.getDate() - 1);
-    const dateFrom = new Date(dateTo);
-    dateFrom.setDate(dateFrom.getDate() - 6);
+    const entityIds = parseEntityIds(performancePreviewIds);
     const response = await fetch("/api/naver/performance-sync/plans", {
       method: "POST",
       headers: {
@@ -970,8 +999,9 @@ function AdminUsersContent() {
       },
       body: JSON.stringify({
         scope: "powerlinkDailyStats",
-        dateFrom: dateFrom.toISOString().slice(0, 10),
-        dateTo: dateTo.toISOString().slice(0, 10),
+        dateFrom: performancePreviewFrom,
+        dateTo: performancePreviewTo,
+        entityIds,
         fields: ["impCnt", "clkCnt", "salesAmt", "ctr", "cpc"]
       })
     });
@@ -990,7 +1020,7 @@ function AdminUsersContent() {
     setPerformanceMessage(
       data.plan.status === "blocked"
         ? `dry-run 계획을 저장했습니다. ${data.plan.warnings[0] ?? "실제 조회 전 연결 ID가 필요합니다."}`
-        : "dry-run 성과 sync 계획을 저장했습니다."
+        : `dry-run 성과 sync 계획을 저장했습니다. ${entityIds.length}개 ID가 수동 sync 대기 상태입니다.`
     );
   }
 
@@ -1009,6 +1039,9 @@ function AdminUsersContent() {
     }
 
     setPerformancePreviewStatus("loading");
+    setPerformancePlanStatus("idle");
+    setPerformanceQueueStatus("idle");
+    setPerformanceQueuePlanId(null);
     setPerformanceMessage("");
     const token = await getAccessToken();
 
@@ -1075,6 +1108,60 @@ function AdminUsersContent() {
       dateFrom: plan.requestedFrom,
       dateTo: plan.requestedTo
     });
+  }
+
+  async function runManualPerformanceSyncPlan(plan: PerformanceSyncPlanItem) {
+    if (!canRunManualPerformanceSync(plan)) {
+      setPerformanceQueueStatus("error");
+      setPerformanceMessage(manualPerformanceSyncBlockReason(plan));
+      return;
+    }
+
+    setPerformanceQueueStatus("loading");
+    setPerformanceQueuePlanId(plan.id);
+    setPerformancePlanStatus("idle");
+    setPerformanceMessage("");
+    const token = await getAccessToken();
+
+    if (!token) {
+      setPerformanceQueueStatus("error");
+      setPerformanceQueuePlanId(null);
+      setPerformanceMessage("로그인이 필요합니다.");
+      return;
+    }
+
+    const response = await fetch("/api/naver/performance-sync/queue", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        planId: plan.id
+      })
+    });
+    const data = (await response.json().catch(() => ({}))) as PerformanceManualQueueResponse;
+
+    if (!response.ok || data.ok !== true) {
+      setPerformanceQueueStatus("error");
+      setPerformanceQueuePlanId(null);
+      setPerformanceMessage(
+        "warnings" in data && data.warnings?.length
+          ? data.warnings[0]
+          : "error" in data && data.error
+            ? data.error
+            : "수동 performance sync를 실행하지 못했습니다."
+      );
+      await loadPerformanceSyncStatus();
+      return;
+    }
+
+    await loadPerformanceSyncStatus();
+    setPerformanceQueueStatus("success");
+    setPerformanceQueuePlanId(null);
+    setPerformanceMessage(
+      `수동 read-only sync 완료: ${data.plan.rowCount} rows / 추천 ${data.plan.recommendationCount}개 / 초안 ${data.plan.recommendationDraftCount}개`
+    );
   }
 
   function downloadPerformancePreviewMarkdown() {
@@ -1405,7 +1492,10 @@ function AdminUsersContent() {
             {performanceMessage ? (
               <em
                 className={`admin-check-result ${
-                  performancePlanStatus === "success" && performanceStatus !== "error" ? "success" : "error"
+                  (performancePlanStatus === "success" || performanceQueueStatus === "success") &&
+                  performanceStatus !== "error"
+                    ? "success"
+                    : "error"
                 }`}
               >
                 {performanceMessage}
@@ -1650,7 +1740,24 @@ function AdminUsersContent() {
                   </p>
                   {plan.warnings.length > 0 ? <small>{plan.warnings[0]}</small> : null}
                   {plan.resultSummary.message ? <small>{plan.resultSummary.message}</small> : null}
+                  {plan.externalRequest ? <small>read-only external sync 실행됨 / raw stats 저장 안 함</small> : null}
                   <div className="admin-performance-plan-actions">
+                    <button
+                      className="icon-button primary"
+                      disabled={performanceQueueStatus === "loading" || !canRunManualPerformanceSync(plan)}
+                      title={manualPerformanceSyncBlockReason(plan)}
+                      type="button"
+                      onClick={() => {
+                        runManualPerformanceSyncPlan(plan).catch(() => {
+                          setPerformanceQueueStatus("error");
+                          setPerformanceQueuePlanId(null);
+                          setPerformanceMessage("수동 performance sync를 실행하지 못했습니다.");
+                        });
+                      }}
+                    >
+                      <Activity size={16} />
+                      {performanceQueuePlanId === plan.id ? "sync 중" : "수동 sync"}
+                    </button>
                     <button
                       className="icon-button subtle"
                       disabled={performancePreviewStatus === "loading" || plan.entityIds.length === 0}
@@ -2547,6 +2654,43 @@ function performancePlanStatusLabel(value: PerformanceSyncPlanItem["status"]) {
   };
 
   return labels[value];
+}
+
+function canRunManualPerformanceSync(plan: PerformanceSyncPlanItem) {
+  return (
+    (plan.status === "planned" || plan.status === "ready" || plan.status === "failed") &&
+    plan.scope !== "masterReference" &&
+    plan.entityIds.length > 0 &&
+    plan.fields.length > 0
+  );
+}
+
+function manualPerformanceSyncBlockReason(plan: PerformanceSyncPlanItem) {
+  if (canRunManualPerformanceSync(plan)) {
+    return "저장된 계획을 read-only stats sync로 수동 실행합니다.";
+  }
+
+  if (plan.status === "blocked") {
+    return "차단된 계획은 연결 ID와 기간을 보정한 뒤 다시 저장해야 합니다.";
+  }
+
+  if (plan.status === "completed") {
+    return "이미 완료된 계획은 중복 실행하지 않습니다.";
+  }
+
+  if (plan.scope === "masterReference") {
+    return "Master report job 생성이 필요한 scope는 수동 sync 큐에서도 차단합니다.";
+  }
+
+  if (plan.entityIds.length === 0) {
+    return "수동 sync에는 연결 ID가 필요합니다.";
+  }
+
+  if (plan.fields.length === 0) {
+    return "수동 sync에는 stats field가 필요합니다.";
+  }
+
+  return "이 계획은 수동 sync 대상이 아닙니다.";
 }
 
 function performanceScopeLabel(value: PerformanceSyncPlanItem["scope"]) {
