@@ -172,6 +172,24 @@ type AccountSnapshotHistoryResponse = {
   warning: string | null;
 };
 
+type AdminAuditEventItem = {
+  id: string;
+  eventType: string;
+  actor: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  reason: string | null;
+  createdAt: string;
+  summary: string;
+};
+
+type AdminAuditEventsResponse = {
+  ok: true;
+  events: AdminAuditEventItem[];
+  total: number;
+  limit: number;
+};
+
 type OperationalHealth = {
   app: AppHealthResponse;
   supabase: SupabaseReadinessResponse;
@@ -206,11 +224,15 @@ function AdminUsersContent() {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [activityStatus, setActivityStatus] = useState<"idle" | "loading" | "error">("loading");
   const [snapshotStatus, setSnapshotStatus] = useState<"idle" | "loading" | "error">("loading");
+  const [auditStatus, setAuditStatus] = useState<"idle" | "loading" | "error">("loading");
   const [naverCheckStatus, setNaverCheckStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [naverCheckMessage, setNaverCheckMessage] = useState("");
   const [snapshotHistory, setSnapshotHistory] = useState<AccountSnapshotHistoryItem[]>([]);
   const [snapshotTotal, setSnapshotTotal] = useState(0);
   const [snapshotMessage, setSnapshotMessage] = useState("");
+  const [auditEvents, setAuditEvents] = useState<AdminAuditEventItem[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditMessage, setAuditMessage] = useState("");
   const [operationalHealth, setOperationalHealth] = useState<OperationalHealth | null>(null);
   const [healthStatus, setHealthStatus] = useState<"idle" | "loading" | "error">("loading");
   const [healthMessage, setHealthMessage] = useState("");
@@ -420,6 +442,37 @@ function AdminUsersContent() {
     setSnapshotMessage(data.warning ?? "");
   }, [getAccessToken]);
 
+  const loadAdminAuditEvents = useCallback(async () => {
+    setAuditStatus("loading");
+    setAuditMessage("");
+    const token = await getAccessToken();
+
+    if (!token) {
+      setAuditStatus("error");
+      setAuditMessage("로그인이 필요합니다.");
+      return;
+    }
+
+    const response = await fetch("/api/admin/audit-events?limit=8", {
+      headers: {
+        authorization: `Bearer ${token}`
+      }
+    });
+    const data = (await response.json().catch(() => ({}))) as
+      | AdminAuditEventsResponse
+      | { ok?: false; error?: string };
+
+    if (!response.ok || data.ok !== true) {
+      setAuditStatus("error");
+      setAuditMessage("error" in data && data.error ? data.error : "관리 이벤트를 불러오지 못했습니다.");
+      return;
+    }
+
+    setAuditEvents(data.events);
+    setAuditTotal(data.total);
+    setAuditStatus("idle");
+  }, [getAccessToken]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       loadUsers().catch(() => {
@@ -435,12 +488,16 @@ function AdminUsersContent() {
         setSnapshotStatus("error");
         setSnapshotMessage("계정 스캔 이력을 불러오지 못했습니다.");
       });
+      loadAdminAuditEvents().catch(() => {
+        setAuditStatus("error");
+        setAuditMessage("관리 이벤트를 불러오지 못했습니다.");
+      });
     }, 0);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [loadAccountSnapshotHistory, loadOperationalHealth, loadUsers]);
+  }, [loadAccountSnapshotHistory, loadAdminAuditEvents, loadOperationalHealth, loadUsers]);
 
   async function updateRole(userId: string, role: "member" | "admin") {
     setStatus("loading");
@@ -783,6 +840,59 @@ function AdminUsersContent() {
                     <dd>{snapshot.partial ? `${snapshot.errorScopes.length}개 경고` : "정상"}</dd>
                   </div>
                 </dl>
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section className="account-panel admin-audit-panel" aria-label="최근 관리 이벤트">
+        <div className="admin-audit-heading">
+          <div>
+            <ShieldCheck size={22} />
+            <strong>최근 관리 이벤트</strong>
+            <span>회원 초대, 메일 확인 처리, 권한 변경 기록을 추적합니다.</span>
+            {auditMessage ? <em className="admin-check-result error">{auditMessage}</em> : null}
+          </div>
+          <button
+            className="icon-button subtle"
+            disabled={auditStatus === "loading"}
+            type="button"
+            onClick={loadAdminAuditEvents}
+          >
+            <RefreshCw size={17} />
+            {auditStatus === "loading" ? "불러오는 중" : "이벤트 새로고침"}
+          </button>
+        </div>
+        <div className="admin-snapshot-summary">
+          <span>관리 이벤트 {auditTotal}건</span>
+        </div>
+        {auditStatus === "loading" ? (
+          <div className="admin-activity-empty">
+            <span className="skeleton-line wide" />
+            <span className="skeleton-line" />
+            <span className="skeleton-line short" />
+          </div>
+        ) : null}
+        {auditStatus === "idle" && auditEvents.length === 0 ? (
+          <div className="admin-activity-empty">
+            <ShieldCheck size={20} />
+            <strong>최근 관리 이벤트가 없습니다</strong>
+            <span>회원 초대나 권한 변경이 발생하면 이곳에 표시됩니다.</span>
+          </div>
+        ) : null}
+        {auditStatus === "idle" && auditEvents.length > 0 ? (
+          <div className="admin-audit-list">
+            {auditEvents.map((event) => (
+              <article key={event.id}>
+                <div>
+                  <span className="status-pill include">{adminEventLabel(event.eventType)}</span>
+                  <strong>{event.summary}</strong>
+                  <p>
+                    {event.actor ?? "unknown"} / {formatKoreanDateTime(event.createdAt)}
+                  </p>
+                </div>
+                <span>{event.reason ?? "관리자 액션이 기록되었습니다."}</span>
               </article>
             ))}
           </div>
@@ -1136,6 +1246,16 @@ function roleSourceLabel(value: ManagedUser["roleSource"]) {
   };
 
   return labels[value];
+}
+
+function adminEventLabel(value: string) {
+  const labels: Record<string, string> = {
+    "admin.user.invited": "초대",
+    "admin.user.email_confirmed": "메일 확인",
+    "admin.user.role_changed": "권한 변경"
+  };
+
+  return labels[value] ?? "관리 이벤트";
 }
 
 function historySearchKey(user: ManagedUser) {

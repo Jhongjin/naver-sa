@@ -5026,6 +5026,11 @@ td span {
   grid-template-columns: 1fr;
 }
 
+.admin-audit-panel {
+  align-items: stretch;
+  grid-template-columns: 1fr;
+}
+
 .admin-activity-heading {
   align-items: start;
   display: flex;
@@ -5041,6 +5046,19 @@ td span {
 }
 
 .admin-snapshot-heading > div {
+  align-content: start;
+  display: grid;
+  gap: 7px;
+}
+
+.admin-audit-heading {
+  align-items: start;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+}
+
+.admin-audit-heading > div {
   align-content: start;
   display: grid;
   gap: 7px;
@@ -5088,6 +5106,11 @@ td span {
 }
 
 .admin-snapshot-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-audit-list {
   display: grid;
   gap: 10px;
 }
@@ -5195,6 +5218,36 @@ td span {
   font-size: 14px;
   font-weight: 900;
   margin-top: 6px;
+}
+
+.admin-audit-list article {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.42fr);
+  padding: 16px;
+}
+
+.admin-audit-list strong,
+.admin-audit-list p {
+  display: block;
+}
+
+.admin-audit-list strong {
+  color: #0f172a;
+  font-size: 16px;
+  margin-top: 8px;
+}
+
+.admin-audit-list p,
+.admin-audit-list > article > span {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 4px 0 0;
 }
 
 .admin-activity-item:hover {
@@ -5800,6 +5853,7 @@ td span {
   .workspace-membership-item,
   .admin-activity-item,
   .admin-snapshot-list article,
+  .admin-audit-list article,
   .history-detail-grid,
   .history-detail-grid.secondary {
     grid-template-columns: 1fr;
@@ -6042,6 +6096,10 @@ td span {
   }
 
   .admin-snapshot-heading {
+    flex-direction: column;
+  }
+
+  .admin-audit-heading {
     flex-direction: column;
   }
 
