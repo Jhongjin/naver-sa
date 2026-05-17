@@ -482,6 +482,34 @@ function AdminUsersContent() {
 
     return activities;
   }, [activities, activityFilter]);
+  const auditSummary = useMemo(
+    () =>
+      auditEvents.reduce(
+        (summary, event) => {
+          if (event.eventType === "admin.user.invited") {
+            summary.invited += 1;
+          } else if (event.eventType === "admin.user.email_confirmed") {
+            summary.emailConfirmed += 1;
+          } else if (event.eventType === "admin.user.role_changed") {
+            summary.roleChanged += 1;
+          } else {
+            summary.other += 1;
+          }
+
+          return summary;
+        },
+        {
+          loaded: auditEvents.length,
+          total: auditTotal,
+          latestActor: auditEvents[0]?.actor ?? "unknown",
+          invited: 0,
+          emailConfirmed: 0,
+          roleChanged: 0,
+          other: 0
+        }
+      ),
+    [auditEvents, auditTotal]
+  );
   const operationalHealthItems = useMemo(() => {
     if (!operationalHealth) {
       return [];
@@ -1530,6 +1558,32 @@ function AdminUsersContent() {
         </div>
         <div className="admin-snapshot-summary">
           <span>관리 이벤트 {auditTotal}건</span>
+        </div>
+        <div className="admin-activity-summary admin-audit-summary" aria-label="관리 이벤트 요약">
+          <article>
+            <span>불러온 이벤트</span>
+            <strong>
+              {auditSummary.loaded}/{auditSummary.total}
+            </strong>
+            <em>
+              기타 {auditSummary.other}건 / 최근 작업자 {auditSummary.latestActor}
+            </em>
+          </article>
+          <article>
+            <span>초대</span>
+            <strong>{auditSummary.invited}건</strong>
+            <em>admin.user.invited</em>
+          </article>
+          <article>
+            <span>메일 확인</span>
+            <strong>{auditSummary.emailConfirmed}건</strong>
+            <em>admin.user.email_confirmed</em>
+          </article>
+          <article>
+            <span>권한 변경</span>
+            <strong>{auditSummary.roleChanged}건</strong>
+            <em>admin.user.role_changed</em>
+          </article>
         </div>
         {auditStatus === "loading" ? (
           <div className="admin-activity-empty">
