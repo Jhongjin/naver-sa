@@ -643,7 +643,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
   useEffect(() => {
     let active = true;
 
-    fetch("/api/naver/readiness")
+    fetch("/api/naver/readiness", { cache: "no-store" })
       .then((response) => response.json() as Promise<NaverReadiness>)
       .then((data) => {
         if (active) {
@@ -989,6 +989,7 @@ export function PlannerWorkspace({ initialInput }: PlannerWorkspaceProps) {
         siteUrl
       });
       const response = await fetch(`/api/naver/account-snapshot?${params.toString()}`, {
+        cache: "no-store",
         headers: await authHeaders()
       });
       const data = (await response.json()) as AccountSnapshotResponse;

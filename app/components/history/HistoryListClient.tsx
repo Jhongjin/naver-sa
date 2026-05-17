@@ -162,6 +162,7 @@ function HistoryListContent() {
     }
 
     const response = await fetch(`/api/plans/history?${params.toString()}`, {
+      cache: "no-store",
       headers: {
         authorization: `Bearer ${token}`
       }

@@ -134,7 +134,7 @@ export function SharedReportClient({ token }: { token: string }) {
       setStatus("loading");
       setMessage("");
 
-      const response = await fetch(`/api/share/reports/${encodeURIComponent(token)}`);
+      const response = await fetch(`/api/share/reports/${encodeURIComponent(token)}`, { cache: "no-store" });
       const body = (await response.json()) as SharedReportResponse;
 
       if (!response.ok || body.ok !== true) {

@@ -272,6 +272,7 @@ function HistoryDetailContent({ planningRunId }: { planningRunId: string }) {
       }
 
       const response = await fetch(`/api/plans/history/${planningRunId}`, {
+        cache: "no-store",
         headers: {
           authorization: `Bearer ${token}`
         }
@@ -995,6 +996,7 @@ function IssueList({
 
 async function fetchShareLinks(planningRunId: string, token: string): Promise<ShareLink[]> {
   const response = await fetch(`/api/plans/history/${planningRunId}/share-links`, {
+    cache: "no-store",
     headers: {
       authorization: `Bearer ${token}`
     }

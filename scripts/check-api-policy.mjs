@@ -642,6 +642,10 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(adminClientSource, adminClientPath, "ops.report_share.revoked");
   requireSourceIncludes(adminClientSource, adminClientPath, "ops.planning_save.failed");
   requireSourceIncludes(adminClientSource, adminClientPath, "ops.performance_sync.failed");
+  requireSourceIncludes(adminClientSource, adminClientPath, 'fetch("/api/admin/users", {\n      cache: "no-store"');
+  requireSourceIncludes(adminClientSource, adminClientPath, 'fetch(`/api/admin/activity?${activityParams.toString()}`, {\n      cache: "no-store"');
+  requireSourceIncludes(adminClientSource, adminClientPath, 'fetch("/api/naver/account-snapshot/history?limit=8", {\n      cache: "no-store"');
+  requireSourceIncludes(adminClientSource, adminClientPath, 'fetch(`/api/admin/audit-events?${params.toString()}`, {\n      cache: "no-store"');
   requireSourceExcludes(
     adminClientSource,
     adminClientPath,
@@ -706,6 +710,7 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(sharedReportClientSource, sharedReportClientPath, "plannerMetadata");
   requireSourceIncludes(sharedReportClientSource, sharedReportClientPath, "plannerMetadataSanitized");
   requireSourceIncludes(sharedReportClientSource, sharedReportClientPath, "전략 근거");
+  requireSourceIncludes(sharedReportClientSource, sharedReportClientPath, 'fetch(`/api/share/reports/${encodeURIComponent(token)}`, { cache: "no-store" })');
   requireSourceExcludes(
     sharedReportClientSource,
     sharedReportClientPath,
@@ -721,6 +726,7 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(historyListClientSource, historyListClientPath, 'params.set("linkage", linkageFilter)');
   requireSourceIncludes(historyListClientSource, historyListClientPath, "쇼핑 linkage 필터");
   requireSourceIncludes(historyListClientSource, historyListClientPath, "internalCreatorUserIdsExcluded");
+  requireSourceIncludes(historyListClientSource, historyListClientPath, 'fetch(`/api/plans/history?${params.toString()}`, {\n      cache: "no-store"');
   requireSourceExcludes(
     historyListClientSource,
     historyListClientPath,
@@ -788,6 +794,9 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(myPageClientSource, myPageClientPath, "internalOwnerIdExcluded");
   requireSourceIncludes(myPageClientSource, myPageClientPath, "internalCreatorUserIdsExcluded");
   requireSourceIncludes(myPageClientSource, myPageClientPath, "workspaceOwnerLabel(workspace.isOwner");
+  requireSourceIncludes(myPageClientSource, myPageClientPath, 'fetch("/api/auth/session", {\n        cache: "no-store"');
+  requireSourceIncludes(myPageClientSource, myPageClientPath, 'fetch("/api/plans/history?limit=6", {\n        cache: "no-store"');
+  requireSourceIncludes(myPageClientSource, myPageClientPath, 'fetch("/api/workspaces/mine", {\n        cache: "no-store"');
   requireSourceExcludes(
     myPageClientSource,
     myPageClientPath,
@@ -809,6 +818,8 @@ function requireProjectSurfaceChecks() {
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "workspaceOwnerMatchesCreator");
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "createdByUserLinked");
   requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, "event.eventType");
+  requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, 'fetch(`/api/plans/history/${planningRunId}`, {\n        cache: "no-store"');
+  requireSourceIncludes(historyDetailClientSource, historyDetailClientPath, 'fetch(`/api/plans/history/${planningRunId}/share-links`, {\n    cache: "no-store"');
   requireSourceExcludes(
     historyDetailClientSource,
     historyDetailClientPath,
@@ -850,6 +861,8 @@ function requireProjectSurfaceChecks() {
   );
 
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "WORKSPACE_DRAFT_STORAGE_PREFIX");
+  requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, 'fetch("/api/naver/readiness", { cache: "no-store" })');
+  requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, 'fetch(`/api/naver/account-snapshot?${params.toString()}`, {\n        cache: "no-store"');
   requireSourceIncludes(plannerWorkspaceSource, plannerWorkspacePath, "window.localStorage.setItem(workspaceDraftStorageKey, JSON.stringify(snapshot))");
   requireSourceIncludes(localDraftSnapshot, plannerWorkspacePath, "version: 1");
   requireSourceIncludes(localDraftSnapshot, plannerWorkspacePath, "savedAt");

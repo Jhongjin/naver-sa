@@ -148,16 +148,19 @@ function MyPageContent() {
       }
 
       const sessionRequest = fetch("/api/auth/session", {
+        cache: "no-store",
         headers: {
           authorization: `Bearer ${token}`
         }
       });
       const historyResponse = fetch("/api/plans/history?limit=6", {
+        cache: "no-store",
         headers: {
           authorization: `Bearer ${token}`
         }
       });
       const workspaceResponse = fetch("/api/workspaces/mine", {
+        cache: "no-store",
         headers: {
           authorization: `Bearer ${token}`
         }

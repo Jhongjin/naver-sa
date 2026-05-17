@@ -803,6 +803,7 @@ function AdminUsersContent() {
     }
 
     const usersRequest = fetch("/api/admin/users", {
+      cache: "no-store",
       headers: {
         authorization: `Bearer ${token}`
       }
@@ -816,6 +817,7 @@ function AdminUsersContent() {
     }
 
     const activityRequest = fetch(`/api/admin/activity?${activityParams.toString()}`, {
+      cache: "no-store",
       headers: {
         authorization: `Bearer ${token}`
       }
@@ -883,6 +885,7 @@ function AdminUsersContent() {
     }
 
     const response = await fetch("/api/naver/account-snapshot/history?limit=8", {
+      cache: "no-store",
       headers: {
         authorization: `Bearer ${token}`
       }
@@ -924,6 +927,7 @@ function AdminUsersContent() {
     }
 
     const response = await fetch(`/api/admin/audit-events?${params.toString()}`, {
+      cache: "no-store",
       headers: {
         authorization: `Bearer ${token}`
       }
