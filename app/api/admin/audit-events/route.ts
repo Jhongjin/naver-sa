@@ -111,7 +111,15 @@ function summarizeAuditEvent(eventType: string, value: Record<string, unknown> |
   }
 
   if (eventType === "admin.user.email_confirmed") {
-    return email ? `${email} email confirmed` : "User email confirmed";
+    return email ? `${email} approved` : "User approved";
+  }
+
+  if (eventType === "admin.user.approval_requested") {
+    return email ? `${email} requested approval` : "User approval requested";
+  }
+
+  if (eventType === "admin.user.approved") {
+    return email ? `${email} approved` : "User approved";
   }
 
   if (eventType === "admin.user.role_changed") {

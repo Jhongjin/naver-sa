@@ -33,7 +33,7 @@ type ManagedUser = {
   email: string | null;
   role: "member" | "admin";
   roleSource: "appMetadata" | "adminEmails" | "default";
-  emailConfirmed: boolean;
+  adminApproved: boolean;
   isCurrentUser: boolean;
   createdAt: string;
   lastSignInAt: string | null;
@@ -529,8 +529,8 @@ type OperationalHealth = {
 type ActivityFilter = "all" | "ready" | "blocked" | "missingDraft";
 type ActivityLinkageFilter = "all" | ShoppingLinkageStatus;
 type ActivityLimit = 8 | 20;
-type AuditEventFilter = "all" | "ops" | "invited" | "emailConfirmed" | "roleChanged" | "other";
-type UserStatusFilter = "all" | "unconfirmed" | "neverSignedIn" | "noWorkspace";
+type AuditEventFilter = "all" | "ops" | "invited" | "approved" | "roleChanged" | "other";
+type UserStatusFilter = "all" | "pendingApproval" | "neverSignedIn" | "noWorkspace";
 
 function visibleAdminError(message: string | null | undefined, fallback: string) {
   return redactSensitiveErrorText(message, fallback);
@@ -623,7 +623,7 @@ function AdminUsersContent() {
       total: users.length,
       admins: users.filter((user) => user.role === "admin").length,
       members: users.filter((user) => user.role === "member").length,
-      unconfirmed: users.filter((user) => !user.emailConfirmed).length,
+      pendingApproval: users.filter((user) => !user.adminApproved).length,
       neverSignedIn: users.filter((user) => !user.lastSignInAt).length,
       workspaceLinks: users.reduce((total, user) => total + user.workspaceCount, 0),
       planningRuns: users.reduce((total, user) => total + user.planningRunCount, 0)
@@ -637,7 +637,7 @@ function AdminUsersContent() {
       const matchesRole = roleFilter === "all" || user.role === roleFilter;
       const matchesStatus =
         userStatusFilter === "all" ||
-        (userStatusFilter === "unconfirmed" && !user.emailConfirmed) ||
+        (userStatusFilter === "pendingApproval" && !user.adminApproved) ||
         (userStatusFilter === "neverSignedIn" && !user.lastSignInAt) ||
         (userStatusFilter === "noWorkspace" && user.workspaceCount === 0);
       const matchesQuery =
@@ -681,8 +681,8 @@ function AdminUsersContent() {
         (summary, event) => {
           if (event.eventType === "admin.user.invited") {
             summary.invited += 1;
-          } else if (event.eventType === "admin.user.email_confirmed") {
-            summary.emailConfirmed += 1;
+          } else if (event.eventType === "admin.user.approved" || event.eventType === "admin.user.email_confirmed") {
+            summary.approved += 1;
           } else if (event.eventType === "admin.user.role_changed") {
             summary.roleChanged += 1;
           } else if (event.eventType.startsWith("ops.")) {
@@ -698,7 +698,7 @@ function AdminUsersContent() {
           total: auditTotal,
           latestActor: auditEvents[0]?.actor ?? "unknown",
           invited: 0,
-          emailConfirmed: 0,
+          approved: 0,
           roleChanged: 0,
           ops: 0,
           other: 0
@@ -1115,7 +1115,7 @@ function AdminUsersContent() {
     await loadUsers();
   }
 
-  async function confirmUserEmail(userId: string) {
+  async function approveUser(userId: string) {
     setStatus("loading");
     const token = await getAccessToken();
 
@@ -1131,13 +1131,13 @@ function AdminUsersContent() {
         "Content-Type": "application/json",
         authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({ action: "confirmEmail", userId })
+      body: JSON.stringify({ action: "approveUser", userId })
     });
 
     if (!response.ok) {
       setStatus("error");
       const data = (await response.json().catch(() => ({}))) as { error?: string };
-      setMessage(visibleAdminError(data.error, "메일 확인 상태를 변경하지 못했습니다."));
+      setMessage(visibleAdminError(data.error, "회원 승인 상태를 변경하지 못했습니다."));
       return;
     }
 
@@ -1184,7 +1184,7 @@ function AdminUsersContent() {
     }
 
     setInviteStatus("success");
-    setInviteMessage(`${data.email}로 초대 메일을 요청했습니다.`);
+    setInviteMessage(`${data.email}로 초대 요청을 보냈습니다.`);
     setInviteEmail("");
     setInviteName("");
     setInviteCompany("");
@@ -2274,9 +2274,9 @@ function AdminUsersContent() {
             <em>admin.user.invited</em>
           </article>
           <article>
-            <span>메일 확인</span>
-            <strong>{auditSummary.emailConfirmed}건</strong>
-            <em>admin.user.email_confirmed</em>
+            <span>관리자 승인</span>
+            <strong>{auditSummary.approved}건</strong>
+            <em>admin.user.approved</em>
           </article>
           <article>
             <span>권한 변경</span>
@@ -2285,7 +2285,7 @@ function AdminUsersContent() {
           </article>
         </div>
         <div className="segmented-control admin-audit-filter" aria-label="관리 이벤트 타입 필터">
-          {(["all", "ops", "invited", "emailConfirmed", "roleChanged", "other"] as const).map((filter) => (
+          {(["all", "ops", "invited", "approved", "roleChanged", "other"] as const).map((filter) => (
             <button
               aria-pressed={auditEventFilter === filter}
               className={auditEventFilter === filter ? "active" : ""}
@@ -2360,8 +2360,8 @@ function AdminUsersContent() {
         </article>
         <article>
           <AlertTriangle size={18} />
-          <span>메일 미확인</span>
-          <strong>{summary.unconfirmed}명</strong>
+          <span>승인 대기</span>
+          <strong>{summary.pendingApproval}명</strong>
         </article>
         <article>
           <UserCheck size={18} />
@@ -2553,7 +2553,7 @@ function AdminUsersContent() {
           ))}
         </div>
         <div className="segmented-control admin-status-filter" aria-label="계정 상태 필터">
-          {(["all", "unconfirmed", "neverSignedIn", "noWorkspace"] as const).map((filter) => (
+          {(["all", "pendingApproval", "neverSignedIn", "noWorkspace"] as const).map((filter) => (
             <button
               aria-pressed={userStatusFilter === filter}
               className={userStatusFilter === filter ? "active" : ""}
@@ -2614,17 +2614,17 @@ function AdminUsersContent() {
             </span>
             <span className="admin-status-cell">
               <span className="mobile-label">상태</span>
-              <span className={`status-pill ${user.emailConfirmed ? "include" : "review"}`}>
-                {user.emailConfirmed ? "인증됨" : "메일 미확인"}
+              <span className={`status-pill ${user.adminApproved ? "include" : "review"}`}>
+                {user.adminApproved ? "승인됨" : "승인 대기"}
               </span>
-              {!user.emailConfirmed ? (
+              {!user.adminApproved ? (
                 <button
                   className="admin-inline-action"
                   disabled={status === "loading"}
                   type="button"
-                  onClick={() => confirmUserEmail(user.id)}
+                  onClick={() => approveUser(user.id)}
                 >
-                  확인 처리
+                  승인 처리
                 </button>
               ) : null}
             </span>
@@ -2693,7 +2693,7 @@ function roleFilterLabel(value: "all" | "admin" | "member") {
 function userStatusFilterLabel(value: UserStatusFilter) {
   const labels = {
     all: "전체 상태",
-    unconfirmed: "메일 미확인",
+    pendingApproval: "승인 대기",
     neverSignedIn: "로그인 전",
     noWorkspace: "WS 없음"
   };
@@ -3042,7 +3042,7 @@ function createUsersCsv(users: ManagedUser[]) {
       "email",
       "role",
       "role_source",
-      "email_confirmed",
+      "admin_approved",
       "display_name",
       "company_name",
       "workspaces",
@@ -3056,7 +3056,7 @@ function createUsersCsv(users: ManagedUser[]) {
       user.email ?? "",
       user.role,
       user.roleSource,
-      user.emailConfirmed ? "true" : "false",
+      user.adminApproved ? "true" : "false",
       user.displayName ?? "",
       user.companyName ?? "",
       user.workspaceCount,
@@ -3114,7 +3114,7 @@ function auditEventFilterLabel(value: AuditEventFilter) {
     all: "전체",
     ops: "운영 알림",
     invited: "초대",
-    emailConfirmed: "메일 확인",
+    approved: "승인",
     roleChanged: "권한 변경",
     other: "기타"
   };
@@ -3135,8 +3135,8 @@ function auditEventMatchesFilter(event: AdminAuditEventItem, filter: AuditEventF
     return event.eventType === "admin.user.invited";
   }
 
-  if (filter === "emailConfirmed") {
-    return event.eventType === "admin.user.email_confirmed";
+  if (filter === "approved") {
+    return event.eventType === "admin.user.approved" || event.eventType === "admin.user.email_confirmed";
   }
 
   if (filter === "roleChanged") {
@@ -3145,7 +3145,7 @@ function auditEventMatchesFilter(event: AdminAuditEventItem, filter: AuditEventF
 
   return (
     !event.eventType.startsWith("ops.") &&
-    !["admin.user.invited", "admin.user.email_confirmed", "admin.user.role_changed"].includes(event.eventType)
+    !["admin.user.invited", "admin.user.approved", "admin.user.email_confirmed", "admin.user.role_changed"].includes(event.eventType)
   );
 }
 
@@ -3162,9 +3162,9 @@ function auditServerFilterParams(filter: AuditEventFilter): Record<string, strin
     };
   }
 
-  if (filter === "emailConfirmed") {
+  if (filter === "approved") {
     return {
-      eventType: "admin.user.email_confirmed"
+      eventType: "admin.user.approved"
     };
   }
 
@@ -3190,7 +3190,9 @@ function roleSourceLabel(value: ManagedUser["roleSource"]) {
 function adminEventLabel(value: string) {
   const labels: Record<string, string> = {
     "admin.user.invited": "초대",
-    "admin.user.email_confirmed": "메일 확인",
+    "admin.user.approval_requested": "승인 요청",
+    "admin.user.approved": "승인",
+    "admin.user.email_confirmed": "승인",
     "admin.user.role_changed": "권한 변경",
     "ops.report_share.created": "공유 생성",
     "ops.report_share.revoked": "공유 폐기",

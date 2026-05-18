@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     mode: access.state.mode,
     userId: access.state.userId,
     email: access.state.email,
-    emailConfirmed: access.state.emailConfirmed,
+    adminApproved: access.state.adminApproved,
     capabilities: access.state.capabilities,
     session: {
       expiresInSeconds: access.state.sessionTtlSeconds,

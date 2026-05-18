@@ -18,7 +18,7 @@ export type AuthAccessState = {
   role: AppUserRole;
   userId: string;
   email: string | null;
-  emailConfirmed: boolean;
+  adminApproved: boolean;
   capabilities: AuthCapabilities;
   sessionTtlSeconds: number;
 };
@@ -33,7 +33,12 @@ export type AuthAccessResult =
       ok: false;
       status: number;
       error: string;
-      code: "AUTH_ENV_NOT_CONFIGURED" | "AUTH_TOKEN_REQUIRED" | "AUTH_TOKEN_INVALID" | "ADMIN_ROLE_REQUIRED";
+      code:
+        | "AUTH_ENV_NOT_CONFIGURED"
+        | "AUTH_TOKEN_REQUIRED"
+        | "AUTH_TOKEN_INVALID"
+        | "ADMIN_APPROVAL_REQUIRED"
+        | "ADMIN_ROLE_REQUIRED";
     };
 
 type AuthAccessOptions = {
@@ -78,6 +83,17 @@ export async function verifyUserAccess(
   }
 
   const role = getUserRole(data.user);
+  const adminApproved = isUserAdminApproved(data.user);
+  const configuredAdmin = isConfiguredAdminEmail(data.user.email);
+
+  if (!adminApproved && !configuredAdmin) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Administrator approval is required before workspace access.",
+      code: "ADMIN_APPROVAL_REQUIRED"
+    };
+  }
 
   if (options.requireAdmin && role !== "admin") {
     return {
@@ -96,7 +112,7 @@ export async function verifyUserAccess(
       role,
       userId: data.user.id,
       email: data.user.email ?? null,
-      emailConfirmed: Boolean(data.user.email_confirmed_at),
+      adminApproved: adminApproved || configuredAdmin,
       capabilities: getAuthCapabilities(role),
       sessionTtlSeconds: getTokenTtlSeconds(token)
     }
@@ -131,6 +147,11 @@ export function getUserRole(user: User): AppUserRole {
   return "member";
 }
 
+export function isUserAdminApproved(user: User): boolean {
+  // The app uses Supabase's confirmed flag as the administrator approval marker.
+  return Boolean(user.email_confirmed_at);
+}
+
 export function getConfiguredAdminEmails(): Set<string> {
   return new Set(
     (process.env.ADMIN_EMAILS ?? "")
@@ -138,6 +159,10 @@ export function getConfiguredAdminEmails(): Set<string> {
       .map((email) => email.trim().toLowerCase())
       .filter(Boolean)
   );
+}
+
+function isConfiguredAdminEmail(email: string | null | undefined): boolean {
+  return Boolean(email && getConfiguredAdminEmails().has(email.toLowerCase()));
 }
 
 function getSupabaseAuthClient(): SupabaseClient | null {

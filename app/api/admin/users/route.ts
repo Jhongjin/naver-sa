@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { getConfiguredAdminEmails, getUserRole, verifyUserAccess, type AppUserRole } from "@/lib/auth-access";
+import { getConfiguredAdminEmails, getUserRole, isUserAdminApproved, verifyUserAccess, type AppUserRole } from "@/lib/auth-access";
 import { redactSensitiveErrorText } from "@/lib/error-redaction";
 import { jsonNoStore, methodNotAllowed } from "@/lib/http";
 import { getSupabaseAdminClient, getSupabaseAdminState } from "@/lib/supabase-admin";
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
     email: user.email ?? null,
     role: getUserRole(user),
     roleSource: getRoleSource(user),
-    emailConfirmed: Boolean(user.email_confirmed_at),
+    adminApproved: isUserAdminApproved(user),
     isCurrentUser: user.id === access.user.id,
     createdAt: user.created_at,
     lastSignInAt: user.last_sign_in_at ?? null,
@@ -148,7 +148,7 @@ export async function PATCH(request: Request) {
 
   const body = await readJson(request);
   const userId = typeof body.userId === "string" ? body.userId : "";
-  const action = body.action === "confirmEmail" ? "confirmEmail" : "setRole";
+  const action = body.action === "approveUser" || body.action === "confirmEmail" ? "approveUser" : "setRole";
   const role = body.role === "admin" || body.role === "member" ? (body.role as AppUserRole) : null;
 
   if (!userId || (action === "setRole" && !role)) {
@@ -161,17 +161,21 @@ export async function PATCH(request: Request) {
     return jsonNoStore({ ok: false, error: "User was not found." }, { status: 404 });
   }
 
-  if (action === "confirmEmail") {
-    if (existing.user.email_confirmed_at) {
+  if (action === "approveUser") {
+    if (isUserAdminApproved(existing.user)) {
       return jsonNoStore({
         ok: true,
         userId,
-        emailConfirmed: true
+        adminApproved: true
       });
     }
 
     const { error } = await admin.auth.admin.updateUserById(userId, {
-      email_confirm: true
+      email_confirm: true,
+      app_metadata: {
+        ...existing.user.app_metadata,
+        approval_status: "approved"
+      }
     });
 
     if (error) {
@@ -180,22 +184,22 @@ export async function PATCH(request: Request) {
 
     const auditWarning = await writeAdminAuditEvent(admin, {
       actor: access.user.email ?? access.user.id,
-      eventType: "admin.user.email_confirmed",
+      eventType: "admin.user.approved",
       entityId: userId,
       beforeValue: {
-        emailConfirmed: false
+        adminApproved: false
       },
       afterValue: {
         email: existing.user.email ?? null,
-        emailConfirmed: true
+        adminApproved: true
       },
-      reason: "Administrator manually confirmed a user email."
+      reason: "Administrator approved a workspace user."
     });
 
     return jsonNoStore({
       ok: true,
       userId,
-      emailConfirmed: true,
+      adminApproved: true,
       warnings: auditWarning ? [auditWarning] : []
     });
   }

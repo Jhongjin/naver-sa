@@ -11,16 +11,26 @@ type AuthFormProps = {
   mode: "login" | "signup";
 };
 
+function visibleAuthFormError(message: string | null | undefined, fallback: string) {
+  const lower = message?.toLowerCase() ?? "";
+
+  if (lower.includes("email not confirmed") || lower.includes("not confirmed")) {
+    return "관리자 승인 대기 중입니다. 승인 후 로그인할 수 있습니다.";
+  }
+
+  return redactSensitiveErrorText(message, fallback);
+}
+
 const authSteps = [
   {
     label: "01",
-    title: "계정 생성",
-    body: "이메일 세션으로 워크스페이스 접근을 시작합니다."
+    title: "가입 요청",
+    body: "계정을 만든 뒤 관리자 승인 대기 상태로 등록합니다."
   },
   {
     label: "02",
-    title: "권한 확인",
-    body: "관리자 권한에 따라 계정 스캔과 이력 저장을 분리합니다."
+    title: "관리자 승인",
+    body: "승인된 계정만 워크스페이스와 보호 API를 사용할 수 있습니다."
   },
   {
     label: "03",
@@ -37,8 +47,8 @@ const accessCards = [
   },
   {
     icon: LockKeyhole,
-    title: "Session gated",
-    body: "보호 API는 로그인 세션을 확인합니다."
+    title: "Admin approved",
+    body: "승인 전 계정은 로그인해도 보호 API가 차단됩니다."
   },
   {
     icon: DatabaseZap,
@@ -55,7 +65,6 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [companyName, setCompanyName] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
-  const [lastSignupEmail, setLastSignupEmail] = useState("");
   const isSignup = mode === "signup";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -70,69 +79,74 @@ export function AuthForm({ mode }: AuthFormProps) {
       return;
     }
 
-    const result = isSignup
-      ? await supabase.auth.signUp({
+    if (isSignup) {
+      const response = await fetch("/api/auth/signup-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
           email,
           password,
-          options: {
-            data: {
-              display_name: displayName.trim(),
-              company_name: companyName.trim()
-            }
-          }
+          displayName,
+          companyName
         })
-      : await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
+      });
+      const data = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+
+      if (!response.ok || data.ok !== true) {
+        setStatus("error");
+        setMessage(redactSensitiveErrorText(data.error, "가입 요청을 접수하지 못했습니다."));
+        return;
+      }
+
+      await supabase.auth.signOut();
+      setStatus("success");
+      setMessage("가입 요청을 접수했습니다. 관리자가 승인하면 로그인할 수 있습니다.");
+      return;
+    }
+
+    const result = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
 
     if (result.error) {
       setStatus("error");
-      setMessage(redactSensitiveErrorText(result.error.message, "인증 요청에 실패했습니다."));
+      setMessage(visibleAuthFormError(result.error.message, "인증 요청에 실패했습니다."));
       return;
     }
 
-    if (isSignup && !result.data.session) {
-      setStatus("success");
-      setLastSignupEmail(email);
-      setMessage("가입 확인 메일을 보냈습니다. 메일 인증 후 로그인해 주세요.");
-      return;
-    }
+    const token = result.data.session?.access_token;
 
-    setStatus("success");
-    setLastSignupEmail("");
-    setMessage(isSignup ? "회원가입이 완료되었습니다." : "로그인되었습니다.");
-    router.push("/workspace");
-  }
-
-  async function resendConfirmationEmail() {
-    if (!lastSignupEmail) {
-      return;
-    }
-
-    setStatus("loading");
-    setMessage("");
-    const supabase = getSupabaseBrowserClient();
-
-    if (!supabase) {
+    if (!token) {
       setStatus("error");
-      setMessage("Supabase 공개 인증 환경변수가 설정되지 않았습니다.");
+      setMessage("로그인 세션을 확인하지 못했습니다.");
       return;
     }
 
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email: lastSignupEmail
+    const approval = await fetch("/api/auth/session", {
+      cache: "no-store",
+      headers: {
+        authorization: `Bearer ${token}`
+      }
     });
+    const approvalData = (await approval.json().catch(() => ({}))) as { ok?: boolean; code?: string; error?: string };
 
-    if (error) {
+    if (!approval.ok || approvalData.ok !== true) {
+      await supabase.auth.signOut();
       setStatus("error");
-      setMessage(redactSensitiveErrorText(error.message, "가입 확인 메일을 다시 보내지 못했습니다."));
+      setMessage(
+        approvalData.code === "ADMIN_APPROVAL_REQUIRED"
+          ? "관리자 승인 대기 중입니다. 승인 후 로그인할 수 있습니다."
+          : redactSensitiveErrorText(approvalData.error, "로그인 권한을 확인하지 못했습니다.")
+      );
       return;
     }
 
     setStatus("success");
-    setMessage("가입 확인 메일을 다시 보냈습니다. 받은 편지함과 스팸함을 함께 확인해 주세요.");
+    setMessage("로그인되었습니다.");
+    router.push("/workspace");
   }
 
   return (
@@ -145,8 +159,8 @@ export function AuthForm({ mode }: AuthFormProps) {
           </Link>
           <div className="auth-copy">
             <p className="eyebrow">Account Access</p>
-            <h1>{isSignup ? "팀 계정을 만들고 승인 흐름을 시작하세요" : "회원 계정으로 워크스페이스에 접속하세요"}</h1>
-            <p>로그인 세션과 권한으로 계정 스캔, 초안 검증, 이력 저장 접근을 나눕니다.</p>
+            <h1>{isSignup ? "가입 요청을 보내고 관리자 승인을 기다리세요" : "승인된 계정으로 워크스페이스에 접속하세요"}</h1>
+            <p>로그인 세션, 관리자 승인 상태, 권한으로 계정 스캔과 이력 저장 접근을 나눕니다.</p>
           </div>
           <div className="auth-flow-list" aria-label="계정 접근 흐름">
             {authSteps.map((step) => (
@@ -211,20 +225,9 @@ export function AuthForm({ mode }: AuthFormProps) {
               <small>8자 이상으로 설정해 주세요.</small>
             </label>
             {message ? <p className={`auth-message ${status}`}>{message}</p> : null}
-            {isSignup && lastSignupEmail ? (
-              <button
-                className="icon-button subtle auth-resend"
-                disabled={status === "loading"}
-                type="button"
-                onClick={resendConfirmationEmail}
-              >
-                <Mail size={17} />
-                인증 메일 다시 보내기
-              </button>
-            ) : null}
             <button className="icon-button primary auth-submit" disabled={status === "loading"} type="submit">
               {isSignup ? <UserPlus size={18} /> : <Mail size={18} />}
-              {status === "loading" ? "처리 중" : isSignup ? "회원가입" : "로그인"}
+              {status === "loading" ? "처리 중" : isSignup ? "가입 요청" : "로그인"}
             </button>
           </form>
           <div className="auth-access-grid" aria-label="접근 원칙">

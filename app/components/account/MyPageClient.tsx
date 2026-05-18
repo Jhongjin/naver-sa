@@ -27,7 +27,7 @@ type SessionSummary = {
   role: "member" | "admin";
   mode: "supabase-auth";
   email: string | null;
-  emailConfirmed: boolean;
+  adminApproved: boolean;
   userId: string;
   capabilities: {
     canReadAccountInventory: boolean;
@@ -263,8 +263,8 @@ function MyPageContent() {
         </article>
         <article>
           <MailCheck size={22} />
-          <strong>이메일</strong>
-          <span>{sessionSummary ? (sessionSummary.emailConfirmed ? "확인됨" : "확인 필요") : "확인 중"}</span>
+          <strong>승인 상태</strong>
+          <span>{sessionSummary ? (sessionSummary.adminApproved ? "관리자 승인됨" : "승인 대기") : "확인 중"}</span>
         </article>
         <article>
           <BadgeCheck size={22} />

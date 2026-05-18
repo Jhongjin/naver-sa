@@ -153,9 +153,21 @@ for (const file of routeFiles) {
 
   if (relativePath === "app/api/auth/session/route.ts") {
     requireSourceIncludes(source, relativePath, "verifyUserAccess(request)");
+    requireSourceIncludes(source, relativePath, "adminApproved: access.state.adminApproved");
     requireSourceIncludes(source, relativePath, 'liveCampaignActivation: "blocked"');
     requireSourceIncludes(source, relativePath, 'productionDeletion: "blocked"');
     requireSourceIncludes(source, relativePath, 'externalWriteExecution: "test-route-only"');
+  }
+
+  if (relativePath === "app/api/auth/signup-request/route.ts") {
+    requireSourceIncludes(source, relativePath, "getSupabaseAdminClient");
+    requireSourceIncludes(source, relativePath, "email_confirm: false");
+    requireSourceIncludes(source, relativePath, 'approval_status: "pending"');
+    requireSourceIncludes(source, relativePath, 'approvalStatus: "pending_admin_approval"');
+    requireSourceIncludes(source, relativePath, "redactSensitiveErrorText");
+    requireSourceExcludes(source, relativePath, "signUp(", "signup requests must not use Supabase email confirmation");
+    requireSourceExcludes(source, relativePath, "inviteUserByEmail", "public signup must not send invite or confirmation email");
+    requireSourceExcludes(source, relativePath, "userId:", "public signup response must not expose internal user ids");
   }
 
   if (relativePath === "app/api/health/route.ts") {
@@ -929,10 +941,22 @@ function requireProjectSurfaceChecks() {
   const authFormSource = readProjectFile(authFormPath);
 
   requireSourceIncludes(authFormSource, authFormPath, "redactSensitiveErrorText");
-  requireSourceIncludes(authFormSource, authFormPath, 'redactSensitiveErrorText(result.error.message, "인증 요청에 실패했습니다.")');
-  requireSourceIncludes(authFormSource, authFormPath, 'redactSensitiveErrorText(error.message, "가입 확인 메일을 다시 보내지 못했습니다.")');
+  requireSourceIncludes(authFormSource, authFormPath, 'fetch("/api/auth/signup-request"');
+  requireSourceIncludes(authFormSource, authFormPath, 'redactSensitiveErrorText(data.error, "가입 요청을 접수하지 못했습니다.")');
+  requireSourceIncludes(authFormSource, authFormPath, "visibleAuthFormError");
+  requireSourceIncludes(authFormSource, authFormPath, "관리자 승인 대기 중입니다. 승인 후 로그인할 수 있습니다.");
+  requireSourceExcludes(authFormSource, authFormPath, ".auth.signUp(", "signup flow must use admin approval request API");
+  requireSourceExcludes(authFormSource, authFormPath, ".auth.resend(", "signup flow must not resend email confirmation");
   requireSourceExcludes(authFormSource, authFormPath, "setMessage(result.error.message)", "auth form errors must be redacted before display");
   requireSourceExcludes(authFormSource, authFormPath, "setMessage(error.message)", "auth form errors must be redacted before display");
+
+  const authAccessPath = "lib/auth-access.ts";
+  const authAccessSource = readProjectFile(authAccessPath);
+
+  requireSourceIncludes(authAccessSource, authAccessPath, "ADMIN_APPROVAL_REQUIRED");
+  requireSourceIncludes(authAccessSource, authAccessPath, "isUserAdminApproved(data.user)");
+  requireSourceIncludes(authAccessSource, authAccessPath, "Administrator approval is required before workspace access.");
+  requireSourceIncludes(authAccessSource, authAccessPath, "adminApproved");
 
   const historyListClientPath = "app/components/history/HistoryListClient.tsx";
   const historyListClientSource = readProjectFile(historyListClientPath);
